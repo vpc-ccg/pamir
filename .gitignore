@@ -1,0 +1,6 @@
+sniper
+recalibrate
+remove_duplicate_insertions
+partition_processor
+*.o
+*.sh
