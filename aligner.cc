@@ -5,6 +5,7 @@
 #include"aligner.h"
 
 using namespace std;
+
 aligner::aligner(int anchor_length,int reflen)
 {
 	MAX_SIDE=reflen;
@@ -91,11 +92,6 @@ void aligner::clear(int a, int b)
 	}
 }
 
-int aligner::max4(int a, int b, int c, int d)
-{
-	return max( max(a,b) , max(c,d));
-}
-
 int aligner::max3(int a, int b, int c)
 {
 	return max (max(a,b), c);
@@ -103,11 +99,7 @@ int aligner::max3(int a, int b, int c)
 
 void aligner::align(const string &ref, const string &ass)
 {
-//	cout<<"start of alignment"<<endl;
-
 	int len = ass.length();
-	//	clear(MAX_SIDE+1 ,MAX_SIDE+1);
-	//	clear(ref.length()+1, len+1);
 
 	int tmp;	
 	for (int i=1; i<=ref.length();i++)
@@ -117,7 +109,6 @@ void aligner::align(const string &ref, const string &ass)
 			gapa[i][j] = max( gapa[i-1][j] + GAP_EXTENSION_SCORE, score[i-1][j]+GAP_OPENING_SCORE+GAP_EXTENSION_SCORE);
 			gapb[i][j] = max( gapb[i][j-1] + GAP_EXTENSION_SCORE, score[i][j-1]+GAP_OPENING_SCORE+GAP_EXTENSION_SCORE);
 			tmp = ((ref[i-1]==ass[j-1])?MATCH_SCORE:MISMATCH_SCORE);
-			//	score[i][j] = max4(0 ,score[i-1][j-1]+tmp, gapa[i-1][j-1]+tmp, gapb[i-1][j-1]+tmp);
 			score[i][j] = max3(score[i-1][j-1]+tmp, gapa[i-1][j-1]+tmp, gapb[i-1][j-1]+tmp);
 		}
 	}
@@ -146,7 +137,6 @@ void aligner::align(const string &ref, const string &ass)
 
 	int match=0, mismatch=0, indel=0;
 	
-//	cout<<"back pi: "<<pi<<"\tpj: "<<pj<<endl;
 	while ( pi >0 && pj > 0 )
 	{
 		if ( cur == 0 )
@@ -253,7 +243,6 @@ void aligner::align(const string &ref, const string &ass)
 	len = ass.length();
 	int l = 1+abs((((p_end-p_start)+1)-len));
 	identity = 1 - (mismatch+indel+log(l))/len;
-	//cout<<"end of alignment "<< pi << " " << pj << " " << score[pi][pj]<<endl;
 }
 
 void aligner::extract_calls(const string& ref, int start, int clusterId, int *coverage, FILE *fo)
@@ -366,16 +355,6 @@ int aligner::get_end()
 {
 	return p_end;
 }
-
-/*int aligner::get_anchor_start()
-{
-	return a_start;
-}
-
-int aligner::get_anchor_end()
-{
-	return a_end;
-}*/
 
 float aligner::get_identity()
 {

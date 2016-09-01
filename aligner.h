@@ -44,7 +44,6 @@ private:
 
 private:
 	void clear(int, int);
-	int max4(int,int,int,int);
 	int max3(int, int, int);
 	void print_matrix(string, const string &, const string &, int **);	
 
@@ -56,8 +55,6 @@ public:
 	void dump(FILE *fo);
 	int get_start();
 	int get_end();
-	//int get_anchor_start();
-	//int get_anchor_end();
 	float get_identity();
 	int get_left_anchor();
 	int get_right_anchor();
