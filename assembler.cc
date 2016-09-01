@@ -2,21 +2,20 @@
 #include<set>
 #include<vector>
 #include<utility>
-#include "assembler.h"
 #include<cassert>
+#include "assembler.h"
+
 using namespace std;
 
 inline char DNA(char c) {
 	return (c=='T'?3:(c=='G'?2:(c=='C'?1:0)));
 }
 
-
 assembler::assembler (int mcs = 20000, int mgs = 10):
 	max_contig_size (mcs), min_glue_size(mgs)
 {
 	initialize(max_contig_size, prime_seed);
 }
-
 
 assembler::~assembler (void) {
 	for (int i = 0; i < max_contig_size; i++) {
@@ -27,7 +26,6 @@ assembler::~assembler (void) {
 	delete[] hash_s;
 }
 
-
 void assembler::initialize (int mcs, int ps) {
 	hash_p = new set<sread*>*[mcs];
 	hash_s = new set<sread*>*[mcs];
@@ -36,7 +34,6 @@ void assembler::initialize (int mcs, int ps) {
 		hash_s[i] = new set<sread*>[ps];
 	}
 }
-
 
 void assembler::update (sread *r, char mode) {
 	int h = 0, p = 0;
@@ -64,7 +61,6 @@ void assembler::update (sread *r, char mode) {
 		exp = (exp * 4) % prime_seed;
 	}
 }
-
 
 bool assembler::full_compare (const string &a, const string &b, int glue_sz) {
 	for (int i = 0; i < glue_sz + 1; i++)
@@ -107,11 +103,6 @@ bool assembler::assemble_single (int sz, int ha) {
 		(*iy)->used = 1;
 		ret = 1;
 		auto it = reads.begin();
-		/*for(auto it = reads.begin(); it != reads.end(); it++)
-		{*/
-//		printf("%d\t%s\n",(*it)->data.length(),(*it)->data.c_str());
-		/*}
-		printf("***************************************************************\n");*/
 	}
 	for (int i = 0; i < rm.size(); i++) {
 		update(rm[i], 1);
@@ -121,7 +112,6 @@ bool assembler::assemble_single (int sz, int ha) {
 
 	return ret;
 }
-
 
 void assembler::assemble (void) {
 	while (1) {
@@ -139,7 +129,6 @@ void assembler::assemble (void) {
 			break;
 	}
 }
-
 
 vector<contig> assembler::assemble (const vector<pair<pair<string, string>,pair<int, int>>> &input) {
 	for (int i = 0; i < input.size(); i++) {
@@ -164,7 +153,6 @@ vector<contig> assembler::assemble (const vector<pair<pair<string, string>,pair<
 		}
 		ri++;
 
-	//	result[ri++] = make_pair((*it)->data, (*it)->reads);
 		update(*it, 1);
 		delete *it;
 	}

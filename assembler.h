@@ -37,7 +37,6 @@ struct contig {
 		start=read_information[0].in_genome_location;		
 		for (int i=0; i < read_information.size(); i++)
 		{
-			//printf("ALL:\t%d\t%d\t%d\n",i,start,read_information[i].in_genome_location);
 			if(read_information[i].in_genome_location!=-1)
 			{
 				if(start==-1)
