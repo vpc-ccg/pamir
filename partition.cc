@@ -156,8 +156,9 @@ vector<pair<pair<string, string>, pair<int,int>>> genome_partition::read_partiti
 	const int MAXB = 259072;
 	char pref[MAXB];
 	char name[MAXB], read[MAXB];
+
 reset:
-//	assert(start < offsets.size());
+	//	assert(start < offsets.size());
 	if (start >= offsets.size() || start >= end)
 		return vector<pair<pair<string, string>, pair<int,int>>>();
 	//fprintf(stderr,"Seeking to %d--%d (%lu)\n", start, end, offsets[start]);

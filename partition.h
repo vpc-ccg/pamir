@@ -35,7 +35,6 @@ public:
 	vector<pair<pair<string, string>, pair<int,int>>> get_next (void);
 	vector<pair<pair<string, string>, pair<int,int>>> read_partition (const string&, const string&);
 
-
 	bool has_next (void);
 	size_t dump (const vector<pair<pair<string, string>, pair<int, int>>>&, FILE*, int);
 
