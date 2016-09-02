@@ -89,8 +89,6 @@ int main(int argc, char** argv) {
 			}
 			fprintf(fout2,"\n");
 		}
-		delete line;
-		line = new char[1000000];
 	}
 	fin.close();
 	fclose(fin2);
