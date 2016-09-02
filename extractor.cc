@@ -85,7 +85,7 @@ extractor::extractor(string filename, string output_prefix, int ftype, int oea, 
 	if (oea) 
 	{
 		string foea_mapped_name = output_prefix + "oea.mapped."+extensions[ftype];
-		string foea_unmapped_name = output_prefix + "oea.unmapd."+extensions[ftype];
+		string foea_unmapped_name = output_prefix + "oea.unmapped."+extensions[ftype];
 		foea_mapped  = fopen (foea_mapped_name.c_str(), "w");
 		foea_unmapped  = fopen (foea_unmapped_name.c_str(), "w");
 	}
