@@ -1,6 +1,6 @@
 CC=g++
 CFLAGS= -c -g -std=gnu++0x -I ../dz 
-SOURCES=partition.cc sniper.cc assembler.cc genome.cc aligner.cc logger.cc assembler_ext.cc extractor.cc 
+SOURCES=partition.cc sniper.cc assembler.cc genome.cc aligner.cc logger.cc assembler_ext.cc extractor.cc common.cc 
 LDFLAGS=-lm -L ../zlib-1.2.8/ -lz -lpthread -pthread ../dz/libdeez.a
 #LDFLAGS=-lm -lz -lpthread -pthread
 OBJECTS=$(SOURCES:.cc=.o) 

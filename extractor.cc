@@ -1,37 +1,17 @@
 #include <string>
 #include <DeeZ.h>
+#include "common.h"
 #include "extractor.h"
 
 using namespace std;
-
-
-inline string reverse_complete (const string &str)
-{
-	const char *revComp = "TBGDEFCHIJKLMNOPQRSAUVWXYZ";
-
-	string x;
-	for (int i = str.size() - 1; i >= 0; i--)
-		x += revComp[str[i] - 'A'];
-	return x;
-}
-
-inline string reverse (const string &str)
-{
-	string x;
-	for (int i = str.size() - 1; i >= 0; i--)
-		x += str[i];
-	return x;
-}
 
 
 inline void output_record(FILE *fp, int ftype, const Record &rc)
 {
 	string record;
 	uint32_t flag = rc.getMappingFlag();
-
 	
-	//string mate = ((flag & 0x40)==0x40)?"/1":"/2";
-	string mate = ((flag & 0x40)==0x40)?"+":"-";
+	string mate = ((flag & 0x40)==0x40)?"/1":"/2";
 	string seqname = rc.getReadName()+ mate;
 	int reversed = ((flag & 0x10) == 0x10);
 	string seq = (reversed) ? reverse_complete (rc.getSequence()) : rc.getSequence();
@@ -102,15 +82,11 @@ extractor::extractor(string filename, string output_prefix, int ftype, int oea, 
 	{
 		const Record &rc = parser->next();
 		flag = rc.getMappingFlag();
-//		printf("%s\t%d %d\n", rc.getReadName(), flag, (flag &0x5));
 		if ((flag & 0xD) == 0xD)
-//			fprintf(forphan, "1\n");
 			output_record (forphan, ftype, rc);
 		else if ((flag & 0x5) == 0x5) 
-//			fprintf(foea_unmapped, "1\n");
 			output_record (foea_unmapped, ftype, rc);
 		else if ((flag & 0x9) == 0x9)
-//			fprintf(foea_mapped, "1\n");
 			output_record (foea_mapped, ftype, rc);
 		parser->readNext();
 	}

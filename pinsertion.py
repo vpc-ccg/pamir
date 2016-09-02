@@ -284,7 +284,7 @@ def getfastq(config ):
 	control_file  = "{0}/log/01.getfastq.log".format(workdir);
 	complete_file = "{0}/stage/01.getfastq.finished".format(workdir);
 	freeze_arg    = ""
-	cmd           = pipeline.sniper + ' fastq {0} {1}'.format( input_file, output_file )
+	cmd           = pipeline.sniper + ' verify_sam {0} {1}'.format( input_file, output_file )
 	run_cmd       = not (os.path.isfile(complete_file) )
 
 	shell( msg, run_cmd , cmd, control_file, complete_file, freeze_arg)
@@ -355,7 +355,7 @@ def mrsfast_best_search(config):
 	
 #############################################################################################
 ###### Running commands for getfastq 
-def oea(config):
+def remove_concordant(config):
 	msg           = "Extracting OEA and Orphan reads"
 	project_name  = config.get("project", "name")
 	workdir		  = pipeline.workdir
@@ -367,7 +367,7 @@ def oea(config):
 	control_file  = "{0}/log/05.oea.log".format(workdir);
 	complete_file = "{0}/stage/05.oea.finished".format(workdir);
 	freeze_arg    = ""
-	cmd           = pipeline.sniper + ' oea {0} {1}'.format(  input_file, output_file )
+	cmd           = pipeline.sniper + ' remove_concordant {0} {1}'.format(  input_file, output_file )
 	run_cmd       = not (os.path.isfile(complete_file) )
 	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
 #############################################################################################
@@ -724,7 +724,8 @@ def run_command(config, force=False):
 	mask(config)
 	index(config)
 	mrsfast_best_search(config)
-	oea(config)
+	remove_concordant(config)
+	exit(1)
 	mrsfast_search(config)
 	sort(config)
 	oeaunm(config)
