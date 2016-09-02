@@ -1,5 +1,6 @@
 #include <string>
 #include <cstdarg>
+#include <cstdlib>
 #include "common.h"
 
 using namespace std;
