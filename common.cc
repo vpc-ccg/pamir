@@ -1,4 +1,5 @@
 #include <string>
+#include <stdlib.h>
 #include "common.h"
 
 using namespace std;
@@ -21,3 +22,13 @@ string reverse ( const string &str )
 	return x;
 }
 
+string S (const char* fmt, ...) {
+	char *ptr = 0;
+    va_list args;
+    va_start(args, fmt);
+    vasprintf(&ptr, fmt, args);
+    va_end(args);
+    string s = ptr;
+    free(ptr);
+    return s;
+}

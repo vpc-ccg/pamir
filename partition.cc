@@ -101,7 +101,7 @@ vector<pair<pair<string, string>, pair<int,int>>> genome_partition::get_next ()
 size_t genome_partition::dump (const vector<pair<pair<string, string>, pair<int,int>>> &vec, FILE *fo, int fc)
 {
 	size_t pos = ftell(fo);
-	fprintf(fo, "%d %d %d %d %s\n", fc, vec.size(), p_start, p_end, p_ref.c_str());
+	fprintf(fo, "%d %lu %d %d %s\n", fc, vec.size(), p_start, p_end, p_ref.c_str());
 	for (auto &i: vec)
 		fprintf(fo, "%s %s %d %d\n", i.first.first.c_str(), i.first.second.c_str(), i.second.first, i.second.second);
 	return pos;
@@ -191,7 +191,7 @@ int genome_partition::output_partition (const string &partition_file, const stri
 			end = tok ? atol(tok) : -1;
 		}
 		free(dup);
-		fprintf(stdout, "extraction [%ld, %ld]\n", start, end-1);
+		fprintf(stdout, "extraction [%u, %u]\n", start, end-1);
 
 		FILE *fidx = fopen((partition_file + ".idx").c_str(), "rb");
 		size_t offset;

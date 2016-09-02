@@ -92,6 +92,7 @@ private:
 	void print ();
 
 public:
+	assembler ();
 	assembler (int, int);
 	~assembler (void);
 

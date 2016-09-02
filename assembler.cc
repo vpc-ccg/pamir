@@ -11,7 +11,9 @@ inline char DNA(char c) {
 	return (c=='T'?3:(c=='G'?2:(c=='C'?1:0)));
 }
 
-assembler::assembler (int mcs = 20000, int mgs = 10):
+assembler::assembler (): assembler(20000, 10) {}
+
+assembler::assembler (int mcs, int mgs):
 	max_contig_size (mcs), min_glue_size(mgs)
 {
 	initialize(max_contig_size, prime_seed);

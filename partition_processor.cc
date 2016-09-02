@@ -205,7 +205,7 @@ int main(int argc, char **argv)
 					{
 						decided =0;
 				//		cout<<"either no OEAs mapping on left or right flank and not enough left + right flank support < 40%"<<endl;
-						fprintf(flog, "either no OEAs mapping on left or right flank and not enough left + right flank support < 40%\n");
+						fprintf(flog, "either no OEAs mapping on left or right flank and not enough left + right flank support < 40%%\n");
 					}
 				}
 				if ( myset[(*mit).first][0] == myset[(*mit).first][1])

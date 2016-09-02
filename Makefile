@@ -1,7 +1,7 @@
 CC=g++
-CFLAGS= -c -g -std=gnu++0x -I ../dz 
-SOURCES=partition.cc sniper.cc assembler.cc genome.cc aligner.cc logger.cc assembler_ext.cc extractor.cc common.cc 
-LDFLAGS=-lm -L ../zlib-1.2.8/ -lz -lpthread -pthread ../dz/libdeez.a
+CFLAGS= -c -g -std=gnu++0x  
+SOURCES=partition.cc sniper.cc assembler.cc genome.cc aligner.cc  assembler_ext.cc extractor.cc common.cc bam_parser.cc sam_parser.cc record.cc 
+LDFLAGS=-lm -lz -lpthread -pthread
 #LDFLAGS=-lm -lz -lpthread -pthread
 OBJECTS=$(SOURCES:.cc=.o) 
 EXECUTABLE=sniper
@@ -17,10 +17,10 @@ snp: $(SOURCES) $(EXECUTABLE)
 
 $(EXECUTABLE): $(OBJECTS) 
 	#$(CC) $(OBJECTS) -lz -pthread -o $@
-	$(CC) $(OBJECTS) $(LDFLAGS) ../dz/libdeez.a -o $@
+	$(CC) $(OBJECTS) $(LDFLAGS) -o $@
 
 .cc.o:
-	$(CC) $(CFLAGS) $< -o $@ -Idz
+	$(CC) $(CFLAGS) $< -o $@ 
 
 dzlib:
 	make -B -j lib -C ../dz

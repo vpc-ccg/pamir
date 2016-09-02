@@ -1,4 +1,4 @@
-#ifndef __ALIGNER_
+#ifndef __ALIGNER__
 #define __ALIGNER__
 
 #include<string>

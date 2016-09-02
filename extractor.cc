@@ -1,7 +1,9 @@
 #include <string>
-#include <DeeZ.h>
 #include "common.h"
 #include "extractor.h"
+#include "record.h"
+#include "sam_parser.h"
+#include "bam_parser.h"
 
 using namespace std;
 

@@ -17,13 +17,9 @@
 #include "genome.h"
 #include "aligner.h"
 #include "extractor.h"
-//#include "IntervalTree.h"
-#include <DeeZ.h>
-#include <Sort.h>
-//#include "../dz/DeeZ.h"
-//#include "../dz/Sort.h"
-//#include "../dz/Parsers/SAMParser.h"
-//#include "../dz/Parsers/BAMParser.h"
+#include "record.h"
+#include "sam_parser.h"
+#include "bam_parser.h"
 using namespace std;
 
 
@@ -133,7 +129,7 @@ int map_short_contig_to_ref(const string &contig, const string &ref_part, aligne
 			while(p<cpart.length())
 			{
 				del_len=0;
-				for(p;p<cpart.length();p++)
+				for(;p<cpart.length();p++)
 				{
 					if(cpart[p]=='-')
 					{
@@ -142,7 +138,7 @@ int map_short_contig_to_ref(const string &contig, const string &ref_part, aligne
 						ins_len=1;
 					}
 				}
-				for(p;p<cpart.length();p++)
+				for(;p<cpart.length();p++)
 				{
 					if(cpart[p]!='-')
 					{
@@ -162,7 +158,7 @@ int map_short_contig_to_ref(const string &contig, const string &ref_part, aligne
 					deletion_start_loc=deletion_start_loc+fwdS;
 					if(deletion_content.length()>0)
 					{
-						fprintf(fo_vcf_del,"%s\t%d\t%d\t%s\t%d\n",pt.get_reference().c_str(),deletion_start_loc,deletion_content.length(),deletion_content.c_str(),contigSupport);											
+						fprintf(fo_vcf_del,"%s\t%d\t%lu\t%s\t%d\n",pt.get_reference().c_str(),deletion_start_loc,deletion_content.length(),deletion_content.c_str(),contigSupport);											
 					}
 				}
 			}
@@ -174,7 +170,7 @@ int map_short_contig_to_ref(const string &contig, const string &ref_part, aligne
 			while(p<rpart.length())
 			{
 				ins_len=0;
-				for(p;p<rpart.length();p++)
+				for(;p<rpart.length();p++)
 				{
 					if(rpart[p]=='-')
 					{
@@ -183,7 +179,7 @@ int map_short_contig_to_ref(const string &contig, const string &ref_part, aligne
 						ins_len=1;
 					}
 				}
-				for(p;p<rpart.length();p++)
+				for(;p<rpart.length();p++)
 				{
 					if(rpart[p]!='-')
 					{
@@ -202,7 +198,7 @@ int map_short_contig_to_ref(const string &contig, const string &ref_part, aligne
 					insertion_start_loc=insertion_start_loc+fwdS;
 					if(insertion_content.length()>0)
 					{
-						fprintf(fo_full,"%s\t%d\t%d\t%s\n------------------------------------------------------\n",pt.get_reference().c_str(),insertion_start_loc,insertion_content.length(),insertion_content.c_str());
+						fprintf(fo_full,"%s\t%d\t%lu\t%s\n------------------------------------------------------\n",pt.get_reference().c_str(),insertion_start_loc,insertion_content.length(),insertion_content.c_str());
 						//fprintf(fo_vcf,"%s\t%d\t%d\t%s\t%d\n",pt.get_reference().c_str(),insertion_start_loc,insertion_content.length(),insertion_content.c_str(),contigSupport);					
 						reports.push_back(tuple<string, int, int, string, int>(pt.get_reference(), insertion_start_loc, insertion_content.length(), insertion_content,contigSupport ) );
 						mapped=1;
@@ -227,7 +223,7 @@ int map_short_contig_to_ref(const string &contig, const string &ref_part, aligne
 /********************************************************************************/
 void evaluate_contig(const string &contig, vector<tuple<string, int, int, string, int>> &reports,  genome &ref, genome_partition &pt, FILE *fo_vcf, FILE *fo_full, FILE *fo_vcf_del, FILE *fo_full_del, const int &read_length, const int &pt_start, const int &pt_end, const int &contigNum, const int &contigSupport, const int &pCount, const int &ANCHOR_SIZE )
 {
-	fprintf(fo_full,"#################################################################################################\nNEWCONTIG %d IN PARTITION %d length %d; readNum %d; contig range %d\t%d\n%s\n",contigNum,pCount,contig.length(),contigSupport,pt_start,pt_end,contig.c_str());
+	fprintf(fo_full,"#################################################################################################\nNEWCONTIG %d IN PARTITION %d length %lu; readNum %d; contig range %d\t%d\n%s\n",contigNum,pCount,contig.length(),contigSupport,pt_start,pt_end,contig.c_str());
 	
 	//if contig length is greater than 2 x read_length than map its prefix and suffix onto the reference section
 //	if(contig.length()>200000)
@@ -353,7 +349,7 @@ void assemble (const string &partition_file, const string &reference, const stri
 		if (p.size() > 100000) 	continue;
 		if(p.size()<=2)	continue;	
 		auto contigs = as.assemble(p);
-		fprintf(fo_full,"PARTITION %d | read number in partition= %d; contig number in partition= %d; partition range=%d\t%d\n*******************************************************************************************\n",pCount,p.size(),contigs.size(),pt_start, pt_end);
+		fprintf(fo_full,"PARTITION %d | read number in partition= %lu; contig number in partition= %lu; partition range=%d\t%d\n*******************************************************************************************\n",pCount,p.size(),contigs.size(),pt_start, pt_end);
 					
 		int contigNum=1;
 		int ATGCRichContigNum=0;
@@ -375,7 +371,7 @@ void assemble (const string &partition_file, const string &reference, const stri
 			{				
 				if (con_len > max_len + 400 || contig_end+1000-(contig_start-1000) > MAX_REF_LEN) 
 				{
-					fprintf(stderr, "WEIRD CASE Too long region -- Contig %d Genomic %d!\n", contig.data.size(), contig_end+1000-(contig_start-1000));
+					fprintf(stderr, "WEIRD CASE Too long region -- Contig %lu Genomic %d!\n", contig.data.size(), contig_end+1000-(contig_start-1000));
 
 					for (auto &e: contig.read_information)
 					{
@@ -383,7 +379,7 @@ void assemble (const string &partition_file, const string &reference, const stri
 					}
 					continue;
 				}			
-				fprintf(fo_full,"#################################################################################################\nNEWCONTIG %d IN PARTITION %d length %d; readNum %d; contig range %d\t%d\n%s\nSUPPORTIVE READS ARE:\n",contigNum,pCount,contig.data.size(),contigSupport,contig_start,contig_end,contig.data.c_str());
+				fprintf(fo_full,"#################################################################################################\nNEWCONTIG %d IN PARTITION %d length %lu; readNum %d; contig range %d\t%d\n%s\nSUPPORTIVE READS ARE:\n",contigNum,pCount,contig.data.size(),contigSupport,contig_start,contig_end,contig.data.c_str());
 				for(int z=0;z<contig.read_information.size();z++)
 					fprintf(fo_full,"%s %d %d %s\n",contig.read_information[z].name.c_str(),contig.read_information[z].location,contig.read_information[z].in_genome_location, contig.read_information[z].data.c_str());		
 
@@ -433,7 +429,7 @@ void assemble (const string &partition_file, const string &reference, const stri
 				if(!check_AT_GC(contig,MAX_AT_GC)) continue;
 				if (con_len > max_len + 400 || pt_end+1000-(pt_start-1000) > MAX_REF_LEN) 
 				{
-					fprintf(stderr, "WEIRD CASE Too long region -- Contig %d Genomic %d!\n", contig.length(), pt_end+1000-(pt_start-1000));
+					fprintf(stderr, "WEIRD CASE Too long region -- Contig %lu Genomic %d!\n", contig.length(), pt_end+1000-(pt_start-1000));
 					continue;
 				}			
 				fprintf(fo_full,"DECIDED BY SGA ASSEMBLER\n");
@@ -559,7 +555,7 @@ void removeUnmapped (const string &path, const string &result)
 
 void sortSAM (const string &path, const string &result) 
 {
-	sortFile(path, result, 2 * GB);
+//	sortFile(path, result, 2 * GB);
 }
 
 void wo (FILE *f, char *n, char *s, char *q) {
