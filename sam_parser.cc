@@ -1,6 +1,8 @@
 #include "common.h"
 #include "record.h"
+#include "parser.h"
 #include "sam_parser.h"
+
 
 #include <assert.h>
 using namespace std;
@@ -15,7 +17,7 @@ SAMParser::SAMParser (const string &filename) {
 	fseek(input, 0L, SEEK_SET);
 }
 
-SAMParser::~SAMParser (void) {
+SAMParser::~SAMParser () {
 	fclose(input);
 }
 

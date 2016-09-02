@@ -25,7 +25,7 @@ BAMParser::BAMParser (const string &filename):
 	assert(!strcmp(magic, "BAM\x1"));
 }
 
-BAMParser::~BAMParser (void) {
+BAMParser::~BAMParser () {
 	for (int i = 0; i < chromosomesCount; i++)
 		free(chromosomes[i]);
 	chromosomes--;

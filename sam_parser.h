@@ -17,7 +17,7 @@ class SAMParser: public Parser {
 
 public:
 	SAMParser (const std::string &filename);
-	virtual ~SAMParser (void);
+	~SAMParser ();
 
 public:
 	std::string readComment (void);
