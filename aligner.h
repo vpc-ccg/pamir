@@ -17,7 +17,7 @@ private:
 	static const int GAP_EXTENSION_SCORE = 0;
 	*/
 	static const int MATCH_SCORE = 20;
-	static const int MISMATCH_SCORE = -200;
+	static const int MISMATCH_SCORE = -1000;
 	static const int GAP_OPENING_SCORE = -1000;
 	static const int GAP_EXTENSION_SCORE = -1;
 

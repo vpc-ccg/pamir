@@ -79,8 +79,6 @@ int main(int argc, char* argv[])
 			strcpy(str,cpnextStr);
 			strcpy(cpstr,str);
 		}
-		delete nextStr;
-		nextStr=new char[1000000];
 	}
 	char *tmp = new char[1000];
 	tmp = strtok(cpstr, "\t");
