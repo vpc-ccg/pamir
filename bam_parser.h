@@ -7,8 +7,8 @@
 #include <stdlib.h>
 #include <zlib.h>
 
-#include "Parser.h"
-#include "Record.h"
+#include "parser.h"
+#include "record.h"
 
 class BAMParser: public Parser {
 	gzFile input;

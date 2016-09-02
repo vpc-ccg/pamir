@@ -1,5 +1,5 @@
 #include <string>
-#include <stdlib.h>
+#include <cstdarg>
 #include "common.h"
 
 using namespace std;

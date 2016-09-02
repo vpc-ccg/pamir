@@ -6,8 +6,8 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "Parser.h"
-#include "Record.h"
+#include "parser.h"
+#include "record.h"
 
 class SAMParser: public Parser {
 	FILE *input;
