@@ -14,7 +14,7 @@ inline void output_record(FILE *fp, int ftype, const Record &rc)
 	string mate = ((flag & 0x40)==0x40)?"/1":"/2";
 	string seqname = rc.getReadName()+ mate;
 	int reversed = ((flag & 0x10) == 0x10);
-	string seq = (reversed) ? reverse_complete (rc.getSequence()) : rc.getSequence();
+	string seq = (reversed) ? reverse_complement (rc.getSequence()) : rc.getSequence();
 	string qual = (reversed) ? reverse (rc.getQuality()): rc.getQuality();
 
 	if (ftype == 1)

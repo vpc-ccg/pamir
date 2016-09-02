@@ -3,7 +3,7 @@
 
 using namespace std;
 
-string reverse_complete ( const string &str )
+string reverse_complement ( const string &str )
 {
 	const char *revComp = "TBGDEFCHIJKLMNOPQRSAUVWXYZ";
 

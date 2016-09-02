@@ -10,6 +10,7 @@
 #include <vector>
 #include <cmath>
 #include <zlib.h>
+#include "common.h"
 #include "partition.h"
 #include "assembler.h"
 #include "assembler_ext.h"
@@ -25,8 +26,6 @@
 //#include "../dz/Parsers/BAMParser.h"
 using namespace std;
 
-// 10.46
-// S:[step]:END
 
 inline string space (int i) 
 {
@@ -40,33 +39,6 @@ inline string itoa (int i)
 	return string(c);
 }
 /******************************************************************/
-void copy_string_rc( char *src, char *dest)
-{
-	int limit=strlen(src);
-	for( int i = 0; i < limit; i ++)
-	{
-		switch( src[limit-1-i])
-		{
-			case 'A':
-				dest[i]='T';
-				break;
-			case 'C':
-				dest[i]='G';
-				break;
-			case 'G':
-				dest[i]='C';
-				break;
-			case 'T':
-				dest[i]='A';
-				break;
-			default:
-				dest[i]='N';
-				break;
-		}
-	}
-	dest[limit]='\0';
-}
-/*****************************************************************/
 int check_AT_GC(const string &contig, const double &MAX_AT_GC)
 {
 	double AT_count = 0, GC_count = 0;
@@ -291,12 +263,8 @@ void evaluate_contig(const string &contig, vector<tuple<string, int, int, string
 		fprintf(fo_full, "REF region is in between:\t%d\t%d\n--------------------------------------\n%s\n-------------------------------------------------------\n",max(pt_start - LENFLAG,0), pt_end + LENFLAG,ref_part.c_str());
 		if(map_short_contig_to_ref(contig, ref_part, al, reports, fo_vcf, fo_full, fo_vcf_del, fo_full_del, pt, read_length, contigSupport, pt_start, pt_end, contigNum)==0)
 		{
-			char *rc_contig=new char[contig.length()+1];
-			char *c_contig=new char[contig.length()+1];
-			strcpy(c_contig, contig.c_str());
-			copy_string_rc(c_contig,rc_contig);
-			string src_contig=string(rc_contig);
-			map_short_contig_to_ref(src_contig,ref_part, al, reports, fo_vcf, fo_full, fo_vcf_del, fo_full_del, pt, read_length, contigSupport, pt_start, pt_end, contigNum);
+			string rc_contig = reverse_complement(contig);	
+			map_short_contig_to_ref(rc_contig,ref_part, al, reports, fo_vcf, fo_full, fo_vcf_del, fo_full_del, pt, read_length, contigSupport, pt_start, pt_end, contigNum);
 		}
 	}
 }

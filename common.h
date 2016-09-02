@@ -4,7 +4,7 @@
 
 using namespace std;
 
-string reverse_complete ( const string & );
+string reverse_complement ( const string & );
 string reverse ( const string & );
 
 

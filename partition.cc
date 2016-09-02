@@ -7,19 +7,10 @@
 #include <zlib.h>
 #include <cstring>
 #include <cstdlib>
+#include "common.h"
 #include "partition.h"
 
 using namespace std;
-
-inline string reverse_complete (const string &str)
-{
-	const char *revComp = "TBGDEFCHIJKLMNOPQRSAUVWXYZ";
-
-	string x;
-	for (int i = str.size() - 1; i >= 0; i--)
-		x += revComp[str[i] - 'A'];
-	return x;
-}
 
 genome_partition::genome_partition () 
 {
@@ -53,7 +44,7 @@ bool genome_partition::add_read (string read_name, int flag, int loc)
 		if (flag & 0x10)
 			comp.push_back({{read_name + "+", it->second}, {1, loc}});
 		else
-			comp.push_back({{read_name + "-", reverse_complete(it->second)},{1, loc}});
+			comp.push_back({{read_name + "-", reverse_complement(it->second)},{1, loc}});
 		return true;
 	}
 	else return false;
