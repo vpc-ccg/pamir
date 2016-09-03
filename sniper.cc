@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <iostream>
 #include <fstream>
 #include <unordered_map>
@@ -591,11 +592,11 @@ int main(int argc, char **argv)
 
 		string mode = argv[1];
 		if (mode == "verify_sam") {
-			if (argc < 4) throw "Usage:\tsniper fastq [sam-file] [output]";
+			if (argc < 7) throw "Usage:\tsniper fastq [sam-file] [output] outputtype oea? orphan?";
 			extractor ext(argv[2], argv[3],3,1,1);
 		}
 		else if (mode == "remove_concordant") {
-			if (argc != 4) throw "Usage:\tsniper oea [sam-file] [output]";
+			if (argc != 7) throw "Usage:\tsniper oea [sam-file] [output] outputtype oea? orphan?";
 			extractor ext(argv[2], argv[3],2,1,1);
 		}
 		else if (mode == "mask" || mode == "maski") {
@@ -607,7 +608,7 @@ int main(int argc, char **argv)
 			sortSAM(argv[2], argv[3]);
 		}
 		else if (mode == "rm_unmap") {
-			if (argc != 6) throw "Usage:\tsniper rm_unmap [fq-file] [output] outputtype oea? orphan?";
+			if (argc != 4) throw "Usage:\tsniper rm_unmap [fq-file] [output]";
 			removeUnmapped(argv[2], argv[3]);
 		}
 		else if (mode == "partition") {

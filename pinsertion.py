@@ -417,7 +417,7 @@ def oeaunm(config ):
 	msg           = "Extract unmapped mates of OEA reads"
 	project_name  = config.get("project", "name")
 	workdir		  = pipeline.workdir
-	input_file    = "{0}/oea.unmapd.fq".format(workdir )
+	input_file    = "{0}/oea.unmapped.fq".format(workdir )
 	output_file   = "{0}/unmapped".format(workdir )
 	control_file  = "{0}/log/08.oeaunm.log".format(workdir);
 	complete_file = "{0}/stage/08.oeaunm.finished".format(workdir);
@@ -549,7 +549,7 @@ def oea_to_orphan(config):
 	msg			  = "Mapping oea reads onto orphan contigs"
 	workdir		  = pipeline.workdir
 	orphan_ref    = "{0}/orphan.contigs.single.ref".format(workdir)
-	orphan_fastq	  = "{0}/oea.unmapd.fq".format(workdir)
+	orphan_fastq	  = "{0}/oea.unmapped.fq".format(workdir)
 	output_file   = "{0}/oea2orphan.sam".format(workdir)
 	control_file  = "{0}/log/14.oea2orphan.log".format(workdir);
 	complete_file = "{0}/stage/14.oea2orphan.finished".format(workdir);
@@ -723,18 +723,18 @@ def run_command(config, force=False):
 	getfastq(config)
 	mask(config)
 	index(config)
-#	mrsfast_best_search(config)
-#	remove_concordant(config)
-#	mrsfast_search(config)
-#	sort(config)
-#	oeaunm(config)
-#	sniper_part(config)
-#	orphan_assembly(config)
+	mrsfast_best_search(config)
+	remove_concordant(config)
+	mrsfast_search(config)
+	sort(config)
+	oeaunm(config)
+	sniper_part(config)
+	orphan_assembly(config)
 	
-#	prepare_orphan_contig(config)
-#	orphan_to_orphan(config)
-#	oea_to_orphan(config)
-#	orphans_into_oeacluster(config)
+	prepare_orphan_contig(config)
+	orphan_to_orphan(config)
+	oea_to_orphan(config)
+	orphans_into_oeacluster(config)
 	updated_sniper_part(config)
 	post_processing(config)
 	exit(0)
