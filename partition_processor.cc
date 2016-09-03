@@ -5,33 +5,10 @@
 #include <fstream>
 #include <set>
 #include <string.h>
+#include "common.h"
+
 using namespace std;
-void copy_string_rc( char *src, char *dest)
-{
-	int limit=strlen(src);
-	for( int i = 0; i < limit; i ++)
-	{
-		switch( src[limit-1-i])
-		{
-			case 'A':
-				dest[i]='T';
-				break;
-			case 'C':
-				dest[i]='G';
-				break;
-			case 'G':
-				dest[i]='C';
-				break;
-			case 'T':
-				dest[i]='A';
-				break;
-			default:
-				dest[i]='N';
-				break;
-		}
-	}
-	dest[limit]='\0';
-}
+
 int main(int argc, char **argv)
 {
 	int INSSIZE=450;
@@ -218,22 +195,19 @@ int main(int argc, char **argv)
 			//cout<<"decided: "<< decided<<endl;
 			if(decided == 1)
 			{
-				string srevcontent;
+				string revcontent;
 				if(myset[(*mit).first][0] > myset[(*mit).first][1])
 				{
 
-					srevcontent = map_cont[(*mit).first];
+					revcontent = map_cont[(*mit).first];
 				}
 				else
 				{
-					char *revcontent = new char[100000];
-					char *fwdcontent = new char[100000];
-					strcpy(fwdcontent, map_cont[(*mit).first].c_str());
-					copy_string_rc(fwdcontent, revcontent);
-					srevcontent=string(revcontent);
+					string content = map_cont[(*mit).first];
+					revcontent = reverse_complement(content);
 				}
 				reads.push_back((*mit).first);
-				reads_content.push_back(srevcontent);
+				reads_content.push_back(revcontent);
 				reads_support.push_back(map_sup[(*mit).first]);
 				reads_pos.push_back(-1);
 				acceptedContigNum++;

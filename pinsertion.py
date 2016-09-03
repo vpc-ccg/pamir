@@ -284,7 +284,7 @@ def getfastq(config ):
 	control_file  = "{0}/log/01.getfastq.log".format(workdir);
 	complete_file = "{0}/stage/01.getfastq.finished".format(workdir);
 	freeze_arg    = ""
-	cmd           = pipeline.sniper + ' verify_sam {0} {1}'.format( input_file, output_file )
+	cmd           = pipeline.sniper + ' verify_sam {0} {1} 3 1 1'.format( input_file, output_file )
 	run_cmd       = not (os.path.isfile(complete_file) )
 
 	shell( msg, run_cmd , cmd, control_file, complete_file, freeze_arg)
@@ -367,7 +367,7 @@ def remove_concordant(config):
 	control_file  = "{0}/log/05.oea.log".format(workdir);
 	complete_file = "{0}/stage/05.oea.finished".format(workdir);
 	freeze_arg    = ""
-	cmd           = pipeline.sniper + ' remove_concordant {0} {1}'.format(  input_file, output_file )
+	cmd           = pipeline.sniper + ' remove_concordant {0} {1} 2 1 1'.format(  input_file, output_file )
 	run_cmd       = not (os.path.isfile(complete_file) )
 	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
 #############################################################################################
@@ -729,7 +729,7 @@ def run_command(config, force=False):
 	sort(config)
 	oeaunm(config)
 	sniper_part(config)
-	orphan_assembly(config)
+#	orphan_assembly(config)
 	
 	prepare_orphan_contig(config)
 	orphan_to_orphan(config)

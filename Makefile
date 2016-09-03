@@ -7,7 +7,7 @@ EXECUTABLE=sniper
 all: snp pp rc rd
 
 pp: 
-	g++ -O3 -o partition_processor partition_processor.cc
+	g++ -std=gnu++0x -O3 -o partition_processor partition_processor.cc common.cc
 rc: 
 	g++ -O3 -o recalibrate recalibrate.cc
 rd: 

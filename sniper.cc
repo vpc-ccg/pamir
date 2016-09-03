@@ -593,11 +593,11 @@ int main(int argc, char **argv)
 		string mode = argv[1];
 		if (mode == "verify_sam") {
 			if (argc < 7) throw "Usage:\tsniper fastq [sam-file] [output] outputtype oea? orphan?";
-			extractor ext(argv[2], argv[3],3,1,1);
+			extractor ext(argv[2], argv[3], atoi(argv[4]), atoi(argv[5]), atoi(argv[6]));
 		}
 		else if (mode == "remove_concordant") {
 			if (argc != 7) throw "Usage:\tsniper oea [sam-file] [output] outputtype oea? orphan?";
-			extractor ext(argv[2], argv[3],2,1,1);
+			extractor ext(argv[2], argv[3], atoi(argv[4]), atoi(argv[5]), atoi(argv[6]));
 		}
 		else if (mode == "mask" || mode == "maski") {
 			if (argc != 6) throw "Usage:\tsniper mask/maski [repeat-file] [reference] [output] [padding]";
