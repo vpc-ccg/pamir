@@ -1,5 +1,5 @@
-#ifndef Sort_H
-#define Sort_H
+#ifndef __SORT__
+#define __SORT__
 
 #include <string>
 

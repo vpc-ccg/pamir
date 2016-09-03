@@ -1,5 +1,6 @@
 #include <string>
-#include <stdio.h>
+#include <cstdio>
+#include <cstdlib>
 #include <locale.h>
 #include <getopt.h>
 #include <libgen.h>
@@ -15,48 +16,13 @@
 #include <climits>
 #include <unordered_map>
 #include <unistd.h>
-#include "Sort.h"
-#include "Common.h"
+#include <cassert>
+#include "common.h"
+#include "file.h"
+#include "array.h"
+#include "sort.h"
 using namespace std;
 
-class file {
-public:
-	file() {}
-	virtual void open(const char* fn, const char* m) = 0;
-	virtual void close() = 0;
-	virtual ssize_t read(void* d, size_t s) = 0;
-	virtual ssize_t write(void* d, size_t s) = 0;
-	virtual bool eof() = 0;
-};
-class rawfile: public file {
-	FILE *f;
-public:
-	rawfile(const char* fn, const char* m) { open(fn, m); }
-	virtual void open(const char* fn, const char* m) { f = fopen(fn, m); }
-	virtual void close() { fclose(f); }
-	virtual ssize_t read(void* d, size_t s) { return fread(d, 1, s, f); }
-	virtual ssize_t write(void* d, size_t s) { return fwrite(d, 1, s, f); }
-	virtual bool eof() { return feof(f); }
-	FILE *fh () { return f; }
-};
-class gzfile: public file {
-	gzFile f;
-public:
-	gzfile(const char* fn, const char* m) { open(fn, m); }
-	virtual void open(const char* fn, const char* m) { f = gzopen(fn, m); /*gzbuffer(f, 128 * 1024);*/ }
-	virtual void close() { gzclose(f); }
-	virtual ssize_t read(void* d, size_t s) { 
-		const size_t offset = 1 * (size_t)GB;
-		if (s > offset) {
-			return gzread(f, d, offset) + this->read((char*)d + offset, s - offset); 
-		}
-		else {
-			return gzread(f, d, s);
-		}
-	}
-	virtual ssize_t write(void* d, size_t s) { return gzwrite(f, d, s); }
-	virtual bool eof() { return gzeof(f); }
-};
 
 unordered_map<string, int> chromosomes;
 struct SAMNode {
@@ -123,7 +89,7 @@ static char *buffer;
 static size_t bufsz;
 
 size_t mergeSort (file **f, size_t fsz, file *fo, char *buffer, size_t bufsz) {
-	LOG("Merging %d files ...", fsz);
+	LOG("Merging %lu files ...", fsz);
 	size_t cnt = 0;
 	size_t bsz = bufsz / fsz;
 	vector<size_t> counts(fsz, 1);
@@ -182,7 +148,8 @@ void sortFile (const string &path, const string &pathNew, size_t memLimit) {
 	int ft = detectFileType(path);
 	if (ft == 1) isBAM = true;
 	if (ft == 2)
-		throw DZException("File %s is DZ file, and it is already sorted", path.c_str());
+		exit (1);
+		//throw DZException("File %s is DZ file, and it is already sorted", path.c_str());
 
 	file *finput;
 	vector<char> header;
@@ -250,13 +217,13 @@ void sortFile (const string &path, const string &pathNew, size_t memLimit) {
 			i += p;
 		}
 
-		ZAMAN_START();
+		//ZAMAN_START();
 		sort(nodes.data(), nodes.data() + nodes.size(), SAMNode::sortComp);
 		//radixSort(nodes, 0, 0, nodes.size());
-		ZAMAN_END("SORT");
+		//ZAMAN_END("SORT");
 
 		char fn[100];
-		ZAMAN_START();
+		//ZAMAN_START();
 		snprintf(fn, 100, "%s_%d.%02d", path.c_str(), fp, fi++);
 
 		file *f;
@@ -274,7 +241,7 @@ void sortFile (const string &path, const string &pathNew, size_t memLimit) {
 
 		files.push_back(f);
 		fileNames.push_back(fn);
-		ZAMAN_END("FLUSH");
+		//ZAMAN_END("FLUSH");
 
 		memmove(buffer, buffer + i, offset = sz - i);
 		
@@ -302,7 +269,7 @@ void sortFile (const string &path, const string &pathNew, size_t memLimit) {
 			if (files.size() <= fsz)
 				f->write(header.data(), header.size());
 			size_t sz;
-			ZAMAN_START();
+			//ZAMAN_START();
 			sz = mergeSort(files.data() + i, 
 				min(fsz, (int)files.size() - i), 
 				f, buffer, bufsz);
@@ -311,7 +278,7 @@ void sortFile (const string &path, const string &pathNew, size_t memLimit) {
 				f = new gzfile(fn, "rb");
 			else
 				f = new rawfile(fn, "rb");
-			ZAMAN_END("SORT");
+			//ZAMAN_END("SORT");
 			nf.push_back(f);
 			nfn.push_back(fn);
 

@@ -1,6 +1,6 @@
 CC=g++
 CFLAGS= -c -g -std=gnu++0x -O3  
-SOURCES=partition.cc sniper.cc assembler.cc genome.cc aligner.cc  assembler_ext.cc extractor.cc common.cc bam_parser.cc sam_parser.cc record.cc
+SOURCES=partition.cc sniper.cc assembler.cc genome.cc aligner.cc  assembler_ext.cc extractor.cc common.cc bam_parser.cc sam_parser.cc record.cc sort.cc
 LDFLAGS=-lm -lz
 OBJECTS=$(SOURCES:.cc=.o) 
 EXECUTABLE=sniper

@@ -20,6 +20,8 @@
 #include "record.h"
 #include "sam_parser.h"
 #include "bam_parser.h"
+#include "sort.h"
+
 using namespace std;
 
 
@@ -459,8 +461,8 @@ void mask (const string &repeats, const string &path, const string &result, int 
 		if (e - b < 2 * pad) continue;
 		masks[ref].push_back({b + pad, e - pad});
 	}
-//	for (auto &r: masks) 
-		//sort(r.second.begin(), r.second.end());
+	for (auto &r: masks) 
+		sort(r.second.begin(), r.second.end());
 	if (invert) for (auto &r: masks) 
 	{
 		vector<pair<size_t, size_t>> v;
@@ -555,7 +557,7 @@ void removeUnmapped (const string &path, const string &result)
 
 void sortSAM (const string &path, const string &result) 
 {
-//	sortFile(path, result, 2 * GB);
+	sortFile(path, result, 2 * GB);
 }
 
 void wo (FILE *f, char *n, char *s, char *q) {
