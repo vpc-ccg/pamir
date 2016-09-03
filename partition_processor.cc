@@ -56,11 +56,11 @@ int main(int argc, char **argv)
 	while (fin >> rname >> flag >> gname >> pos >> qual >> cigar >> nref >> npos >> tlen >> rstr >> qstr >> t1 >> t2)
 	{
 		if(rname[rname.length()-2]=='/'){
-			rname.erase(rname.length()-3,2);
+			rname.erase(rname.length()-2,2);
 		}
 		vector<string> tmpv;
 		tmpv.push_back(gname);
-		tmpv.push_back( (flag&16)?"-":"+" );
+		tmpv.push_back( ( (flag & 0x10) == 0x10 )?"-":"+" );
 		
 		int contiglen = map_cont[gname].length();
 		int readlen   = rstr.length();
