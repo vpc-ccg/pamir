@@ -14,7 +14,7 @@ string reverse_complement ( const string &str )
 		x += revComp[str[i] - 'A'];
 	return x;
 }
-
+/*******************************************************************/
 string reverse ( const string &str )
 {
 	string x;
@@ -22,7 +22,7 @@ string reverse ( const string &str )
 		x += str[i];
 	return x;
 }
-
+/*******************************************************************/
 string S (const char* fmt, ...) {
 	char *ptr = 0;
     va_list args;
@@ -33,3 +33,19 @@ string S (const char* fmt, ...) {
     free(ptr);
     return s;
 }
+/********************************************************************/
+int check_AT_GC(const string &contig, const double &MAX_AT_GC)
+{
+	double AT_count = 0, GC_count = 0;
+	int clen        = contig.length();
+	for(int i = 0; i < clen-1; i++)
+	{
+		if((contig[i] == 'A' && contig[i+1] == 'T') ||(contig[i] == 'T' && contig[i+1] == 'A')) AT_count++;
+		if((contig[i] == 'C' && contig[i+1] == 'G') ||(contig[i] == 'G' && contig[i+1] == 'C'))	GC_count++;
+	}
+	if(AT_count/(double)clen >= MAX_AT_GC || GC_count/(double)clen >= MAX_AT_GC) 
+		return 0;
+	else
+		return 1;
+}
+/*******************************************************************/

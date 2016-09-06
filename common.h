@@ -20,5 +20,5 @@ using namespace std;
 string reverse_complement ( const string & );
 string reverse ( const string & );
 string S (const char* fmt, ...);
-
+int check_AT_GC(const string &, const double &);
 #endif

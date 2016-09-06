@@ -422,7 +422,7 @@ def oeaunm(config ):
 	control_file  = "{0}/log/08.oeaunm.log".format(workdir);
 	complete_file = "{0}/stage/08.oeaunm.finished".format(workdir);
 	freeze_arg    = ""
-	cmd           = pipeline.sniper + ' rm_unmap {0} {1}'.format(  input_file, output_file )
+	cmd           = pipeline.sniper + ' modify_oea_unmap {0} {1}'.format(  input_file, output_file )
 	run_cmd       = not (os.path.isfile(complete_file) )
 	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
 #############################################################################################
@@ -668,26 +668,26 @@ def post_processing(config):
 	cmd="rm {0}/sniper_part_updated.vcf.* {0}/sniper_part_updated.log.* ".format(workdir)
 	msg="Deleting partial outputs"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
-	fout= open("{0}/all_interleaved.fastq".format(workdir),'w')
-	fout2= open("{0}/all_1.fastq".format(workdir),'w')
-	fout3= open("{0}/all_2.fastq".format(workdir),'w')
-	with open("{0}/all.fastq".format(workdir)) as f:
-		i=1
-		for line in f:
-			if i%8==1:
-				fout.write(line[:len(line)-1]+"/1\n")
-			elif i%8==5:
-				fout.write(line[:len(line)-1]+"/2\n")
-			else:
-				fout.write(line)
-			if( i%8 != 0 and i%8 <=4 ):
-				fout2.write(line)
-			if( i%8 >=5 or i%8 == 0 ):
-				fout3.write(line)
-			i=i+1
-	fout.close()
-	fout2.close()
-	fout3.close()			
+#	fout= open("{0}/all_interleaved.fastq".format(workdir),'w')
+#	fout2= open("{0}/all_1.fastq".format(workdir),'w')
+#	fout3= open("{0}/all_2.fastq".format(workdir),'w')
+#	with open("{0}/all.fastq".format(workdir)) as f:
+#		i=1
+#		for line in f:
+#			if i%8==1:
+#				fout.write(line[:len(line)-1]+"/1\n")
+#			elif i%8==5:
+#				fout.write(line[:len(line)-1]+"/2\n")
+#			else:
+#				fout.write(line)
+#			if( i%8 != 0 and i%8 <=4 ):
+#				fout2.write(line)
+#			if( i%8 >=5 or i%8 == 0 ):
+#				fout3.write(line)
+#			i=i+1
+#	fout.close()
+#	fout2.close()
+#	fout3.close()			
 
 
 #############################################################################################
