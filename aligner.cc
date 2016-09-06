@@ -245,59 +245,53 @@ void aligner::align(const string &ref, const string &ass)
 	identity = 1 - (mismatch+indel+log(l))/len;
 }
 /**********************************************************************/
-int aligner::extract_calls(const string &contig, const string &ref_part, vector<tuple<string, int, int, string, int>> &reports, FILE *fo_vcf, FILE *fo_full, FILE *fo_vcf_del, FILE *fo_full_del, const string &chrName, const int &contigSupport, const int &contig_start, const int &contig_end, const int &contigNum)
+int aligner::extract_calls(const string &contig, const string &ref_part, vector<tuple<string, int, int, string, int, float > > &reports, FILE *fo_vcf, FILE *fo_full, FILE *fo_vcf_del, FILE *fo_full_del, const string &chrName, const int &contigSupport, const int &contig_start, const int &contig_end, const int &contigNum, const int &LENFLAG)
 {
 	int mapped=0;
 	string insertion_content;
-	double fwdIden = 0;
-	double secFwdIden = 0;
-	int fwdS, fwdE, fwdAS, fwdAE, secFwdS, secFwdE, secFwdAS, secFwdAE;
+	int fwdS, fwdE, fwdAS, fwdAE;
 	int insertion_start_loc=-1;
 	int insertion_end_loc=-1;
-	int emptyInsertion=0;
 
-	int LENFLAG=1000;
-	fwdIden = get_identity();
-	if(fwdIden>1.0 && (get_left_anchor()>5 && get_right_anchor()>5) && ( get_left_anchor() > 16 || get_right_anchor()>16) )
+	double fwdIden = get_identity();
+	if(fwdIden>1.0 && ( left_anchor > 5 && right_anchor > 5 ) && ( left_anchor > 16 || right_anchor > 16 ) )
 	{
 		if(contig_start-LENFLAG<=0)
-			fwdS=get_start();
+			fwdS=p_start;
 		else
-			fwdS = contig_start - LENFLAG + get_start();
+			fwdS = contig_start - LENFLAG + p_start;
 		if(contig_start-LENFLAG<=0)
-			fwdE=get_end();
+			fwdE=p_end;
 		else
-			fwdE = contig_start - LENFLAG + get_end();
+			fwdE = contig_start - LENFLAG + p_end;
 		fwdAS = 0;
 		fwdAE = contig.length()-1;
-		fprintf(fo_full,"fwdIden: %f\nfwdAE: %d\tfwdAS: %d\tfwdE: %d\tfwdS: %d\tget_start(): %d\n",fwdIden, fwdAE,fwdAS,fwdE,fwdS,get_start());			
-		string rpart=get_a();
-		string cpart=get_b();
-		fprintf(fo_full,"REF PART OF MAPPING: %s\n",rpart.c_str());
+		fprintf(fo_full,"fwdIden: %f\nfwdAE: %d\tfwdAS: %d\tfwdE: %d\tfwdS: %d\tget_start(): %d\n",fwdIden, fwdAE,fwdAS,fwdE,fwdS,p_start);			
+		fprintf(fo_full,"REF PART OF MAPPING: %s\n",a.c_str());
 		int del_len=0;
 		int ins_len=0;
-		int deletion_start_loc=0;
-		int deletion_end_loc=0;;
+		int deletion_start_loc = 0;
+		int deletion_end_loc = 0;;
 		string deletion_content;
 		int isdeletion=0;
-		if(cpart.length()>0)
+		if( b.length() > 0 )
 		{
 			int p=0;
-			while(p<cpart.length())
+			while(p<b.length())
 			{
 				del_len=0;
-				for(;p<cpart.length();p++)
+				for(;p<b.length();p++)
 				{
-					if(cpart[p]=='-')
+					if(b[p]=='-')
 					{
 						deletion_start_loc=p;
 						break;
-						ins_len=1;
+						del_len=1;
 					}
 				}
-				for(;p<cpart.length();p++)
+				for(;p<b.length();p++)
 				{
-					if(cpart[p]!='-')
+					if(b[p]!='-')
 					{
 						deletion_end_loc=p;
 						break;
@@ -305,14 +299,13 @@ int aligner::extract_calls(const string &contig, const string &ref_part, vector<
 					else
 						del_len++;
 				}
-				if(del_len>=5&&deletion_start_loc!=-1&&deletion_start_loc+1!=insertion_end_loc)
+				if( del_len >= 5 && deletion_start_loc != -1 && deletion_start_loc + 1 != insertion_end_loc )
 				{
-					isdeletion=1;
+					isdeletion         = 1;
 					fprintf(fo_full_del,"CONTIG ITSELF:%s\n",contig.c_str());
 					fprintf(fo_full_del,"del_start:%d\tdel_end:%d\tdel_end-del_start:%d\n",deletion_start_loc,deletion_end_loc,deletion_end_loc-deletion_start_loc);
-					string mapped_ref=get_a();
-					deletion_content=mapped_ref.substr(deletion_start_loc,deletion_end_loc-deletion_start_loc);
-					deletion_start_loc=deletion_start_loc+fwdS;
+					deletion_content   = a.substr(deletion_start_loc,deletion_end_loc-deletion_start_loc);
+					deletion_start_loc = deletion_start_loc+fwdS;
 					if(deletion_content.length()>0)
 					{
 						fprintf(fo_vcf_del,"%s\t%d\t%lu\t%s\t%d\n", chrName.c_str() ,deletion_start_loc,deletion_content.length(),deletion_content.c_str(),contigSupport);											
@@ -320,25 +313,25 @@ int aligner::extract_calls(const string &contig, const string &ref_part, vector<
 				}
 			}
 		}
-		if(isdeletion==0 and rpart.length()>0)
+		if( isdeletion == 0 and a.length() > 0 )
 		{
 			int p=0;
 			int decreaseFromInsStartLoc=0;
-			while(p<rpart.length())
+			while(p<a.length())
 			{
 				ins_len=0;
-				for(;p<rpart.length();p++)
+				for(;p<a.length();p++)
 				{
-					if(rpart[p]=='-')
+					if(a[p]=='-')
 					{
 						insertion_start_loc=p;
 						break;
 						ins_len=1;
 					}
 				}
-				for(;p<rpart.length();p++)
+				for(;p<a.length();p++)
 				{
-					if(rpart[p]!='-')
+					if(a[p]!='-')
 					{
 						insertion_end_loc=p;
 						break;
@@ -350,29 +343,18 @@ int aligner::extract_calls(const string &contig, const string &ref_part, vector<
 				{
 					fprintf(fo_full,"CONTIG ITSELF:%s\n",contig.c_str());
 					fprintf(fo_full,"ins_start:%d\tins_end:%d\tins_end-ins_start:%d\n",insertion_start_loc,insertion_end_loc,insertion_end_loc-insertion_start_loc);
-					string mapped_con=get_b();
-					insertion_content=mapped_con.substr(insertion_start_loc,insertion_end_loc-insertion_start_loc);
-					insertion_start_loc=insertion_start_loc+fwdS;
+					insertion_content   = b.substr(insertion_start_loc,insertion_end_loc-insertion_start_loc);
+					insertion_start_loc = insertion_start_loc+fwdS;
 					if(insertion_content.length()>0)
 					{
 						fprintf(fo_full,"%s\t%d\t%lu\t%s\n------------------------------------------------------\n",chrName.c_str(), insertion_start_loc,insertion_content.length(),insertion_content.c_str());
-						reports.push_back(tuple<string, int, int, string, int>(chrName, insertion_start_loc, insertion_content.length(), insertion_content, contigSupport ) );
+						reports.push_back(tuple<string, int, int, string, int, float>(chrName, insertion_start_loc, insertion_content.length(), insertion_content, contigSupport, identity ) );
 						mapped=1;
 					}
-				}
-				else
-				{
-					decreaseFromInsStartLoc+=ins_len;
-					fprintf(fo_full,"INSERTION LENGTH IS NOT LONG ENOUGH!\n------------------------------------------------------\n");
 				}
 				p++;
 			}
 		}
-
-	}
-	else
-	{
-		fprintf(fo_full,"fwdIden: %f is less than 20 so no insertion from this contig.\n",fwdIden);
 	}
 	return mapped;
 }

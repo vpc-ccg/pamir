@@ -116,81 +116,74 @@ string assemble_orphan_with_sga (const string &orphan_fastq)
 	string outofsga = orphan_fastq+string(".sgaout.fa");
 	return outofsga;
 }
+/*****************************************************************/
+void print_calls(vector< tuple< string, int, int, string, int, float > > &reports, FILE *fo_vcf, FILE *fo_full, const int &clusterId)
+{
+	for(int r=0;r<reports.size();r++)
+	{
+		fprintf(fo_full,"%s\t%d\t%d\t%s\t%d\n------------------------------------------------------\n",get<0>(reports[r]).c_str(), get<1>(reports[r]), get<2>(reports[r]), get<3>(reports[r]).c_str(),get<4>(reports[r]));
+//		fprintf(fo_vcf,"%s\t%d\t%d\t%s\t%d\n", get<0>(reports[r]).c_str(), get<1>(reports[r]), get<2>(reports[r]), get<3>(reports[r]).c_str(), get<4>(reports[r]));					
+		fprintf(fo_vcf, "%s\t%d\t.\t%s\t%f\tPASS\tSVTYPE=INS;LEN=%d;END=%d;Cluster=%d;Support=%d;Identity=%f\n", get<0>(reports[r]).c_str(), get<1>(reports[r]), get<3>(reports[r]).c_str(), -10*log(1-get<5>(reports[r])), get<2>(reports[r]), get<1>(reports[r]), clusterId, get<4>(reports[r]), get<5>(reports[r]) ); 
+	}
+}
 /****************************************************************/
 void assemble (const string &partition_file, const string &reference, const string &range, const string &out_vcf, const string &out_full, int max_len, int read_length, const int &hybrid)
 {
 	const double MAX_AT_GC = 0.7;
 	const int ANCHOR_SIZE = 16;
 	const int MAX_REF_LEN=300000000;
-	assembler as(max_len, 15);
-	genome ref(reference.c_str());
-	genome_partition pt;
-	string con_pre,con_suf;
-	double fwdIden = 0;
-	double secFwdIden = 0;
-	int fwdS, fwdE, fwdAS, fwdAE, secFwdS, secFwdE, secFwdAS, secFwdAE;
+	int LENFLAG=1000;
+	int pt_start=-1;
+	int pt_end=-1;
 	FILE *fo_vcf = fopen(out_vcf.c_str(), "w");
 	FILE *fo_vcf_del = fopen((out_vcf+"_del").c_str(), "w");
 	FILE *fo_full = fopen(out_full.c_str(), "w");	
 	FILE *fo_full_del = fopen((out_full+".del").c_str(), "w");	
 	
-	string insertion_content;
-	int insertion_start_loc=-1;
-	int insertion_end_loc=-1;
-	int pCount=0;
-	int LENFLAG=1000;
-	int pt_start=-1;
-	int pt_end=-1;
+	assembler as(max_len, 15);
+	genome ref(reference.c_str());
+	genome_partition pt;
 	while (1) 
 	{
 		auto p = pt.read_partition(partition_file, range);
-		pCount=pCount+1;
-		pt_start=pt.get_start();
-		pt_end=pt.get_end();
 		if (!p.size()) 
 			break;
-		if (p.size() > 100000) 	continue;
-		if(p.size()<=2)	continue;	
+		int cluster_id = pt.get_cluster_id();
+		if (p.size() > 100000 || p.size() <= 2) 	continue;
+		pt_start=pt.get_start();
+		pt_end=pt.get_end();
 		auto contigs = as.assemble(p);
-		fprintf(fo_full,"PARTITION %d | read number in partition= %lu; contig number in partition= %lu; partition range=%d\t%d\n*******************************************************************************************\n",pCount,p.size(),contigs.size(),pt_start, pt_end);
+		fprintf(fo_full,"PARTITION %d | read number in partition= %lu; contig number in partition= %lu; partition range=%d\t%d\n*******************************************************************************************\n",cluster_id, p.size(), contigs.size(), pt_start, pt_end);
 		int contigNum=1;
-		int ATGCRichContigNum=0;
-		vector< tuple< string, int, int, string, int > > reports;
+		vector< tuple< string, int, int, string, int, float > > reports;
+		int contigSupport;
 		for (auto &contig: contigs)
 		{
-			int contigSupport=contig.support();
+			contigSupport=contig.support();
 			int con_len = contig.data.length();
 			if(check_AT_GC(contig.data, MAX_AT_GC)==0 || contigSupport <=1 || con_len > max_len + 400 || (pt_end +1000 - (pt_start - 1000)) > MAX_REF_LEN ) continue;
 			
-			fprintf(fo_full,"#################################################################################################\nNEWCONTIG %d IN PARTITION %d length %lu; readNum %d; contig range %d\t%d\n%s\nSUPPORTIVE READS ARE:\n", contigNum, pCount, contig.data.size(), contigSupport, pt_start, pt_end, contig.data.c_str());
+			fprintf(fo_full,"#################################################################################################\nNEWCONTIG %d IN PARTITION %d length %lu; readNum %d; contig range %d\t%d\n%s\nSUPPORTIVE READS ARE:\n", contigNum, cluster_id, contig.data.length(), contigSupport, pt_start, pt_end, contig.data.c_str());
 			for(int z=0;z<contig.read_information.size();z++)
 				fprintf(fo_full,"%s %d %d %s\n",contig.read_information[z].name.c_str(),contig.read_information[z].location,contig.read_information[z].in_genome_location, contig.read_information[z].data.c_str());
 			string ref_part = ref.extract(pt.get_reference(), pt_start - LENFLAG, pt_end + LENFLAG);
 			int matrix_size = ref_part.size();
 			if(con_len > matrix_size) matrix_size = con_len;
 			aligner al(ANCHOR_SIZE, matrix_size);
-			fprintf(fo_full, "REF region is in between:\t%d\t%d\n--------------------------------------\n%s\n-------------------------------------------------------\n",max(pt_start - LENFLAG,0), pt_end + LENFLAG,ref_part.c_str());
+			fprintf(fo_full, "REF region is in between:\t%d\t%d\n--------------------------------------\n%s\n-------------------------------------------------------\n",max(pt_start - LENFLAG,0), pt_end + LENFLAG, ref_part.c_str());
 			al.align(ref_part, contig.data);
 			al.dump(fo_full);
-			if(al.extract_calls(contig.data, ref_part, reports, fo_vcf, fo_full, fo_vcf_del, fo_full_del, pt.get_reference(), contigSupport, pt_start, pt_end, contigNum)==0)
+			if(al.extract_calls(contig.data, ref_part, reports, fo_vcf, fo_full, fo_vcf_del, fo_full_del, pt.get_reference(), contigSupport, pt_start, pt_end, contigNum, LENFLAG)==0)
 			{
 				string rc_contig = reverse_complement(contig.data);	
 				al.align(ref_part, rc_contig);
 				al.dump(fo_full);
-				al.extract_calls(rc_contig, ref_part, reports, fo_vcf, fo_full, fo_vcf_del, fo_full_del, pt.get_reference(), contigSupport, pt_start, pt_end, contigNum);
+				al.extract_calls(rc_contig, ref_part, reports, fo_vcf, fo_full, fo_vcf_del, fo_full_del, pt.get_reference(), contigSupport, pt_start, pt_end, contigNum, LENFLAG);
 			}
 			contigNum++;
 		}
-		if(reports.size()>0)
-		{	
-			fprintf(fo_full,"DECIDED BY INHOUSE ASSEMBLER\n");
-			for(int r=0;r<reports.size();r++)
-			{
-				fprintf(fo_full,"%s\t%d\t%d\t%s\t%d\n------------------------------------------------------\n",get<0>(reports[r]).c_str(), get<1>(reports[r]), get<2>(reports[r]), get<3>(reports[r]).c_str(),get<4>(reports[r]));
-				fprintf(fo_vcf,"INHOUSE\t%s\t%d\t%d\t%s\t%d\n", get<0>(reports[r]).c_str(), get<1>(reports[r]), get<2>(reports[r]), get<3>(reports[r]).c_str(), get<4>(reports[r]));					
-			}
-		}
-		else if((reports.size() == 0 || reports.size()>1) && hybrid == 1)
+		print_calls(reports, fo_vcf, fo_full, pt.get_cluster_id());
+		if((reports.size() == 0 || reports.size()>1) && hybrid == 1)
 		{
 			reports.clear();
 			string outofsga = assemble_with_sga(out_vcf, p, read_length);
@@ -206,10 +199,10 @@ void assemble (const string &partition_file, const string &reference, const stri
 				line[strlen(line)-1]='\0';
 				string contig = string(line);
 				int con_len = contig.length();
-				contigNum++;
 				if(check_AT_GC(contig, MAX_AT_GC)==0 || contigSupport <=1 || con_len > max_len + 400 || (pt_end +1000 - (pt_start - 1000)) > MAX_REF_LEN ) continue;
-				fprintf(fo_full,"DECIDED BY SGA ASSEMBLER\n");
+				contigNum++;
 				
+				fprintf(fo_full,"#################################################################################################\nNEWCONTIG %d IN PARTITION %d length %lu; readNum %d; contig range %d\t%d\n%s\nSUPPORTIVE READS ARE:\n", contigNum, cluster_id, contig.length(), contigSupport, pt_start, pt_end, contig.c_str());
 				string ref_part = ref.extract(pt.get_reference(), pt_start - LENFLAG, pt_end + LENFLAG);
 				int matrix_size = ref_part.size();
 				if(con_len > matrix_size) matrix_size = con_len;
@@ -217,16 +210,16 @@ void assemble (const string &partition_file, const string &reference, const stri
 				fprintf(fo_full, "REF region is in between:\t%d\t%d\n--------------------------------------\n%s\n-------------------------------------------------------\n",max(pt_start - LENFLAG,0), pt_end + LENFLAG,ref_part.c_str());
 				al.align(ref_part, contig);
 				al.dump(fo_full);
-				if(al.extract_calls(contig, ref_part, reports, fo_vcf, fo_full, fo_vcf_del, fo_full_del, pt.get_reference(), contigSupport, pt_start, pt_end, contigNum)==0)
+				if(al.extract_calls(contig, ref_part, reports, fo_vcf, fo_full, fo_vcf_del, fo_full_del, pt.get_reference(), contigSupport, pt_start, pt_end, contigNum, LENFLAG)==0)
 				{
 					string rc_contig = reverse_complement(contig);	
 					al.align(ref_part, rc_contig);
 					al.dump(fo_full);
-					al.extract_calls(rc_contig, ref_part, reports, fo_vcf, fo_full, fo_vcf_del, fo_full_del, pt.get_reference(), contigSupport, pt_start, pt_end, contigNum);
+					al.extract_calls(rc_contig, ref_part, reports, fo_vcf, fo_full, fo_vcf_del, fo_full_del, pt.get_reference(), contigSupport, pt_start, pt_end, contigNum, LENFLAG);
 				}
-				for(int r =0;r<reports.size();r++)
-					fprintf(fo_vcf,"SGA\t%s\t%d\t%d\t%s\t%d\n", get<0>(reports[r]).c_str(), get<1>(reports[r]), get<2>(reports[r]), get<3>(reports[r]).c_str(), get<4>(reports[r]));					
 			}
+			print_calls( reports, fo_vcf, fo_full, pt.get_cluster_id());
+			reports.clear();
 		}
 	}	
 	fclose(fo_vcf);
