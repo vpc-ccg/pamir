@@ -21,6 +21,7 @@ class pipeline:
 	mrsfast  	= os.path.dirname(os.path.realpath(__file__)) + "/mrsfast"
 	recalibrate = os.path.dirname(os.path.realpath(__file__)) + "/recalibrate"
 	pprocessor  = os.path.dirname(os.path.realpath(__file__)) + "/partition_processor"
+	removedup   = os.path.dirname(os.path.realpath(__file__)) + "/remove_duplicate_insertions"
 	workdir  	= os.path.dirname(os.path.realpath(__file__))
 	# example usage for help
 	example  = "\tTo create a new project: specify (1) project name, (2) reference genomes and (3) input sequences (either --alignment, --fastq, or --mrsfast-best-search)\n"
@@ -659,7 +660,7 @@ def post_processing(config):
 	control_file  = "{0}/log/20.filter_duplicate_calls.log".format(workdir)
 	complete_file = "{0}/stage/20.filter_duplicate_calls.finished".format(workdir)
 	run_cmd		  = not (os.path.isfile(complete_file))
-	cmd			  = "../LIB/removeDuplicateInsertions {0}/sniper_part_updated.vcf_sorted {0}/sniper_part_updated.vcf_sorted_wodups".format(workdir)
+	cmd			  = pipeline.removedup + " {0}/sniper_part_updated.vcf_sorted {0}/sniper_part_updated.vcf_sorted_wodups".format(workdir)
 	msg="Eliminating duplicated insertions"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 	control_file  = "{0}/log/21.remove_partials.log".format(workdir)

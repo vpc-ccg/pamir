@@ -199,10 +199,10 @@ void aligner::align(const string &ref, const string &ass)
 		else
 			break;
 */
-
 	left_anchor = 0;
 	right_anchor = 0;
 	int mm =0;
+	int totalErr=0;
 	for (int i=0; i<a.length(); i++)
 	{
 		if (a[i] == b[i]){
@@ -212,6 +212,7 @@ void aligner::align(const string &ref, const string &ass)
 		else
 		{
 			mm++;
+			totalErr++;
 			left_anchor++;
 		}
 		if (mm==2)
@@ -219,8 +220,11 @@ void aligner::align(const string &ref, const string &ass)
 			left_anchor-=2;
 			break;
 		}
+		if( i > 10 && totalErr > (float(i)/5.0))
+			break;
 	}
 	mm=0;
+	totalErr=0;
 	for (int i=a.length()-1; i>=0; i--)
 	{
 		if (a[i] == b[i]){
@@ -230,6 +234,7 @@ void aligner::align(const string &ref, const string &ass)
 		else
 		{
 			mm++;
+			totalErr++;
 			right_anchor++;
 		}
 		if(mm==2)
@@ -237,6 +242,8 @@ void aligner::align(const string &ref, const string &ass)
 			right_anchor-=2;
 			break;
 		}
+		if(i < a.length()-10 && totalErr > (float(a.length()-float(i))/5.0))
+			break;
 	}
 
 	p_start = pi;
