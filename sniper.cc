@@ -123,7 +123,7 @@ void print_calls(vector< tuple< string, int, int, string, int, float > > &report
 	{
 		fprintf(fo_full,"%s\t%d\t%d\t%s\t%d\n------------------------------------------------------\n",get<0>(reports[r]).c_str(), get<1>(reports[r]), get<2>(reports[r]), get<3>(reports[r]).c_str(),get<4>(reports[r]));
 //		fprintf(fo_vcf,"%s\t%d\t%d\t%s\t%d\n", get<0>(reports[r]).c_str(), get<1>(reports[r]), get<2>(reports[r]), get<3>(reports[r]).c_str(), get<4>(reports[r]));					
-		fprintf(fo_vcf, "%s\t%d\t.\t%s\t%f\tPASS\tSVTYPE=INS;LEN=%d;END=%d;Cluster=%d;Support=%d;Identity=%f\n", get<0>(reports[r]).c_str(), get<1>(reports[r]), get<3>(reports[r]).c_str(), -10*log(1-get<5>(reports[r])), get<2>(reports[r]), get<1>(reports[r]), clusterId, get<4>(reports[r]), get<5>(reports[r]) ); 
+		fprintf(fo_vcf, "%s\t%d\t%d\t.\t%s\t%f\tPASS\tSVTYPE=INS;LEN=%d;END=%d;Cluster=%d;Support=%d;Identity=%f\n", get<0>(reports[r]).c_str(), get<1>(reports[r]), get<2>(reports[r]), get<3>(reports[r]).c_str(), -10*log(1-get<5>(reports[r])), get<2>(reports[r]), get<1>(reports[r]), clusterId, get<4>(reports[r]), get<5>(reports[r]) ); 
 	}
 }
 /****************************************************************/

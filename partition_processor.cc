@@ -109,7 +109,8 @@ int main(int argc, char **argv)
 
 	FILE *fucluster = fopen(argv[5],"w");
 	FILE *fidx	 = fopen((string(argv[5])+".idx").c_str(),"wb");
-	FILE *flog = fopen(logfname, "w");
+	FILE *flog 	 = fopen(logfname, "w");
+	int tie 	 = 0;
 	while (fin>> cluster_id >> lines >> start >> end >> ref){
 		fprintf(flog,"CLUSTER ID: %d\n",cluster_id);
 		numOfReads=lines;
@@ -187,14 +188,24 @@ int main(int argc, char **argv)
 				}
 				if ( myset[(*mit).first][0] == myset[(*mit).first][1])
 				{
-					decided = 0;
+					tie++;
+//					decided = 0;
 			//		cout<<"Forward and reverse are exactly same, we cannot decide which version of the contig to add"<<endl;
 					fprintf(flog, "Forward and reverse are exactly same, we cannot decide which version of the contig to add\n");
 				}
+
 			}			
 			//cout<<"decided: "<< decided<<endl;
 			if(decided == 1)
 			{
+				if(myset[(*mit).first][0] == myset[(*mit).first][1])
+				{
+					reads.push_back((*mit).first);
+					reads_content.push_back(map_cont[(*mit).first]);
+					reads_support.push_back(map_sup[(*mit).first]);
+					reads_pos.push_back(-1);
+					acceptedContigNum++;
+				}
 				string revcontent;
 				if(myset[(*mit).first][0] > myset[(*mit).first][1])
 				{
@@ -234,6 +245,8 @@ int main(int argc, char **argv)
 		else
 		{   cerr << "Unchanged." << endl;}
 	}
+	fprintf(flog, "Forward and reverse were in tie condition : %d times.\n", tie );
+	
 	cout<<cluster_id<<endl;
 	fclose(fucluster);
 	fclose(fidx);
