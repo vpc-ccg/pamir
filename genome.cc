@@ -41,7 +41,7 @@ void genome::load_next(void)
 	transform(reference.begin(), reference.end(), reference.begin(), ::toupper);
 }
 
-string genome::extract(const string &rname, int start, int end)
+string genome::extract(const string &rname, int &start, int &end)
 {
 	if (rname != reference_name) {
 		fprintf(stderr, "%s\n",  reference_name.c_str());

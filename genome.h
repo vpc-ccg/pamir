@@ -16,7 +16,7 @@ private:
 public:
 	genome(string);
 	~genome();
-	string extract(const string&, int, int);
+	string extract(const string&, int &, int &);
 };
 
 #endif

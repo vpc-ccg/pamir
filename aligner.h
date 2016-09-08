@@ -51,7 +51,7 @@ public:
 	aligner(int anchor_length = 1,int reflen=10000);
 	~aligner();
 	void align(const string &, const string &);
-	int extract_calls(const string &, const string &, const int &, vector<tuple<string, int, int, string, int, float>> &, FILE *, FILE *, FILE *, FILE *, const string &, const int &, const int &, const int &, const int &, const int &);
+	int extract_calls(const int &, vector<tuple<string, int, int, string, int, float>> &, const int &, const int &, const int &);
 	void dump(FILE *fo);
 	int get_start();
 	int get_end();

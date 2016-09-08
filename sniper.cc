@@ -215,11 +215,12 @@ string prepare_sga_input (const string &out_vcf, const vector<pair<pair<string, 
 	return inputforsga;
 }
 /*****************************************************************/
-void print_calls(vector< tuple< string, int, int, string, int, float > > &reports, FILE *fo_vcf, FILE *fo_full, const int &clusterId)
+void print_calls(string chrName, vector< tuple< string, int, int, string, int, float > > &reports, FILE *fo_vcf, FILE *fo_full, const int &clusterId)
 {
 	for(int r=0;r<reports.size();r++)
 	{
-		fprintf(fo_vcf, "%s\t%d\t%d\t.\t%s\t%f\tPASS\tSVTYPE=INS;LEN=%d;END=%d;Cluster=%d;Support=%d;Identity=%f\n", get<0>(reports[r]).c_str(), get<1>(reports[r]), get<2>(reports[r]), get<3>(reports[r]).c_str(), -10*log(1-get<5>(reports[r])), get<2>(reports[r]), get<1>(reports[r]), clusterId, get<4>(reports[r]), get<5>(reports[r]) ); 
+		if(get<0>(reports[r])== "INS")
+			fprintf(fo_vcf, "%s\t%d\t%d\t.\t%s\t%f\tPASS\tSVTYPE=INS;LEN=%d;END=%d;Cluster=%d;Support=%d;Identity=%f\n", chrName.c_str(), get<1>(reports[r]), get<2>(reports[r]), get<3>(reports[r]).c_str(), -10*log(1-get<5>(reports[r])), get<2>(reports[r]), get<1>(reports[r]), clusterId, get<4>(reports[r]), get<5>(reports[r]) ); 
 	}
 }
 /****************************************************************/
@@ -237,10 +238,12 @@ void assemble (const string &partition_file, const string &reference, const stri
 	assembler as(max_len, 15);
 	genome ref(reference.c_str());
 	genome_partition pt;
-
+	
+	aligner al( ANCHOR_SIZE, max_len + 2010 );
 	while (1) 
 	{
 		auto p 			= pt.read_partition(partition_file, range);
+		string chrName  = pt.get_reference();
 		if ( !p.size() ) 
 			break;
 		if ( p.size() > 100000 || p.size() <= 2 ) 	continue;
@@ -251,6 +254,7 @@ void assemble (const string &partition_file, const string &reference, const stri
 		fprintf(fo_full,"PARTITION %d | read number in partition= %lu; contig number in partition= %lu; partition range=%d\t%d\n*******************************************************************************************\n",cluster_id, p.size(), contigs.size(), pt_start, pt_end);
 		int contigNum=1;
 		vector< tuple< string, int, int, string, int, float > > reports;
+
 		for ( auto &contig: contigs )
 		{
 			int contigSupport		= contig.support();
@@ -261,20 +265,20 @@ void assemble (const string &partition_file, const string &reference, const stri
 			for(int z=0;z<contig.read_information.size();z++)
 				fprintf(fo_full,"%s %d %d %s\n",contig.read_information[z].name.c_str(),contig.read_information[z].location,contig.read_information[z].in_genome_location, contig.read_information[z].data.c_str());
 			
-			string ref_part = ref.extract(pt.get_reference(), pt_start - LENFLAG, pt_end + LENFLAG);
-			int matrix_size = ref_part.size();
-			if(con_len > matrix_size) matrix_size = con_len;
-			aligner al(ANCHOR_SIZE, matrix_size);
+			int ref_start 	= pt_start - LENFLAG;
+			int ref_end 	= pt_end + LENFLAG;
+			string ref_part = ref.extract( chrName, ref_start, ref_end );
+			cout<<"ref_start: "<<ref_start<<"\t"<<"ref_end: "<<ref_end<<endl;
 			al.align(ref_part, contig.data);
-			if(al.extract_calls(contig.data, ref_part, cluster_id, reports, fo_vcf, fo_full, fo_vcf_del, fo_full_del, pt.get_reference(), contigSupport, pt_start, pt_end, contigNum, LENFLAG)==0)
+			if(al.extract_calls(cluster_id, reports, contigSupport, ref_start, contigNum)==0)
 			{
 				string rc_contig = reverse_complement(contig.data);	
 				al.align(ref_part, rc_contig);
-				al.extract_calls(rc_contig, ref_part, cluster_id, reports, fo_vcf, fo_full, fo_vcf_del, fo_full_del, pt.get_reference(), contigSupport, pt_start, pt_end, contigNum, LENFLAG);
+				al.extract_calls(cluster_id, reports, contigSupport, ref_start, contigNum);
 			}
 			contigNum++;
 		}
-		print_calls(reports, fo_vcf, fo_full, pt.get_cluster_id());
+		print_calls(chrName, reports, fo_vcf, fo_full, pt.get_cluster_id());
 		if( ( reports.size() == 0 || reports.size() > 1 ) && hybrid == 1)
 		{
 			reports.clear();
@@ -290,24 +294,23 @@ void assemble (const string &partition_file, const string &reference, const stri
 				string contig 				= string(line);
 				int con_len 				= contig.length();
 				if( check_AT_GC( contig, MAX_AT_GC ) == 0 || contigSupport <=1 || con_len > max_len + 400 || ( pt_end + 1000 - ( pt_start - 1000 ) ) > MAX_REF_LEN ) continue;
-				
-				string ref_part 		= ref.extract( pt.get_reference(), pt_start - LENFLAG, pt_end + LENFLAG);
-				int matrix_size 		= ref_part.size();
-				if( con_len > matrix_size ) matrix_size = con_len;
-				aligner al( ANCHOR_SIZE, matrix_size );
+				int ref_start 			= pt_start - LENFLAG;
+				int ref_end 			= pt_end + LENFLAG;
+				string ref_part 		= ref.extract( chrName, ref_start, ref_end );
 				al.align(ref_part, contig);
-				if(al.extract_calls(contig, ref_part, cluster_id, reports, fo_vcf, fo_full, fo_vcf_del, fo_full_del, pt.get_reference(), contigSupport, pt_start, pt_end, contigNum, LENFLAG)==0)
+				if(al.extract_calls(cluster_id, reports, contigSupport, ref_start,  contigNum)==0)
 				{
 					string rc_contig = reverse_complement(contig);	
 					al.align(ref_part, rc_contig);
-					al.extract_calls(rc_contig, ref_part, cluster_id, reports, fo_vcf, fo_full, fo_vcf_del, fo_full_del, pt.get_reference(), contigSupport, pt_start, pt_end, contigNum, LENFLAG);
+					al.extract_calls(cluster_id, reports, contigSupport, ref_start, contigNum);
 				}
 				contigNum++;
 			}
-			print_calls( reports, fo_vcf, fo_full, pt.get_cluster_id());
+			print_calls( chrName, reports, fo_vcf, fo_full, pt.get_cluster_id());
 			reports.clear();
 		}
-	}	
+
+	}
 	fclose(fo_vcf);
 	fclose(fo_full);
 	fclose(fo_full_del);

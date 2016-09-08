@@ -252,11 +252,11 @@ void aligner::align(const string &ref, const string &ass)
 	identity = 1 - (mismatch+indel+log(l))/len;
 }
 /**********************************************************************/
-int aligner::extract_calls( const string &contig, const string &ref_part, const int &cluster_id, vector<tuple<string, int, int, string, int, float > > &reports, FILE *fo_vcf, FILE *fo_full, FILE *fo_vcf_del, FILE *fo_full_del, const string &chrName, const int &contigSupport, const int &pt_start, const int &pt_end, const int &contigNum, const int &LENFLAG)
+int aligner::extract_calls( const int &cluster_id, vector<tuple<string, int, int, string, int, float > > &reports, const int &contigSupport, const int &ref_start, const int &contigNum)
 {
-	fprintf(fo_full,"\nCONTIG %d IN PARTITION %d length %lu; readNum %d;\n%s\n", contigNum, cluster_id, contig.length(), contigSupport, contig.c_str() );
-	fprintf(fo_full, "REF region:\t%d\t%d\n%s\n-------------------------------------------------------\n",max(pt_start - LENFLAG,0), pt_end + LENFLAG, ref_part.c_str());
-	dump(fo_full);
+	cout<<"\nCONTIG"<<contigNum<<" length "<< a.length()<<" support "<<contigSupport<<endl<<a.c_str()<< endl;
+	cout<<"REF region:\t"<<ref_start<<"\n-------------------------------------------------------\n"<<b.c_str()<<endl;
+	dump(stdout);
 	int mapped					= 0;
 	int insertion_start_loc 	= -1;
 	int insertion_end_loc		= -1;
@@ -265,24 +265,17 @@ int aligner::extract_calls( const string &contig, const string &ref_part, const 
 	int fwdS, fwdE, fwdAS, fwdAE;
 	if( fwdIden > 1.0 && ( left_anchor > 5 && right_anchor > 5 ) && ( left_anchor > 16 || right_anchor > 16 ) )
 	{
-		if(pt_start - LENFLAG <= 0)
-			fwdS = p_start;
-		else
-			fwdS = pt_start - LENFLAG + p_start;
-		if( pt_start - LENFLAG <= 0 )
-			fwdE = p_end;
-		else
-			fwdE = pt_start - LENFLAG + p_end;
+		fwdS = ref_start + p_start;
 		fwdAS 					= 0;
-		fwdAE 					= contig.length()-1;
+		fwdAE 					= a.length()-1;
 		int del_len				= 0;
 		int ins_len				= 0;
 		int deletion_start_loc 	= 0;
 		int deletion_end_loc 	= 0;
 		int isdeletion			= 0;
 		string deletion_content;
-		fprintf(fo_full,"fwdIden: %f\nfwdAE: %d\tfwdAS: %d\tfwdE: %d\tfwdS: %d\tget_start(): %d\n",fwdIden, fwdAE,fwdAS,fwdE,fwdS,p_start);			
-		fprintf(fo_full,"REF PART OF MAPPING: %s\n",a.c_str());
+		cout<<"fwdIden: "<<fwdIden<<"\nfwdAE: "<<fwdAE<<"\tfwdAS: "<<"\tfwdS: "<<fwdS<<"\t"<<p_start<<endl;			
+		cout<<"REF PART OF MAPPING: "<<a.c_str()<<endl;
 		if( b.length() > 0 )
 		{
 			int p = 0;
@@ -315,7 +308,7 @@ int aligner::extract_calls( const string &contig, const string &ref_part, const 
 					deletion_start_loc = deletion_start_loc+fwdS;
 					if(deletion_content.length()>0)
 					{
-						fprintf(fo_vcf_del,"%s\t%d\t%lu\t%s\t%d\n", chrName.c_str() ,deletion_start_loc,deletion_content.length(),deletion_content.c_str(),contigSupport);											
+						reports.push_back(tuple<string, int, int, string, int, float>("DEL", deletion_start_loc, deletion_content.length(), deletion_content, contigSupport, identity ) );
 					}
 				}
 			}
@@ -352,8 +345,9 @@ int aligner::extract_calls( const string &contig, const string &ref_part, const 
 					insertion_start_loc = insertion_start_loc+fwdS;
 					if( insertion_content.length() > 0 )
 					{
-						fprintf(fo_full,"%s\t%d\t%lu\t%s\t%d\n------------------------------------------------------\n", chrName.c_str(), insertion_start_loc, insertion_content.length(), insertion_content.c_str(), contigSupport);
-						reports.push_back(tuple<string, int, int, string, int, float>(chrName, insertion_start_loc, insertion_content.length(), insertion_content, contigSupport, identity ) );
+						cout<<insertion_start_loc<<"\t"<<insertion_content.length()<<"\t"<<insertion_content.c_str()<<"\t"<<contigSupport<<endl;
+						cout<<insertion_content.length()<<endl;
+						reports.push_back(tuple<string, int, int, string, int, float>("INS", insertion_start_loc, insertion_content.length(), insertion_content, contigSupport, identity ) );
 						mapped = 1;
 					}
 				}
