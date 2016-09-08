@@ -243,15 +243,31 @@ void assemble (const string &partition_file, const string &reference, const stri
 	while (1) 
 	{
 		auto p 			= pt.read_partition(partition_file, range);
-		string chrName  = pt.get_reference();
+		// end of the partition file
 		if ( !p.size() ) 
 			break;
-		if ( p.size() > 100000 || p.size() <= 2 ) 	continue;
+		
+		// cluster has too many or too few reads
+		if ( p.size() > 100000 || p.size() <= 2 ) 	
+			continue;
+		
+		string chrName  = pt.get_reference();
 		int cluster_id  = pt.get_cluster_id();
 		int pt_start    = pt.get_start();
 		int pt_end      = pt.get_end();
+		int ref_start   = pt_start - LENFLAG;
+		int ref_end     = pt_end   + LENFLAG;
+		string ref_part = ref.extract(chrName, ref_start, ref_end);
+		fprintf(fo_full,"-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");
+		fprintf(fo_full," + Cluster ID      : %d\n", cluster_id);
+		fprintf(fo_full," + Reads Count     : %lu\n", p.size());
+		fprintf(fo_full," + Spanning Range  : %s:%d-%d", chrName.c_str(), pt_start, pt_end);
+		fprintf(fo_full," + Discovery Range : %s:%d-%d", chrName.c_str(), ref_start, ref_end);
+
 		auto contigs    = as.assemble(p);
-		fprintf(fo_full,"PARTITION %d | read number in partition= %lu; contig number in partition= %lu; partition range=%d\t%d\n*******************************************************************************************\n",cluster_id, p.size(), contigs.size(), pt_start, pt_end);
+
+
+//		fprintf(fo_full,"PARTITION %d | read number in partition= %lu; contig number in partition= %lu; partition range=%d\t%d\n*******************************************************************************************\n",cluster_id, p.size(), contigs.size(), pt_start, pt_end);
 		int contigNum=1;
 		vector< tuple< string, int, int, string, int, float > > reports;
 
@@ -265,10 +281,10 @@ void assemble (const string &partition_file, const string &reference, const stri
 			for(int z=0;z<contig.read_information.size();z++)
 				fprintf(fo_full,"%s %d %d %s\n",contig.read_information[z].name.c_str(),contig.read_information[z].location,contig.read_information[z].in_genome_location, contig.read_information[z].data.c_str());
 			
-			int ref_start 	= pt_start - LENFLAG;
-			int ref_end 	= pt_end + LENFLAG;
-			string ref_part = ref.extract( chrName, ref_start, ref_end );
-			cout<<"ref_start: "<<ref_start<<"\t"<<"ref_end: "<<ref_end<<endl;
+			//int ref_start 	= pt_start - LENFLAG;
+			//int ref_end 	= pt_end + LENFLAG;
+			//string ref_part = ref.extract( chrName, ref_start, ref_end );
+			//cout<<"ref_start: "<<ref_start<<"\t"<<"ref_end: "<<ref_end<<endl;
 			al.align(ref_part, contig.data);
 			if(al.extract_calls(cluster_id, reports, contigSupport, ref_start, contigNum)==0)
 			{
@@ -294,9 +310,9 @@ void assemble (const string &partition_file, const string &reference, const stri
 				string contig 				= string(line);
 				int con_len 				= contig.length();
 				if( check_AT_GC( contig, MAX_AT_GC ) == 0 || contigSupport <=1 || con_len > max_len + 400 || ( pt_end + 1000 - ( pt_start - 1000 ) ) > MAX_REF_LEN ) continue;
-				int ref_start 			= pt_start - LENFLAG;
-				int ref_end 			= pt_end + LENFLAG;
-				string ref_part 		= ref.extract( chrName, ref_start, ref_end );
+				//int ref_start 			= pt_start - LENFLAG;
+				//int ref_end 			= pt_end + LENFLAG;
+				//string ref_part 		= ref.extract( chrName, ref_start, ref_end );
 				al.align(ref_part, contig);
 				if(al.extract_calls(cluster_id, reports, contigSupport, ref_start,  contigNum)==0)
 				{
