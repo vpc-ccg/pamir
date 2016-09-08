@@ -20,8 +20,6 @@ int main(int argc, char* argv[])
 	char *nextStr=new char[1000000]; 
 	char *cpstr=new char[1000000]; 
 	char *cpnextStr=new char[1000000]; 
-	char *mode1 = new char[100];
-	char *mode2 = new char[100];
 	char *chrName1=new char[100];
 	char *cpchrName1=new char[100];
 	char *chrName2=new char[100];
@@ -33,21 +31,15 @@ int main(int argc, char* argv[])
 	char *seq1=new char[100000];
 	char *cpseq1=new char[100000];
 	char *seq2=new char[100000];
-	char *support1=new char[100];
-	char *support2=new char[100];
 	int iloc1;
 	int iloc2;
 	int ilength1;
 	int ilength2;
-	int isupport1;
-	int isupport2;
 	fgets(str, 1000000, fvcf);
 	strcpy(cpstr,str);
-	int totalSupport=0;
 	while(!feof(fvcf)&&fgets(nextStr, 1000000, fvcf)!=NULL)
 	{	
 		strcpy(cpnextStr,nextStr);
-		//mode1 = strtok(str,"\t");
 		chrName1=strtok(str,"\t");
 		strcpy(cpchrName1,chrName1);
 		loc1=strtok(NULL,"\t");
@@ -57,10 +49,6 @@ int main(int argc, char* argv[])
 		dot = strtok(NULL,"\t");
 		seq1=strtok(NULL,"\t");
 		strcpy(cpseq1,seq1);
-		//support1=strtok(NULL,"\t\n");
-		//isupport1=atoi(support1);
-		//totalSupport+=isupport1;
-		//mode2 = strtok(nextStr,"\t");
 		chrName2=strtok(nextStr,"\t");
 		loc2=strtok(NULL,"\t");
 		iloc2=atoi(loc2);
@@ -68,8 +56,6 @@ int main(int argc, char* argv[])
 		ilength2=atoi(length1);
 		dot =  strtok(NULL,"\t");
 		seq2=strtok(NULL,"\t");
-		//support2=strtok(NULL,"\t\n");
-		//isupport2=atoi(support1);
 		if(strcmp(chrName1,chrName2)==0 && (iloc2==iloc1) && (ilength1==ilength2) && strcmp(cpseq1,seq2)==0)
 		{
 			strcpy(str,cpnextStr);
@@ -78,16 +64,12 @@ int main(int argc, char* argv[])
 		else
 		{
 			fprintf(fout,"%s\t%d\t%d\t%s\n",cpchrName1, iloc1, ilength1, cpseq1);
-			//totalSupport=0;
 			strcpy(str,cpnextStr);
 			strcpy(cpstr,str);
 		}
-		delete nextStr;
-		nextStr=new char[1000000];
 	}
 	char *tmp = new char[1000];
 	tmp = strtok(cpstr, "\t");
-	//tmp = strtok(NULL, "\t");
 	for(int i =0;i<3;i++)
 	{
 		fprintf(fout,"%s\t",tmp);
