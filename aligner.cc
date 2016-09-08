@@ -2,6 +2,7 @@
 #include<string>
 #include<algorithm>
 #include<cmath>
+#include<vector>
 #include "aligner.h"
 
 using namespace std;
