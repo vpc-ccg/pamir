@@ -253,9 +253,9 @@ void aligner::align(const string &ref, const string &ass)
 	identity = 1 - (mismatch+indel+log(l))/len;
 }
 /**********************************************************************/
-int aligner::extract_calls( const int &cluster_id, vector<tuple<string, int, int, string, int, float > > &reports, const int &contigSupport, const int &ref_start, const int &contigNum)
+int aligner::extract_calls( const int &cluster_id, vector<tuple<string, int, int, string, int, float > > &reports, const int &contigSupport, const int &ref_start)
 {
-	cout<<"\nCONTIG"<<contigNum<<" length "<< a.length()<<" support "<<contigSupport<<endl<<a.c_str()<< endl;
+	cout<<"\nCONTIG length "<< a.length()<<" support "<<contigSupport<<endl<<a.c_str()<< endl;
 	cout<<"REF region:\t"<<ref_start<<"\n-------------------------------------------------------\n"<<b.c_str()<<endl;
 	dump(stdout);
 	int mapped					= 0;
