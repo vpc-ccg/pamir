@@ -286,11 +286,11 @@ void assemble (const string &partition_file, const string &reference, const stri
 			//string ref_part = ref.extract( chrName, ref_start, ref_end );
 			//cout<<"ref_start: "<<ref_start<<"\t"<<"ref_end: "<<ref_end<<endl;
 			al.align(ref_part, contig.data);
-			if(al.extract_calls(cluster_id, reports, contigSupport, ref_start, contigNum)==0)
+			if(al.extract_calls(cluster_id, reports, contigSupport, ref_start)==0)
 			{
 				string rc_contig = reverse_complement(contig.data);	
 				al.align(ref_part, rc_contig);
-				al.extract_calls(cluster_id, reports, contigSupport, ref_start, contigNum);
+				al.extract_calls(cluster_id, reports, contigSupport, ref_start);
 			}
 			contigNum++;
 		}
@@ -314,11 +314,11 @@ void assemble (const string &partition_file, const string &reference, const stri
 				//int ref_end 			= pt_end + LENFLAG;
 				//string ref_part 		= ref.extract( chrName, ref_start, ref_end );
 				al.align(ref_part, contig);
-				if(al.extract_calls(cluster_id, reports, contigSupport, ref_start,  contigNum)==0)
+				if(al.extract_calls(cluster_id, reports, contigSupport, ref_start)==0)
 				{
 					string rc_contig = reverse_complement(contig);	
 					al.align(ref_part, rc_contig);
-					al.extract_calls(cluster_id, reports, contigSupport, ref_start, contigNum);
+					al.extract_calls(cluster_id, reports, contigSupport, ref_start);
 				}
 				contigNum++;
 			}
