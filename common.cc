@@ -1,10 +1,24 @@
 #include <string>
 #include <cstdarg>
 #include <cstdlib>
+#include <cstdio>
+#include <string.h>
 #include "common.h"
 
 using namespace std;
 
+void wo (FILE *f, char *n, char *s, char *q) {
+	int m = min(strlen(q), strlen(s));
+	s[m] = q[m] = 0;
+	fprintf(f, "@%s\n%s\n+\n%s\n", n, s, q);
+}
+/***********************************************************/
+char checkNs (char *s) {
+	int nc = 0, c = 0;
+	while (*s) nc += (*s == 'N'), s++, c++;
+	return (nc > 10 ? 0 : 1);
+}
+/**********************************************************/
 string reverse_complement ( const string &str )
 {
 	const char *revComp = "TBGDEFCHIJKLMNOPQRSAUVWXYZ";

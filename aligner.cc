@@ -115,8 +115,8 @@ void aligner::align(const string &ref, const string &ass)
 	
 	//backtracking
 	int max = score[1][len];
-	int pi=1;
-	int pj=len;
+	int pi = 1;
+	int pj = len;
 	for (int i=1; i<=ref.length(); i++)
 	{
 		if (score[i][len] > max)
@@ -135,7 +135,7 @@ void aligner::align(const string &ref, const string &ass)
 
 	int cur = 0;
 
-	int match=0, mismatch=0, indel=0;
+	int match = 0, mismatch = 0, indel = 0;
 	
 	while ( pi >0 && pj > 0 )
 	{
@@ -252,55 +252,57 @@ void aligner::align(const string &ref, const string &ass)
 	identity = 1 - (mismatch+indel+log(l))/len;
 }
 /**********************************************************************/
-int aligner::extract_calls(const string &contig, const string &ref_part, vector<tuple<string, int, int, string, int, float > > &reports, FILE *fo_vcf, FILE *fo_full, FILE *fo_vcf_del, FILE *fo_full_del, const string &chrName, const int &contigSupport, const int &contig_start, const int &contig_end, const int &contigNum, const int &LENFLAG)
+int aligner::extract_calls( const string &contig, const string &ref_part, const int &cluster_id, vector<tuple<string, int, int, string, int, float > > &reports, FILE *fo_vcf, FILE *fo_full, FILE *fo_vcf_del, FILE *fo_full_del, const string &chrName, const int &contigSupport, const int &pt_start, const int &pt_end, const int &contigNum, const int &LENFLAG)
 {
-	int mapped=0;
+	fprintf(fo_full,"\nCONTIG %d IN PARTITION %d length %lu; readNum %d;\n%s\n", contigNum, cluster_id, contig.length(), contigSupport, contig.c_str() );
+	fprintf(fo_full, "REF region:\t%d\t%d\n%s\n-------------------------------------------------------\n",max(pt_start - LENFLAG,0), pt_end + LENFLAG, ref_part.c_str());
+	dump(fo_full);
+	int mapped					= 0;
+	int insertion_start_loc 	= -1;
+	int insertion_end_loc		= -1;
+	double fwdIden 				= get_identity();
 	string insertion_content;
 	int fwdS, fwdE, fwdAS, fwdAE;
-	int insertion_start_loc=-1;
-	int insertion_end_loc=-1;
-
-	double fwdIden = get_identity();
-	if(fwdIden>1.0 && ( left_anchor > 5 && right_anchor > 5 ) && ( left_anchor > 16 || right_anchor > 16 ) )
+	if( fwdIden > 1.0 && ( left_anchor > 5 && right_anchor > 5 ) && ( left_anchor > 16 || right_anchor > 16 ) )
 	{
-		if(contig_start-LENFLAG<=0)
-			fwdS=p_start;
+		if(pt_start - LENFLAG <= 0)
+			fwdS = p_start;
 		else
-			fwdS = contig_start - LENFLAG + p_start;
-		if(contig_start-LENFLAG<=0)
-			fwdE=p_end;
+			fwdS = pt_start - LENFLAG + p_start;
+		if( pt_start - LENFLAG <= 0 )
+			fwdE = p_end;
 		else
-			fwdE = contig_start - LENFLAG + p_end;
-		fwdAS = 0;
-		fwdAE = contig.length()-1;
+			fwdE = pt_start - LENFLAG + p_end;
+		fwdAS 					= 0;
+		fwdAE 					= contig.length()-1;
+		int del_len				= 0;
+		int ins_len				= 0;
+		int deletion_start_loc 	= 0;
+		int deletion_end_loc 	= 0;
+		int isdeletion			= 0;
+		string deletion_content;
 		fprintf(fo_full,"fwdIden: %f\nfwdAE: %d\tfwdAS: %d\tfwdE: %d\tfwdS: %d\tget_start(): %d\n",fwdIden, fwdAE,fwdAS,fwdE,fwdS,p_start);			
 		fprintf(fo_full,"REF PART OF MAPPING: %s\n",a.c_str());
-		int del_len=0;
-		int ins_len=0;
-		int deletion_start_loc = 0;
-		int deletion_end_loc = 0;;
-		string deletion_content;
-		int isdeletion=0;
 		if( b.length() > 0 )
 		{
-			int p=0;
-			while(p<b.length())
+			int p = 0;
+			while( p < b.length() )
 			{
 				del_len=0;
-				for(;p<b.length();p++)
+				for( ; p < b.length(); p++ )
 				{
-					if(b[p]=='-')
+					if( b[p] == '-' )
 					{
-						deletion_start_loc=p;
+						deletion_start_loc = p;
 						break;
-						del_len=1;
+						del_len = 1;
 					}
 				}
-				for(;p<b.length();p++)
+				for( ; p < b.length(); p++ )
 				{
-					if(b[p]!='-')
+					if( b[p] != '-' )
 					{
-						deletion_end_loc=p;
+						deletion_end_loc = p;
 						break;
 					}
 					else
@@ -309,8 +311,6 @@ int aligner::extract_calls(const string &contig, const string &ref_part, vector<
 				if( del_len >= 5 && deletion_start_loc != -1 && deletion_start_loc + 1 != insertion_end_loc )
 				{
 					isdeletion         = 1;
-					fprintf(fo_full_del,"CONTIG ITSELF:%s\n",contig.c_str());
-					fprintf(fo_full_del,"del_start:%d\tdel_end:%d\tdel_end-del_start:%d\n",deletion_start_loc,deletion_end_loc,deletion_end_loc-deletion_start_loc);
 					deletion_content   = a.substr(deletion_start_loc,deletion_end_loc-deletion_start_loc);
 					deletion_start_loc = deletion_start_loc+fwdS;
 					if(deletion_content.length()>0)
@@ -322,41 +322,39 @@ int aligner::extract_calls(const string &contig, const string &ref_part, vector<
 		}
 		if( isdeletion == 0 and a.length() > 0 )
 		{
-			int p=0;
-			int decreaseFromInsStartLoc=0;
-			while(p<a.length())
+			int p 						= 0;
+			int decreaseFromInsStartLoc = 0;
+			while( p < a.length() )
 			{
-				ins_len=0;
-				for(;p<a.length();p++)
+				ins_len = 0;
+				for( ; p < a.length(); p++ )
 				{
-					if(a[p]=='-')
+					if( a[p] == '-' )
 					{
-						insertion_start_loc=p;
+						insertion_start_loc = p;
 						break;
-						ins_len=1;
+						ins_len = 1;
 					}
 				}
-				for(;p<a.length();p++)
+				for( ; p < a.length(); p++ )
 				{
-					if(a[p]!='-')
+					if( a[p] != '-' )
 					{
-						insertion_end_loc=p;
+						insertion_end_loc = p;
 						break;
 					}
 					else
 						ins_len++;
 				}
-				if(ins_len>=5&&insertion_start_loc!=-1&&insertion_start_loc+1!=insertion_end_loc)
+				if( ins_len >= 5 && insertion_start_loc != -1 && insertion_start_loc + 1 != insertion_end_loc )
 				{
-					fprintf(fo_full,"CONTIG ITSELF:%s\n",contig.c_str());
-					fprintf(fo_full,"ins_start:%d\tins_end:%d\tins_end-ins_start:%d\n",insertion_start_loc,insertion_end_loc,insertion_end_loc-insertion_start_loc);
 					insertion_content   = b.substr(insertion_start_loc,insertion_end_loc-insertion_start_loc);
 					insertion_start_loc = insertion_start_loc+fwdS;
-					if(insertion_content.length()>0)
+					if( insertion_content.length() > 0 )
 					{
-						fprintf(fo_full,"%s\t%d\t%lu\t%s\n------------------------------------------------------\n",chrName.c_str(), insertion_start_loc,insertion_content.length(),insertion_content.c_str());
+						fprintf(fo_full,"%s\t%d\t%lu\t%s\t%d\n------------------------------------------------------\n", chrName.c_str(), insertion_start_loc, insertion_content.length(), insertion_content.c_str(), contigSupport);
 						reports.push_back(tuple<string, int, int, string, int, float>(chrName, insertion_start_loc, insertion_content.length(), insertion_content, contigSupport, identity ) );
-						mapped=1;
+						mapped = 1;
 					}
 				}
 				p++;
@@ -366,92 +364,6 @@ int aligner::extract_calls(const string &contig, const string &ref_part, vector<
 	return mapped;
 }
 /********************************************************************************/
-void aligner::extract_calls2(const string& ref, int start, int clusterId, int *coverage, FILE *fo)
-{
-	int g_pos = start;
-	int r_pos = 1;
-	int ev_gen_start, ev_gen_end, ev_ass_start, ev_ass_end;
-	int i=0;
-	string x, y, type;
-	while (identity > .900 && i<c.length())
-	{
-		if (c[i]=='|')
-		{
-			r_pos++;
-			g_pos++;
-			i++;
-		}
-		else 
-		{
-			if (a[i] != '-' && b[i] != '-')
-			{
-				ev_gen_start = ev_gen_end = g_pos;
-				ev_ass_start = ev_ass_end = r_pos;
-				r_pos++;
-				g_pos++;
-				x=a[i];
-				y=b[i];
-				i++;
-			}
-			else if (a[i] == '-')
-			{
-
-				ev_gen_start = g_pos-1;
-				ev_ass_start = r_pos-1;
-				x=a[i-1];
-				y=b[i-1];
-
-				while (a[i]=='-')
-				{
-					y+=b[i];
-					r_pos++;
-					i++;
-				}
-
-				ev_gen_end = ev_gen_start;
-				ev_ass_end=r_pos-1;
-			}
-			else if (b[i]=='-')
-			{
-				ev_gen_start = g_pos-1;
-				ev_ass_start = r_pos-1;
-				x = a[i-1];
-				y = b[i-1];
-
-				while (b[i]=='-')
-				{
-					x+=a[i];
-					g_pos++;
-					i++;
-				}
-				ev_gen_end = g_pos-1;
-				ev_ass_end = ev_ass_start;
-			}
-			int min = 10000, max = -1;
-			for (int kk=ev_ass_start-1; kk<ev_ass_end; kk++)
-			{
-				if (coverage[kk]>max)
-					max = coverage[kk];
-				if (coverage[kk]<min)
-					min = coverage[kk];
-			}
-
-			if(x.length() > y.length()){
-				type = "DEL";
-			}
-			else if(x.length() < y.length()){
-				type = "INS";
-			}
-			else{
-				type = "SNV";
-			}
-
-			fprintf(fo, "%s\t%d\t.\t%s\t%s\t%f\tPASS\tSVTYPE=%s;END=%d;Cluster=%d;MinSupport=%d;MaxSupport=%d;Identity=%f\n", 
-					ref.c_str(), ev_gen_start, x.c_str(), y.c_str(), (-10*log(1-identity)), type.c_str(), ev_gen_end, clusterId, min, max, identity*100); 
-		}
-	}
-}
-
 void aligner::dump(FILE *fo)
 {
 	string cnt = "";
@@ -466,37 +378,37 @@ void aligner::dump(FILE *fo)
 	}
 	fprintf(fo, "   %s\nG: %s\n   %s\nA: %s\n",cnt.c_str(), a.c_str(), c.c_str(), b.c_str()); 
 }
-
+/********************************************************************************/
 int aligner::get_start()
 {
 	return p_start;
 }
-
+/********************************************************************************/
 int aligner::get_end()
 {
 	return p_end;
 }
-
+/********************************************************************************/
 float aligner::get_identity()
 {
 	return 100*identity;
 }
-
+/********************************************************************************/
 string aligner::get_a()
 {
 	return a;
 }
-
+/********************************************************************************/
 string aligner::get_b()
 {
 	return b;
 }
-
+/********************************************************************************/
 int aligner::get_left_anchor()
 {
 	return left_anchor;
 }
-
+/********************************************************************************/
 int aligner::get_right_anchor()
 {
 	return right_anchor;

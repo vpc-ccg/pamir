@@ -198,30 +198,41 @@ int main(int argc, char **argv)
 			//cout<<"decided: "<< decided<<endl;
 			if(decided == 1)
 			{
-				if(myset[(*mit).first][0] == myset[(*mit).first][1])
+				string revcontent;
+				if( abs( myset[(*mit).first][0] -  myset[(*mit).first][1] ) <=1 )
 				{
 					reads.push_back((*mit).first);
 					reads_content.push_back(map_cont[(*mit).first]);
 					reads_support.push_back(map_sup[(*mit).first]);
 					reads_pos.push_back(-1);
 					acceptedContigNum++;
-				}
-				string revcontent;
-				if(myset[(*mit).first][0] > myset[(*mit).first][1])
-				{
+					string content = map_cont[(*mit).first];
+					revcontent = reverse_complement(content);
+					reads.push_back((*mit).first);
+					reads_content.push_back(revcontent);
+					reads_support.push_back(map_sup[(*mit).first]);
+					reads_pos.push_back(-1);
+					acceptedContigNum++;
 
-					revcontent = map_cont[(*mit).first];
 				}
 				else
 				{
-					string content = map_cont[(*mit).first];
-					revcontent = reverse_complement(content);
+					if(myset[(*mit).first][0] > myset[(*mit).first][1])
+					{
+
+						revcontent = map_cont[(*mit).first];
+					}
+					else
+					{
+						string content = map_cont[(*mit).first];
+						revcontent = reverse_complement(content);
+					}
+					reads.push_back((*mit).first);
+					reads_content.push_back(revcontent);
+					reads_support.push_back(map_sup[(*mit).first]);
+					reads_pos.push_back(-1);
+					acceptedContigNum++;
 				}
-				reads.push_back((*mit).first);
-				reads_content.push_back(revcontent);
-				reads_support.push_back(map_sup[(*mit).first]);
-				reads_pos.push_back(-1);
-				acceptedContigNum++;
 			}
 		}
 		lines+=acceptedContigNum;

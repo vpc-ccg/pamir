@@ -17,6 +17,8 @@
 
 using namespace std;
 
+void wo (FILE *, char *, char *, char *);
+char checkNs (char *);
 string reverse_complement ( const string & );
 string reverse ( const string & );
 string S (const char* fmt, ...);

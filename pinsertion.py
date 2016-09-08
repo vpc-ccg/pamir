@@ -465,15 +465,6 @@ def orphan_assembly(config):
 		clean_state( 10, workdir, config )
 	cmd 		  = "python " + pipeline.sga + " " + input_file;
 	shell(msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
-#	else:
-#	input_file    = "{0}/orphan.fq".format(workdir)
-#	freeze_arg    = ""
-#	cmd           = pipeline.sniper + ' assemble_orphan {0} {1} {2}'.format(  input_file, output_file, output_log)
-#	run_cmd       = not (os.path.isfile(complete_file) )
-#	if ( run_cmd ):
-#		clean_state( 10, workdir, config )
-#	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
-
 #############################################################################################
 ###### Preparing necessary file for orphan.contigs.fa to make it a single line ref: Easier to map.
 def prepare_orphan_contig(config):
@@ -622,7 +613,7 @@ def oea_to_orphan_split(config):
 	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg )
 #############################################################################################
 def recalibrate_all_oea_to_orphan(config):
-	msg			  = "Recalibrating the all_ea_to_orphan.sam"
+	msg			  = "Recalibrating the all_oea_to_orphan.sam"
 	workdir		  = pipeline.workdir
 	input_file    = "{0}/all_oea2orphan.sam".format(workdir)
 	output_file   = "{0}/all_oea2orphan.recal.sam".format(workdir)
