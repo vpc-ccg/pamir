@@ -225,9 +225,10 @@ int output_log (const string &log_file, const string &range)
 		if (!tok) start = 0;
 		else {
 			start = atol(tok), tok = strtok(0, "-");
-			end = tok ? atol(tok) : -1;
+			end = tok ? atol(tok) : start+1;
 		}
 		free(dup);
+		free(tok);
 		fprintf(stdout, "extraction [%u, %u]\n", start, end-1);
 
 		FILE *fidx = fopen((log_file + ".idx").c_str(), "rb");
