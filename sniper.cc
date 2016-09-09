@@ -175,6 +175,105 @@ void partify (const string &read_file, const string &mate_file, const string &ou
 	fclose(fo);
 	fclose(fidx);
 }
+// For outputing specific log
+/****************************************************************/
+void log_idx (const string &log_file ) 
+{
+	FILE *fin = fopen(log_file.c_str(), "rb");
+	FILE *fidx = fopen((log_file + ".idx").c_str(), "wb");
+	char *readline = (char*)malloc(50000);
+	char *token = (char*)malloc(100);
+	size_t idx_pos = ftell(fin);
+	int l_id, offset;	
+	int num_inserted = 0; // to resolve skipping partition issue
+
+	fwrite( &idx_pos, 1, sizeof(size_t), fidx); // initialize an log for partition id ZERO
+	while( NULL != fgets( readline, 50000, fin ) )
+	{	
+		if ( 0 == strncmp("PARTITION ", readline, 10) )
+		{
+			sscanf(readline, "%s %d %n", token, &l_id, &offset);
+			while( l_id > num_inserted +1)
+			{
+				//fprintf( stdout, "size\t%d\t%lu->%s\n", num_inserted, idx_pos, readline);
+				fwrite( &idx_pos, 1, sizeof(size_t), fidx);
+				num_inserted++;
+			}
+			//fprintf( stdout, "size\t%d\t%lu->%s\n", num_inserted, idx_pos, readline);
+			fwrite( &idx_pos, 1, sizeof(size_t), fidx);
+			num_inserted++;
+		}
+		idx_pos = ftell(fin);	
+	}
+	fclose(fin);
+	fclose(fidx);
+	free(readline);
+}
+
+// Output Log from x to y-1. To output t, specify t-t+1
+/****************************************************************/
+int output_log (const string &log_file, const string &range)
+{
+	static unsigned int start = -1, end = -1;
+	static vector<size_t> offsets;
+	if (start == -1) {
+		char *dup = strdup(range.c_str());
+		char *tok = strtok(dup, "-");
+		if (!tok) start = 0;
+		else {
+			start = atol(tok), tok = strtok(0, "-");
+			end = tok ? atol(tok) : -1;
+		}
+		free(dup);
+		fprintf(stdout, "extraction [%u, %u]\n", start, end-1);
+
+		FILE *fidx = fopen((log_file + ".idx").c_str(), "rb");
+		size_t offset;
+		while (fread(&offset, 1, sizeof(size_t), fidx) == sizeof(size_t))
+			offsets.push_back(offset);
+		fclose(fidx);
+	}
+
+	FILE *fi, *fo, *foidx;
+	int sz, i;
+	int cluster_id;
+	int num_cluster = 0, num_read = 0;
+	const int MAXB = 8096;
+	char pref[MAXB];
+	char name[MAXB], read[MAXB];
+	string c_file = range + ".log";
+	fo = fopen(c_file.c_str(), "w");
+	fclose(fo);
+reset:
+//	assert(start < offsets.size());
+	if (start >= offsets.size() || start >= end)
+		return 0;
+	//fprintf(stderr,"Seeking to %d--%d (%lu)\n", start, end, offsets[start]);
+
+	fi = fopen(log_file.c_str(), "rb");
+	fo = fopen(c_file.c_str(), "a");
+	fseek(fi, offsets[start++], SEEK_SET);
+	fgets(pref, MAXB, fi);
+	if ( 0 != strncmp("PARTITION ", pref, 10) )
+	{	exit(1); fprintf(stderr, "Incorrect Start at %s", pref);
+	}
+	fprintf( fo, "%s", pref);
+	
+	fgets(pref, MAXB, fi);
+	while ( 0 != strncmp("PARTITION ", pref, 10) )
+	{
+		fprintf( fo, "%s", pref);
+		fgets(pref, MAXB, fi);
+	}
+
+	num_read = 0;
+
+	fclose(fi);
+	fclose(fo);
+	if ( num_read == 0)
+		goto reset;
+	return num_cluster;
+}
 /******************************************************************/
 string assemble_with_sga (const string &input_fastq)
 {
@@ -352,6 +451,14 @@ int main(int argc, char **argv)
 			if (argc != 4) throw "Usage:\tsniper get_cluster [partition-file] [range]";
 			genome_partition pt;
 			pt.output_partition( argv[2], argv[3]);
+		}
+		else if (mode == "log_idx") {
+			if (argc != 3) throw "Usage:\tsniper log_idx [log-file]";
+			log_idx( argv[2]);
+		}
+		else if (mode == "output_log") {
+			if (argc != 4) throw "Usage:\tsniper log_idx [log-file] [range]";
+			output_log( argv[2], argv[3]);
 		}
 		else {
 			throw "Invalid mode selected";
