@@ -372,11 +372,11 @@ void assemble (const string &partition_file, const string &reference, const stri
 		auto contigs    = as.assemble(p);
 		for ( auto &contig: contigs )
 		{
-			int contigSupport		= contig.support();
+			int contig_support		= contig.support();
 			int con_len 			= contig.data.length();
-			if( check_AT_GC(contig.data, MAX_AT_GC) == 0 || contigSupport <= 1 || con_len > max_len + 400 ) continue;
+			if( check_AT_GC(contig.data, MAX_AT_GC) == 0 || contig_support <= 1 || con_len > max_len + 400 ) continue;
 		
-			fprintf(stdout, ">>> Length: %d Support: %d\n", con_len, contigSupport);
+			fprintf(stdout, ">>> Length: %d Support: %d\n", con_len, contig_support);
 			for(int z=0;z<contig.read_information.size();z++)
 				fprintf(stdout,"%s %d %d %s\n", 
 					contig.read_information[z].name.c_str(),
@@ -385,11 +385,11 @@ void assemble (const string &partition_file, const string &reference, const stri
 					contig.read_information[z].data.c_str());
 			
 			al.align(ref_part, contig.data);
-			if(al.extract_calls(cluster_id, reports, contigSupport, ref_start)==0)
+			if(al.extract_calls(cluster_id, reports, contig_support, ref_start)==0)
 			{
 				string rc_contig = reverse_complement(contig.data);	
 				al.align(ref_part, rc_contig);
-				al.extract_calls(cluster_id, reports, contigSupport, ref_start);
+				al.extract_calls(cluster_id, reports, contig_support, ref_start);
 			}
 		}
 		print_calls(chrName, reports, fo_vcf, pt.get_cluster_id());
@@ -398,20 +398,20 @@ void assemble (const string &partition_file, const string &reference, const stri
 			reports.clear();
 			string outofsga 	= assemble_with_sga( prepare_sga_input( out_vcf, p, read_length ) );
 			FILE *fcontig 		= fopen(outofsga.c_str(),"r");
-			int contigSupport 	= p.size();
+			int contig_support 	= p.size();
 			while( fgets( line, 1000000, fcontig ) != NULL )
 			{
 				fgets( line, 1000000, fcontig );
 				line[ strlen(line)-1 ]		='\0';
 				string contig 				= string(line);
 				int con_len 				= contig.length();
-				if( check_AT_GC( contig, MAX_AT_GC ) == 0 || contigSupport <=1 || con_len > max_len + 400 ) continue;
+				if( check_AT_GC( contig, MAX_AT_GC ) == 0 || contig_support <=1 || con_len > max_len + 400 ) continue;
 				al.align(ref_part, contig);
-				if(al.extract_calls(cluster_id, reports, contigSupport, ref_start)==0)
+				if(al.extract_calls(cluster_id, reports, contig_support, ref_start)==0)
 				{
 					string rc_contig = reverse_complement(contig);	
 					al.align(ref_part, rc_contig);
-					al.extract_calls(cluster_id, reports, contigSupport, ref_start);
+					al.extract_calls(cluster_id, reports, contig_support, ref_start);
 				}
 			}
 			print_calls( chrName, reports, fo_vcf, pt.get_cluster_id());
