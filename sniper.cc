@@ -285,7 +285,7 @@ string assemble_with_sga (const string &input_fastq)
 	char *sgapython = new char[MAX_CHAR];
 	strcpy(sgapython,"/cs/compbio3/yenyil/Pinar/pinsertionForExperiments/sga.py");
 	char *sgacmd = new char[MAX_CHAR];
-	sprintf(sgacmd, "python %s %s > /dev/null",sgapython,input_fastq.c_str());
+	sprintf(sgacmd, "python %s %s > SGA.out",sgapython,input_fastq.c_str());
 	system(sgacmd);
 	string outofsga = input_fastq+string(".sgaout.fa");
 	return outofsga;
@@ -323,7 +323,7 @@ void print_calls(string chrName, vector< tuple< string, int, int, string, int, f
 {
 	for(int r=0;r<reports.size();r++)
 	{
-		if(get<0>(reports[r])== "INS")
+		if(get<0>(reports[r])== "INS"){
 			fprintf(fo_vcf, "%s\t",	 			chrName.c_str());
 			fprintf(fo_vcf, "%d\t", 			get<1>(reports[r]));
 			fprintf(fo_vcf, "%d\t", 			get<2>(reports[r]));
@@ -336,6 +336,7 @@ void print_calls(string chrName, vector< tuple< string, int, int, string, int, f
 			fprintf(fo_vcf, "Cluster=%d;", 		clusterId);
 			fprintf(fo_vcf, "Support=%d;", 		get<4>(reports[r]));
 			fprintf(fo_vcf, "Identity=%f\n", 	get<5>(reports[r])); 
+		}
 	}
 }
 /****************************************************************/
