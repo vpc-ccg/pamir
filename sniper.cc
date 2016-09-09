@@ -284,7 +284,7 @@ string assemble_with_sga (const string &input_fastq)
 	char *sgapython = new char[MAX_CHAR];
 	strcpy(sgapython,"/cs/compbio3/yenyil/Pinar/pinsertionForExperiments/sga.py");
 	char *sgacmd = new char[MAX_CHAR];
-	sprintf(sgacmd, "python %s %s",sgapython,input_fastq.c_str());
+	sprintf(sgacmd, "python %s %s > /dev/null",sgapython,input_fastq.c_str());
 	system(sgacmd);
 	string outofsga = input_fastq+string(".sgaout.fa");
 	return outofsga;

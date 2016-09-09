@@ -256,7 +256,7 @@ def clean_state_worker( workdir, config):
 def clean_state( mode_index, workdir, config ):
 	flag_clean = 0 # 1 only when we delete files due to changes in project.config
 	workdir = pipeline.workdir	
-	valid_state = [ '01.verify_sam', '02.mask', '03.mrsfast-index', '04.mrsfast.best', '05.oea', '06.mrsfast', '07.sorted', '08.oeaunm', '09.sniper_part', '10.orphan_assembly', 'normal']
+	valid_state = [ '01.verify_sam', '02.mask', '03.mrsfast-index', '04.mrsfast.best', '05.remove_concordant', '06.mrsfast', '07.sorted', '08.oeaunm', '09.sniper_part', '10.orphan_assembly', 'normal']
 	for i in range( mode_index, len(valid_state)):
 		if ( 3==i and ""!=config.get("project","mrsfast-best-search")):
 			continue
@@ -406,7 +406,7 @@ def sort(config ):
 	input_file    = "{0}/mrsfast.sam".format( workdir )
 	output_file   = "{0}/sorted.sam".format( workdir )
 	control_file  = "{0}/log/07.sort.log".format( workdir );
-	complete_file = "{0}/stage/07.sorted.finished".format( workdir );
+	complete_file = "{0}/stage/07.sort.finished".format( workdir );
 	freeze_arg    = ""
 	cmd           = pipeline.sniper +' sort {0} {1}'.format(  input_file, output_file )
 	run_cmd       = not (os.path.isfile(complete_file) )
@@ -528,7 +528,34 @@ def orphan_to_orphan(config):
 	control_file  = "{0}/log/13.orphan2orphan.recal.log".format(workdir);
 	complete_file = "{0}/stage/13.orphan2orphan.recal.finished".format(workdir);
 	freeze_arg    = ""
-	cmd           = "{0} {1} {2} {3}".format(pipeline.recalibrate, coor_file, input_file, output_file)
+	cmd           = pipeline.recalibrate + " {0} {1} {2}".format(coor_file, input_file, output_file)
+	freeze_arg=""
+	run_cmd       = not (os.path.isfile(complete_file) )
+	#if ( run_cmd ):
+	#	clean_state( 13, workdir, config )
+	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg )
+#############################################################################################
+###### Map orphan reads onto orphan contigs to find the support value of each contig (If they come from an assembler).
+def orphancontig_support(config):
+	msg			  = "Print the supportive reads for each orphan contig"
+	workdir		  = pipeline.workdir
+	input_file    = "{0}/orphan2orphan.recal.sam".format(workdir)
+	output_file   = "{0}/orphan2orphan.recal.sorted.sam".format(workdir)
+	control_file  = "{0}/log/14.sort_orphan_contig_sam.log".format(workdir);
+	complete_file = "{0}/stage/14.sort_orphan_contig_sam.finished".format(workdir);
+	freeze_arg    = ""
+	cmd           = pipeline.sniper + ' sort {0} {1}'.format(input_file, output_file)
+	run_cmd       = not (os.path.isfile(complete_file) )
+	#if ( run_cmd ):
+	#	clean_state( 12, workdir, config )
+	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg )
+	
+	msg			  = "Printing orphanreads.fastq for each orphan contig"
+	input_file   = "{0}/orphan2orphan.recal.sorted.sam".format(workdir)
+	control_file  = "{0}/log/14.orphan_contig_support.log".format(workdir);
+	complete_file = "{0}/stage/14.orphan_contig_support.finished".format(workdir);
+	freeze_arg    = ""
+	cmd           = pipeline.extract_support + " {0} {1}".format(input_file, pipeline.workdir)
 	freeze_arg=""
 	run_cmd       = not (os.path.isfile(complete_file) )
 	#if ( run_cmd ):
@@ -542,8 +569,8 @@ def oea_to_orphan(config):
 	orphan_ref    = "{0}/orphan.contigs.single.ref".format(workdir)
 	orphan_fastq	  = "{0}/oea.unmapped.fq".format(workdir)
 	output_file   = "{0}/oea2orphan.sam".format(workdir)
-	control_file  = "{0}/log/14.oea2orphan.log".format(workdir);
-	complete_file = "{0}/stage/14.oea2orphan.finished".format(workdir);
+	control_file  = "{0}/log/15.oea2orphan.log".format(workdir);
+	complete_file = "{0}/stage/15.oea2orphan.finished".format(workdir);
 	freeze_arg    = ""
 	cmd           = pipeline.mrsfast + ' --search {0} --seq {1} -o {2} -e 0 --disable-sam-header'.format(orphan_ref, orphan_fastq, output_file)
 	run_cmd       = not (os.path.isfile(complete_file) )
@@ -559,8 +586,8 @@ def oea_to_orphan_split(config):
 	orphan_ref    = "{0}/orphan.contigs.single.ref".format(workdir)
 	input_fastq	  = "{0}/oea2orphan.sam.nohit".format(workdir)
 	output_file   = "{0}/split1_oea2orphan.sam".format(workdir)
-	control_file  = "{0}/log/15.split1_oea2orphan.log".format(workdir);
-	complete_file = "{0}/stage/15.split1_oea2orphan.finished".format(workdir);
+	control_file  = "{0}/log/16.split1_oea2orphan.log".format(workdir);
+	complete_file = "{0}/stage/16.split1_oea2orphan.finished".format(workdir);
 	freeze_arg    = ""
 	cmd           = pipeline.mrsfast + ' --search {0} --seq {1} -o {2} --crop 50 -e 0 --disable-sam-header'.format(orphan_ref, input_fastq, output_file)
 	run_cmd       = not (os.path.isfile(complete_file) )
@@ -574,8 +601,8 @@ def oea_to_orphan_split(config):
 	orphan_ref    = "{0}/orphan.contigs.single.ref".format(workdir)
 	input_fastq	  = "{0}/oea2orphan.sam.nohit".format(workdir)
 	output_file   = "{0}/split2_oea2orphan.sam".format(workdir)
-	control_file  = "{0}/log/16.split2_oea2orphan.log".format(workdir);
-	complete_file = "{0}/stage/16.split2_oea2orphan.finished".format(workdir);
+	control_file  = "{0}/log/17.split2_oea2orphan.log".format(workdir);
+	complete_file = "{0}/stage/17.split2_oea2orphan.finished".format(workdir);
 	freeze_arg    = ""
 	cmd           = pipeline.mrsfast + ' --search {0} --seq {1} -o {2} --tail-crop 50 -e 0 --disable-sam-header'.format(orphan_ref, input_fastq, output_file)
 	run_cmd       = not (os.path.isfile(complete_file) )
@@ -588,8 +615,8 @@ def oea_to_orphan_split(config):
 	input_file2    = "{0}/split2_oea2orphan.sam".format(workdir)
 	input_file3    = "{0}/oea2orphan.sam".format(workdir)
 	output_file    = "{0}/all_oea2orphan.sam".format(workdir)
-	control_file   = "{0}/log/17.concat_all_oea2orphan.log".format(workdir);
-	complete_file  = "{0}/stage/17.concat_all_oea2orphan.finished".format(workdir);
+	control_file   = "{0}/log/18.concat_all_oea2orphan.log".format(workdir);
+	complete_file  = "{0}/stage/18.concat_all_oea2orphan.finished".format(workdir);
 	freeze_arg     = ""
 	cmd            = "cat {0} {1} {2} > {3}".format(input_file1, input_file2, input_file3, output_file)
 	freeze_arg=""
@@ -605,8 +632,8 @@ def recalibrate_all_oea_to_orphan(config):
 	input_file    = "{0}/all_oea2orphan.sam".format(workdir)
 	output_file   = "{0}/all_oea2orphan.recal.sam".format(workdir)
 	coor_file     = "{0}/orphan.contigs.single.coor".format(workdir)
-	control_file  = "{0}/log/18.all_oea2orphan.recal.log".format(workdir);
-	complete_file = "{0}/stage/18.all_oea2orphan.recal.finished".format(workdir);
+	control_file  = "{0}/log/19.all_oea2orphan_recal.log".format(workdir);
+	complete_file = "{0}/stage/19.all_oea2orphan_recal.finished".format(workdir);
 	freeze_arg    = ""
 	cmd           = "{0} {1} {2} {3}".format(pipeline.recalibrate, coor_file, input_file, output_file)
 	freeze_arg=""
@@ -624,8 +651,8 @@ def orphans_into_oeacluster(config):
 	oea_to_orphan   = "{0}/all_oea2orphan.recal.sam".format(workdir)
 	partition_file   = "{0}/sniper_part".format(workdir)
 	upartition_file   = "{0}/sniper_part_updated".format(workdir)
-	control_file  = "{0}/log/19.insert_orphans_into_cluster.log".format(workdir)
-	complete_file = "{0}/stage/19.insert_orphans_into_cluster.finished".format(workdir)
+	control_file  = "{0}/log/20.insert_orphans_into_cluster.log".format(workdir)
+	complete_file = "{0}/stage/20.insert_orphans_into_cluster.finished".format(workdir)
 	clusterNumFile = "{0}/clusterNum".format(workdir);
 	freeze_arg    = ""
 	cmd           = pipeline.pprocessor + ' {0} {1} {2} {3} {4} > {5}'.format(orphan_ref, orphan_to_orphan, oea_to_orphan, partition_file, upartition_file, clusterNumFile)
@@ -641,8 +668,8 @@ def updated_sniper_part(config ):
 	workdir		  = pipeline.workdir
 	input_file    = "{0}/sniper_part_updated".format(workdir)
 	ref_file	  = "{0}/{1}".format(workdir,config.get("project","reference"))
-	control_file  = "{0}/log/20.updated_sniper_assembly.log".format(workdir)
-	complete_file = "{0}/stage/20.updated_sniper_assembly.finished".format(workdir)
+	control_file  = "{0}/log/21.updated_sniper_assembly.log".format(workdir)
+	complete_file = "{0}/stage/21.updated_sniper_assembly.finished".format(workdir)
 	clusterNumFile= "{0}/clusterNum".format(workdir)
 	clusterNum=int(open(clusterNumFile).read())
 	perJob=clusterNum/int(config.get("project","num-worker"))
@@ -680,8 +707,18 @@ def updated_sniper_part(config ):
 	cmd2+="> {0}/sniper_part_updated.log".format(workdir)
 	cmdall=cmd+";"+cmd2
 	freeze_arg=""
-	control_file  = "{0}/log/21.concatenate_vcf.log".format(workdir)
-	complete_file = "{0}/stage/21.concatenate_vcf.finished".format(workdir)
+	control_file  = "{0}/log/22.concatenate_vcf.log".format(workdir)
+	complete_file = "{0}/stage/22.concatenate_vcf.finished".format(workdir)
+	run_cmd       = not (os.path.isfile(complete_file) )
+	shell( msg, run_cmd, cmdall, control_file, complete_file, freeze_arg)
+
+### index sniper_part_updated.log
+
+	msg = "Indexing log file"
+	cmd = pipeline.sniper + " index_log {0}/sniper_part_updated.log".format(workdir)
+	freeze_arg=""
+	control_file  = "{0}/log/23.index_log.log".format(workdir)
+	complete_file = "{0}/stage/23.index_log.finished".format(workdir)
 	run_cmd       = not (os.path.isfile(complete_file) )
 	shell( msg, run_cmd, cmdall, control_file, complete_file, freeze_arg)
 ######################################################################################
@@ -689,20 +726,20 @@ def updated_sniper_part(config ):
 def post_processing(config):	
 	workdir		  = pipeline.workdir
 	freeze_arg=""
-	control_file  = "{0}/log/22.sort_vcf.log".format(workdir)
-	complete_file = "{0}/stage/22.sort_vcf.finished".format(workdir)
+	control_file  = "{0}/log/24.sort_vcf.log".format(workdir)
+	complete_file = "{0}/stage/24.sort_vcf.finished".format(workdir)
 	run_cmd		  = not (os.path.isfile(complete_file))
 	cmd="sort -k 2,2n -k 3,3n {0}/sniper_part_updated.vcf > {0}/sniper_part_updated.vcf_sorted".format(workdir)
 	msg="Sorting vcf file"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
-	control_file  = "{0}/log/23.filter_duplicate_calls.log".format(workdir)
-	complete_file = "{0}/stage/23.filter_duplicate_calls.finished".format(workdir)
+	control_file  = "{0}/log/25.filter_duplicate_calls.log".format(workdir)
+	complete_file = "{0}/stage/25.filter_duplicate_calls.finished".format(workdir)
 	run_cmd		  = not (os.path.isfile(complete_file))
 	cmd			  = pipeline.removedup + " {0}/sniper_part_updated.vcf_sorted {0}/sniper_part_updated.vcf_sorted_wodups".format(workdir)
 	msg="Eliminating duplicated insertions"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
-	control_file  = "{0}/log/24.remove_partials.log".format(workdir)
-	complete_file = "{0}/stage/24.remove_partials.finished".format(workdir)
+	control_file  = "{0}/log/26.remove_partials.log".format(workdir)
+	complete_file = "{0}/stage/26.remove_partials.finished".format(workdir)
 	run_cmd       = not (os.path.isfile(complete_file))
 	cmd="rm {0}/sniper_part_updated.vcf.* {0}/sniper_part_updated.log.*".format(workdir)
 	msg="Deleting partial outputs"
