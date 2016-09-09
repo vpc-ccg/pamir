@@ -183,18 +183,18 @@ void log_idx (const string &log_file )
 {
 	FILE *fin = fopen(log_file.c_str(), "rb");
 	FILE *fidx = fopen((log_file + ".idx").c_str(), "wb");
-	char *readline = (char*)malloc(50000);
+	char *readline = (char*)malloc(MAX_CHAR);
 	char *token = (char*)malloc(100);
 	size_t idx_pos = ftell(fin);
 	int l_id, offset;	
 	int num_inserted = 0; // to resolve skipping partition issue
 
 	fwrite( &idx_pos, 1, sizeof(size_t), fidx); // initialize an log for partition id ZERO
-	while( NULL != fgets( readline, 50000, fin ) )
+	while( NULL != fgets( readline, MAX_CHAR, fin ) )
 	{
 		if ( 0 == strncmp("-<=*=>-*-<", readline, 10) )
 		{
-			fgets( readline, 50000, fin);
+			fgets( readline, MAX_CHAR, fin);
 			sscanf(readline, "%s %s %s %s %d\n", token, token, token, token, &l_id);
 			while( l_id > num_inserted +1)
 			{
@@ -242,8 +242,8 @@ int output_log (const string &log_file, const string &range)
 	int cluster_id;
 	int num_cluster = 0, num_read = 0;
 	const int MAXB = 8096;
-	char pref[MAXB];
-	char name[MAXB], read[MAXB];
+	char *pref = (char*)malloc(MAX_CHAR);
+//	char name[MAXB], read[MAXB];
 	string c_file = range + ".log";
 	fo = fopen(c_file.c_str(), "w");
 	fclose(fo);
@@ -273,6 +273,7 @@ reset:
 
 	fclose(fi);
 	fclose(fo);
+	delete pref;
 	if ( num_read == 0)
 		goto reset;
 	return num_cluster;
@@ -280,9 +281,9 @@ reset:
 /******************************************************************/
 string assemble_with_sga (const string &input_fastq)
 {
-	char *sgapython = new char[100000];
+	char *sgapython = new char[MAX_CHAR];
 	strcpy(sgapython,"/cs/compbio3/yenyil/Pinar/pinsertionForExperiments/sga.py");
-	char *sgacmd = new char[100000];
+	char *sgacmd = new char[MAX_CHAR];
 	sprintf(sgacmd, "python %s %s",sgapython,input_fastq.c_str());
 	system(sgacmd);
 	string outofsga = input_fastq+string(".sgaout.fa");
@@ -343,7 +344,7 @@ void assemble (const string &partition_file, const string &reference, const stri
 	const int ANCHOR_SIZE 		= 16;
 	const int MAX_REF_LEN		= 300000000;
 	int LENFLAG					= 1000;
-	char *line 			= new char[1000000];
+	char *line 					= new char[MAX_CHAR];
 	FILE *fo_vcf 				= fopen(out_vcf.c_str(), "w");
 	
 	assembler as(max_len, 15);
@@ -415,9 +416,9 @@ void assemble (const string &partition_file, const string &reference, const stri
 			FILE *fcontig 		= fopen(outofsga.c_str(),"r");
 			//WRONG contig_support
 			int contig_support 	= p.size();
-			while( fgets( line, 1000000, fcontig ) != NULL )
+			while( fgets( line, MAX_CHAR, fcontig ) != NULL )
 			{
-				fgets( line, 1000000, fcontig );
+				fgets( line, MAX_CHAR, fcontig );
 				line[ strlen(line)-1 ]		='\0';
 				string contig 				= string(line);
 				int con_len 				= contig.length();
@@ -477,8 +478,8 @@ int main(int argc, char **argv)
 			genome_partition pt;
 			pt.output_partition( argv[2], argv[3]);
 		}
-		else if (mode == "log_idx") {
-			if (argc != 3) throw "Usage:\tsniper log_idx [log-file]";
+		else if (mode == "index_log") {
+			if (argc != 3) throw "Usage:\tsniper index_log [log-file]";
 			log_idx( argv[2]);
 		}
 		else if (mode == "output_log") {
