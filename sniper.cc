@@ -175,6 +175,8 @@ void partify (const string &read_file, const string &mate_file, const string &ou
 	fclose(fo);
 	fclose(fidx);
 }
+
+
 /****************************************************************/
 // For outputing specific log
 void log_idx (const string &log_file ) 
@@ -189,10 +191,11 @@ void log_idx (const string &log_file )
 
 	fwrite( &idx_pos, 1, sizeof(size_t), fidx); // initialize an log for partition id ZERO
 	while( NULL != fgets( readline, 50000, fin ) )
-	{	
-		if ( 0 == strncmp("PARTITION ", readline, 10) )
+	{
+		if ( 0 == strncmp("-<=*=>-*-<", readline, 10) )
 		{
-			sscanf(readline, "%s %d %n", token, &l_id, &offset);
+			fgets( readline, 50000, fin);
+			sscanf(readline, "%s %s %s %s %d\n", token, token, token, token, &l_id);
 			while( l_id > num_inserted +1)
 			{
 				//fprintf( stdout, "size\t%d\t%lu->%s\n", num_inserted, idx_pos, readline);
@@ -254,13 +257,13 @@ reset:
 	fo = fopen(c_file.c_str(), "a");
 	fseek(fi, offsets[start++], SEEK_SET);
 	fgets(pref, MAXB, fi);
-	if ( 0 != strncmp("PARTITION ", pref, 10) )
+	if ( 0 != strncmp("-<=*=>-*-<", pref, 10) )
 	{	exit(1); fprintf(stderr, "Incorrect Start at %s", pref);
 	}
 	fprintf( fo, "%s", pref);
 	
 	fgets(pref, MAXB, fi);
-	while ( 0 != strncmp("PARTITION ", pref, 10) )
+	while ( 0 != strncmp("-<=*=>-*-<", pref, 10) )
 	{
 		fprintf( fo, "%s", pref);
 		fgets(pref, MAXB, fi);
