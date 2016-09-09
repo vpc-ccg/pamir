@@ -360,19 +360,28 @@ void assemble (const string &partition_file, const string &reference, const stri
 		fprintf(stdout," + Spanning Range  : %s:%d-%d", chrName.c_str(), pt_start, pt_end);
 		fprintf(stdout," + Discovery Range : %s:%d-%d", chrName.c_str(), ref_start, ref_end);
 
-		auto contigs    = as.assemble(p);
+		// if the genomic region is too big
+		if (ref_end - ref_start > MAX_REF_LEN) 
+			continue;
 
+		// holding the calls info, can be used to detect the repeated calls, etc.
 		vector< tuple< string, int, int, string, int, float > > reports;
 
+
+		auto contigs    = as.assemble(p);
 		for ( auto &contig: contigs )
 		{
 			int contigSupport		= contig.support();
 			int con_len 			= contig.data.length();
-			if( check_AT_GC(contig.data, MAX_AT_GC) == 0 || contigSupport <= 1 || con_len > max_len + 400 || ( ref_end - ref_start ) > MAX_REF_LEN ) continue;
+			if( check_AT_GC(contig.data, MAX_AT_GC) == 0 || contigSupport <= 1 || con_len > max_len + 400 ) continue;
 			
 			fprintf(stdout,"\n");
 			for(int z=0;z<contig.read_information.size();z++)
-				fprintf(stdout,"%s %d %d %s\n",contig.read_information[z].name.c_str(),contig.read_information[z].location,contig.read_information[z].in_genome_location, contig.read_information[z].data.c_str());
+				fprintf(stdout,"%s %d %d %s\n", 
+					contig.read_information[z].name.c_str(),
+					contig.read_information[z].location,
+					contig.read_information[z].in_genome_location, 
+					contig.read_information[z].data.c_str());
 			
 			al.align(ref_part, contig.data);
 			if(al.extract_calls(cluster_id, reports, contigSupport, ref_start)==0)
@@ -396,7 +405,7 @@ void assemble (const string &partition_file, const string &reference, const stri
 				line[ strlen(line)-1 ]		='\0';
 				string contig 				= string(line);
 				int con_len 				= contig.length();
-				if( check_AT_GC( contig, MAX_AT_GC ) == 0 || contigSupport <=1 || con_len > max_len + 400 || ( ref_end - ref_start ) > MAX_REF_LEN ) continue;
+				if( check_AT_GC( contig, MAX_AT_GC ) == 0 || contigSupport <=1 || con_len > max_len + 400 ) continue;
 				al.align(ref_part, contig);
 				if(al.extract_calls(cluster_id, reports, contigSupport, ref_start)==0)
 				{
