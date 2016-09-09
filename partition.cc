@@ -176,7 +176,7 @@ reset:
 }
 ////////////////////////// Given partition file, range x-y
 // Output Cluster from x to (y-1)  to x-y.cluster
-// To get cluster id t, please specify t-t+1, 
+// To get cluster id t, please specify t, 
 // otherwise report t to the end of partition
 int genome_partition::output_partition (const string &partition_file, const string &range)
 {
@@ -188,9 +188,10 @@ int genome_partition::output_partition (const string &partition_file, const stri
 		if (!tok) start = 0;
 		else {
 			start = atol(tok), tok = strtok(0, "-");
-			end = tok ? atol(tok) : -1;
+			end = tok ? atol(tok) : start+1;
 		}
 		free(dup);
+		free(tok);
 		fprintf(stdout, "extraction [%u, %u]\n", start, end-1);
 
 		FILE *fidx = fopen((partition_file + ".idx").c_str(), "rb");
