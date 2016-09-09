@@ -357,8 +357,8 @@ void assemble (const string &partition_file, const string &reference, const stri
 		fprintf(stdout,"-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");
 		fprintf(stdout," + Cluster ID      : %d\n", cluster_id);
 		fprintf(stdout," + Reads Count     : %lu\n", p.size());
-		fprintf(stdout," + Spanning Range  : %s:%d-%d", chrName.c_str(), pt_start, pt_end);
-		fprintf(stdout," + Discovery Range : %s:%d-%d", chrName.c_str(), ref_start, ref_end);
+		fprintf(stdout," + Spanning Range  : %s:%d-%d\n", chrName.c_str(), pt_start, pt_end);
+		fprintf(stdout," + Discovery Range : %s:%d-%d\n\n", chrName.c_str(), ref_start, ref_end);
 
 		// if the genomic region is too big
 		if (ref_end - ref_start > MAX_REF_LEN) 
@@ -375,7 +375,7 @@ void assemble (const string &partition_file, const string &reference, const stri
 			int con_len 			= contig.data.length();
 			if( check_AT_GC(contig.data, MAX_AT_GC) == 0 || contigSupport <= 1 || con_len > max_len + 400 ) continue;
 			
-			fprintf(stdout,"\n");
+			//fprintf(stdout,"\n");
 			for(int z=0;z<contig.read_information.size();z++)
 				fprintf(stdout,"%s %d %d %s\n", 
 					contig.read_information[z].name.c_str(),
