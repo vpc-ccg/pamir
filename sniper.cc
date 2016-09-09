@@ -175,8 +175,8 @@ void partify (const string &read_file, const string &mate_file, const string &ou
 	fclose(fo);
 	fclose(fidx);
 }
-// For outputing specific log
 /****************************************************************/
+// For outputing specific log
 void log_idx (const string &log_file ) 
 {
 	FILE *fin = fopen(log_file.c_str(), "rb");
@@ -210,8 +210,8 @@ void log_idx (const string &log_file )
 	free(readline);
 }
 
-// Output Log from x to y-1. To output t, specify t-t+1
 /****************************************************************/
+// Output Log from x to y-1. To output t, specify t-t+1
 int output_log (const string &log_file, const string &range)
 {
 	static unsigned int start = -1, end = -1;
@@ -368,7 +368,7 @@ void assemble (const string &partition_file, const string &reference, const stri
 		{
 			int contigSupport		= contig.support();
 			int con_len 			= contig.data.length();
-			if( check_AT_GC(contig.data, MAX_AT_GC) == 0 || contigSupport <= 1 || con_len > max_len + 400 || (pt_end + 1000 - (pt_start - 1000)) > MAX_REF_LEN ) continue;
+			if( check_AT_GC(contig.data, MAX_AT_GC) == 0 || contigSupport <= 1 || con_len > max_len + 400 || ( ref_end - ref_start ) > MAX_REF_LEN ) continue;
 			
 			fprintf(stdout,"\n");
 			for(int z=0;z<contig.read_information.size();z++)
@@ -396,7 +396,7 @@ void assemble (const string &partition_file, const string &reference, const stri
 				line[ strlen(line)-1 ]		='\0';
 				string contig 				= string(line);
 				int con_len 				= contig.length();
-				if( check_AT_GC( contig, MAX_AT_GC ) == 0 || contigSupport <=1 || con_len > max_len + 400 || ( pt_end + 1000 - ( pt_start - 1000 ) ) > MAX_REF_LEN ) continue;
+				if( check_AT_GC( contig, MAX_AT_GC ) == 0 || contigSupport <=1 || con_len > max_len + 400 || ( ref_end - ref_start ) > MAX_REF_LEN ) continue;
 				al.align(ref_part, contig);
 				if(al.extract_calls(cluster_id, reports, contigSupport, ref_start)==0)
 				{
