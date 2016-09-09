@@ -329,6 +329,7 @@ void assemble (const string &partition_file, const string &reference, const stri
 	const int ANCHOR_SIZE 		= 16;
 	const int MAX_REF_LEN		= 300000000;
 	int LENFLAG					= 1000;
+	char *line 			= new char[1000000];
 	FILE *fo_vcf 				= fopen(out_vcf.c_str(), "w");
 	
 	assembler as(max_len, 15);
@@ -397,7 +398,6 @@ void assemble (const string &partition_file, const string &reference, const stri
 			reports.clear();
 			string outofsga 	= assemble_with_sga( prepare_sga_input( out_vcf, p, read_length ) );
 			FILE *fcontig 		= fopen(outofsga.c_str(),"r");
-			char *line 			= new char[1000000];
 			int contigSupport 	= p.size();
 			while( fgets( line, 1000000, fcontig ) != NULL )
 			{
