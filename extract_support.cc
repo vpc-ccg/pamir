@@ -19,31 +19,31 @@ void extract_support(string input_file, string out_prefix)
 	char *pContigName   = new char[100];
 	strcpy(pContigName, "");
 	fgets(line, 100000,fin);
-	readName 	= strtok(line,"\t");	
-	flag		= strtok(NULL,"\t");
-	contigName 	= strtok(NULL,"\t");
-	FILE *fout = fopen((out_prefix + string(contigName)+ "_reads.fq").c_str(),"w");
+	readName 			= strtok(line,"\t");	
+	flag				= strtok(NULL,"\t");
+	contigName 			= strtok(NULL,"\t");
+	FILE *fout 			= fopen((out_prefix + "/" + string(contigName)+ "_reads.fq").c_str(),"w");
 	strcpy(pContigName,contigName);
 	for(int i = 0; i<6; i++)
-		tmp 		= strtok(NULL,"\t");
-	seq 		= strtok(NULL,"\t");
-	qual		= strtok(NULL,"\t");
+		tmp 			= strtok(NULL,"\t");
+	seq 				= strtok(NULL,"\t");
+	qual				= strtok(NULL,"\t");
 	fprintf(fout,"@%s\n%s\n+\n%s\n", readName, seq, qual);
 	while(fgets(line, 100000,fin)!=NULL)
 	{
-		readName 	= strtok(line,"\t");	
-		flag		= strtok(NULL,"\t");
-		contigName 	= strtok(NULL,"\t");
+		readName 		= strtok(line,"\t");	
+		flag			= strtok(NULL,"\t");
+		contigName 		= strtok(NULL,"\t");
 		if(strcmp(pContigName,contigName)!=0)
 		{
 			fclose(fout);
-			fout = fopen((out_prefix + string(contigName)+ "_reads.fq").c_str(),"w");
+			fout 		= fopen((out_prefix + "/" + string(contigName)+ "_reads.fq").c_str(),"w");
 			strcpy(pContigName,contigName);
 		}
 		for(int i = 0; i<6; i++)
 			tmp 		= strtok(NULL,"\t");
-		seq 		= strtok(NULL,"\t");
-		qual		= strtok(NULL,"\t");
+		seq 			= strtok(NULL,"\t");
+		qual			= strtok(NULL,"\t");
 		fprintf(fout,"@%s\n%s\n+\n%s\n", readName, seq, qual);
 	}
 	fclose(fin);

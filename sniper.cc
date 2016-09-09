@@ -295,12 +295,17 @@ string prepare_sga_input (const string &out_vcf, const vector<pair<pair<string, 
 {
 	string qual(read_length,'I');
 	string inputforsga = string(out_vcf + "_fastq.fq");
-	FILE *fqforsga 	   = fopen(inputforsga.c_str(),"w");
+	string tmp 		   = string(out_vcf + "_tmp.fq");
+	FILE *fqtmp 	   = fopen(tmp.c_str(),"w");
+	vector <string> contigNames;
 	for(int i =0;i < p.size(); i++)
 	{
-		if(p[i].first.second.length()>read_length)
+		if (p[i].first.second.length() == read_length )
+			fprintf( fqtmp, "@%s\n%s\n+\n%s\n", p[i].first.first.c_str(), p[i].first.second.c_str(), qual.c_str() );
+		else
 		{
-			int j		= 1;
+			contigNames.push_back(p[i].first.first);
+			/*int j		= 1;
 			int stpoint = 0;
 			while( stpoint + read_length < p[i].first.second.length() )
 			{
@@ -311,11 +316,23 @@ string prepare_sga_input (const string &out_vcf, const vector<pair<pair<string, 
 			}
 			string read = p[i].first.second.substr( p[i].first.second.length() - read_length, read_length );
 			fprintf( fqforsga,"@%s\n%s\n+\n%s\n",( p[i].first.first + "_" + itoa(j) ).c_str(), read.c_str(), qual.c_str() );
+			*/
 		}
-		else
-			fprintf( fqforsga, "@%s\n%s\n+\n%s\n", p[i].first.first.c_str(), p[i].first.second.c_str(), qual.c_str() );
 	}
-	fclose(fqforsga);
+	fclose(fqtmp);
+	char *cmd   = new char[10000];
+	if(contigNames.size() > 0)
+	{
+		sprintf(cmd, "cat %s ", tmp.c_str());
+		for(int i =0; i < contigNames.size();i++)
+		{
+			sprintf(cmd, "%s %s_reads.fq ", cmd, contigNames[i].c_str());
+		}	
+		sprintf(cmd, "%s > %s", cmd, inputforsga.c_str());
+	}
+	else
+		sprintf(cmd, "mv %s %s", tmp.c_str(), inputforsga.c_str() );
+	system(cmd);
 	return inputforsga;
 }
 /*****************************************************************/
