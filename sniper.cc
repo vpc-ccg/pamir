@@ -384,10 +384,12 @@ void assemble (const string &partition_file, const string &reference, const stri
 					contig.read_information[z].in_genome_location, 
 					contig.read_information[z].data.c_str());
 			
+			fprintf (stdout, "\n--->\n");
 			al.align(ref_part, contig.data);
 			if(al.extract_calls(cluster_id, reports, contig_support, ref_start)==0)
 			{
 				string rc_contig = reverse_complement(contig.data);	
+				fprintf (stdout, "\n<---\n");
 				al.align(ref_part, rc_contig);
 				al.extract_calls(cluster_id, reports, contig_support, ref_start);
 			}
