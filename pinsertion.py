@@ -256,7 +256,7 @@ def clean_state_worker( workdir, config):
 def clean_state( mode_index, workdir, config ):
 	flag_clean = 0 # 1 only when we delete files due to changes in project.config
 	workdir = pipeline.workdir	
-	valid_state = [ '01.getfastq', '02.mask', '03.mrsfast-index', '04.mrsfast.best', '05.oea', '06.mrsfast', '07.sorted', '08.oeaunm', '09.sniper_part', '10.orphan_assembly', 'normal']
+	valid_state = [ '01.verify_sam', '02.mask', '03.mrsfast-index', '04.mrsfast.best', '05.oea', '06.mrsfast', '07.sorted', '08.oeaunm', '09.sniper_part', '10.orphan_assembly', 'normal']
 	for i in range( mode_index, len(valid_state)):
 		if ( 3==i and ""!=config.get("project","mrsfast-best-search")):
 			continue
@@ -365,8 +365,8 @@ def remove_concordant(config):
 	with open ( workdir +"/project.config", "w") as configFile:
 		config.write(configFile)
 	output_file   = "{0}/".format(workdir)
-	control_file  = "{0}/log/05.oea.log".format(workdir);
-	complete_file = "{0}/stage/05.oea.finished".format(workdir);
+	control_file  = "{0}/log/05.remove_concordant.log".format(workdir);
+	complete_file = "{0}/stage/05.remove_concordant.finished".format(workdir);
 	freeze_arg    = ""
 	cmd           = pipeline.sniper + ' remove_concordant {0} {1} 2 1 1'.format(  input_file, output_file )
 	run_cmd       = not (os.path.isfile(complete_file) )
@@ -420,8 +420,8 @@ def modify_oea_unmap(config ):
 	workdir		  = pipeline.workdir
 	input_file    = "{0}/oea.unmapped.fq".format(workdir )
 	output_file   = "{0}/unmapped".format(workdir )
-	control_file  = "{0}/log/08.oeaunmapped.log".format(workdir);
-	complete_file = "{0}/stage/08.oeaunmapped.finished".format(workdir);
+	control_file  = "{0}/log/08.modify_oea_unmap.log".format(workdir);
+	complete_file = "{0}/stage/08.modify_oea_unmap.finished".format(workdir);
 	freeze_arg    = ""
 	cmd           = pipeline.sniper + ' modify_oea_unmap {0} {1}'.format(  input_file, output_file )
 	run_cmd       = not (os.path.isfile(complete_file) )
@@ -740,7 +740,7 @@ def output_cluster(config, c_range ):
 #############################################################################################
 ###### Running commands for each mode 
 def run_command(config, force=False):
-	getfastq(config)
+	verify_sam(config)
 	mask(config)
 	index(config)
 	mrsfast_best_search(config)
@@ -818,7 +818,7 @@ def check_binary_preq():
 #############################################################################################
 def resume_state_help():
 	print "\nMiStrVar supports the following resume states:"
-	print "\tgetfastq: extract fastq file from given alignment"
+	print "\tverify_sam: extract fastq file from given alignment"
 	print "\tmask: masking reference genome"
 	print "\tmrsfast-index: indexing reference genome for further mapping"
 	print "\tmrsfast-best-search: mapping candidate reads"
@@ -1048,7 +1048,7 @@ def check_project_preq():
 
 	# set up stage files. Note that exactly one of three files are non-empty now
 	if ("" == config.get("project", "alignment") ):
-		file = open ("{0}/stage/01.getfastq.finished".format(workdir), 'w')
+		file = open ("{0}/stage/01.verify_sam.finished".format(workdir), 'w')
 		file.close()
 
 	return config
