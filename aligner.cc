@@ -253,10 +253,8 @@ void aligner::align(const string &ref, const string &ass)
 	identity = 1 - (mismatch+indel+log(l))/len;
 }
 /**********************************************************************/
-int aligner::extract_calls( const int &cluster_id, vector<tuple<string, int, int, string, int, float > > &reports, const int &contigSupport, const int &ref_start)
+int aligner::extract_calls( const int &cluster_id, vector<tuple<string, int, int, string, int, float > > &reports, const int &contig_support, const int &ref_start)
 {
-	cout<<"\nCONTIG length "<< a.length()<<" support "<<contigSupport<<endl<<a.c_str()<< endl;
-	cout<<"REF region:\t"<<ref_start<<"\n-------------------------------------------------------\n"<<b.c_str()<<endl;
 	dump(stdout);
 	int mapped					= 0;
 	int insertion_start_loc 	= -1;
@@ -309,7 +307,7 @@ int aligner::extract_calls( const int &cluster_id, vector<tuple<string, int, int
 					deletion_start_loc = deletion_start_loc+fwdS;
 					if(deletion_content.length()>0)
 					{
-						reports.push_back(tuple<string, int, int, string, int, float>("DEL", deletion_start_loc, deletion_content.length(), deletion_content, contigSupport, identity ) );
+						reports.push_back(tuple<string, int, int, string, int, float>("DEL", deletion_start_loc, deletion_content.length(), deletion_content, contig_support, identity ) );
 					}
 				}
 			}
@@ -346,9 +344,9 @@ int aligner::extract_calls( const int &cluster_id, vector<tuple<string, int, int
 					insertion_start_loc = insertion_start_loc+fwdS;
 					if( insertion_content.length() > 0 )
 					{
-						cout<<insertion_start_loc<<"\t"<<insertion_content.length()<<"\t"<<insertion_content.c_str()<<"\t"<<contigSupport<<endl;
+						cout<<insertion_start_loc<<"\t"<<insertion_content.length()<<"\t"<<insertion_content.c_str()<<"\t"<<contig_support<<endl;
 						cout<<insertion_content.length()<<endl;
-						reports.push_back(tuple<string, int, int, string, int, float>("INS", insertion_start_loc, insertion_content.length(), insertion_content, contigSupport, identity ) );
+						reports.push_back(tuple<string, int, int, string, int, float>("INS", insertion_start_loc, insertion_content.length(), insertion_content, contig_support, identity ) );
 						mapped = 1;
 					}
 				}
@@ -371,7 +369,8 @@ void aligner::dump(FILE *fo)
 		else
 			cnt+=' ';
 	}
-	fprintf(fo, "   %s\nG: %s\n   %s\nA: %s\n",cnt.c_str(), a.c_str(), c.c_str(), b.c_str()); 
+	fprintf(fo, "               %s\nG(%10d): %s\n               %s\nA(%10d): %s\n",cnt.c_str(), p_start,a.c_str(), c.c_str(), 1,b.c_str());
+	//fprintf(fo, "   %s\nG: %s\n   %s\nA: %s\n",cnt.c_str(), a.c_str(), c.c_str(), b.c_str()); 
 }
 /********************************************************************************/
 int aligner::get_start()
