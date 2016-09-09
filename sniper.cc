@@ -375,8 +375,8 @@ void assemble (const string &partition_file, const string &reference, const stri
 			int contigSupport		= contig.support();
 			int con_len 			= contig.data.length();
 			if( check_AT_GC(contig.data, MAX_AT_GC) == 0 || contigSupport <= 1 || con_len > max_len + 400 ) continue;
-			
-			//fprintf(stdout,"\n");
+		
+			fprintf(stdout, ">>> Length: %d Support: %d\n", con_len, contigSupport);
 			for(int z=0;z<contig.read_information.size();z++)
 				fprintf(stdout,"%s %d %d %s\n", 
 					contig.read_information[z].name.c_str(),
