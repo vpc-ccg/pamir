@@ -275,15 +275,15 @@ def clean_state( mode_index, workdir, config ):
 
 
 #############################################################################################
-###### Running commands for getfastq 
-def getfastq(config ):
+###### Running commands for verify_sam 
+def verify_sam(config ):
 	msg           = "Extracting FASTQ from Alignment file"
 	project_name  = config.get("project", "name")
 	workdir		  = pipeline.workdir
 	input_file    = "{0}/{1}".format(workdir, config.get("project","alignment"))
 	output_file   = "{0}/{1}".format(workdir, config.get("project","fastq"))
-	control_file  = "{0}/log/01.getfastq.log".format(workdir);
-	complete_file = "{0}/stage/01.getfastq.finished".format(workdir);
+	control_file  = "{0}/log/01.verify_sam.log".format(workdir);
+	complete_file = "{0}/stage/01.verify_sam.finished".format(workdir);
 	freeze_arg    = ""
 	cmd           = pipeline.sniper + ' verify_sam {0} {1} 3 1 1'.format( input_file, output_file )
 	run_cmd       = not (os.path.isfile(complete_file) )
@@ -291,7 +291,7 @@ def getfastq(config ):
 	shell( msg, run_cmd , cmd, control_file, complete_file, freeze_arg)
 	
 #############################################################################################
-###### Running commands for getfastq 
+###### Running commands for mask 
 def mask(config):
 	msg			  = "Masking Reference Genome"
 	project_name  = config.get("project", "name")
@@ -355,7 +355,7 @@ def mrsfast_best_search(config):
 	
 	
 #############################################################################################
-###### Running commands for getfastq 
+###### Running commands for remove_concordant 
 def remove_concordant(config):
 	msg           = "Extracting OEA and Orphan reads"
 	project_name  = config.get("project", "name")
@@ -372,7 +372,7 @@ def remove_concordant(config):
 	run_cmd       = not (os.path.isfile(complete_file) )
 	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
 #############################################################################################
-###### Running commands for each mode 
+###### Running commands for mrsfast_search
 def mrsfast_search(config ):
 	msg           = "Mapping OEA reads to get anchor locations using mrsFAST-Ultra"
 	project_name  = config.get("project", "name")
@@ -398,7 +398,7 @@ def mrsfast_search(config ):
 		clean_state( 5, workdir, config )
 	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
 #############################################################################################
-###### Running commands for getfastq 
+###### Running commands for sorting all mapping output 
 def sort(config ):
 	msg           = "Sorting the mapped mates"
 	project_name  = config.get("project", "name")
@@ -413,21 +413,21 @@ def sort(config ):
 
 	shell( msg, run_cmd , cmd, control_file, complete_file, freeze_arg)
 #############################################################################################
-###### Running commands for getfastq 
-def oeaunm(config ):
-	msg           = "Extract unmapped mates of OEA reads"
+###### Running commands for modifying oea.unmapped.fq  
+def modify_oea_unmap(config ):
+	msg           = "Modify unmapped OEA read file format"
 	project_name  = config.get("project", "name")
 	workdir		  = pipeline.workdir
 	input_file    = "{0}/oea.unmapped.fq".format(workdir )
 	output_file   = "{0}/unmapped".format(workdir )
-	control_file  = "{0}/log/08.oeaunm.log".format(workdir);
-	complete_file = "{0}/stage/08.oeaunm.finished".format(workdir);
+	control_file  = "{0}/log/08.oeaunmapped.log".format(workdir);
+	complete_file = "{0}/stage/08.oeaunmapped.finished".format(workdir);
 	freeze_arg    = ""
 	cmd           = pipeline.sniper + ' modify_oea_unmap {0} {1}'.format(  input_file, output_file )
 	run_cmd       = not (os.path.isfile(complete_file) )
 	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
 #############################################################################################
-###### Running commands for getfastq 
+###### Running commands for creating OEA clusters 
 def sniper_part(config ):
 	msg           = "Creating OEA clusters"
 	project_name  = config.get("project", "name")
@@ -445,7 +445,7 @@ def sniper_part(config ):
 		clean_state( 9, workdir, config )
 	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
 #############################################################################################
-###### Generating orphan contigs from orphan read cluster 
+###### Assembling orphan reads into contigs 
 def orphan_assembly(config):
 	msg           = "Creating Orphan contigs"
 	project_name  = config.get("project", "name")
@@ -456,7 +456,6 @@ def orphan_assembly(config):
 	control_file  = "{0}/log/10.orphan_assembly.log".format(workdir);
 	complete_file = "{0}/stage/10.orphan_assembly.finished".format(workdir);
 	num_orphans=int(open(input_file).readline().split(" ")[1])
-#	if num_orphans > 1000:
 	input_file    = "{0}/orphan.fq".format(workdir)
 	freeze_arg    = ""
 	msg = "Creating Orphan contigs with SGA in orphan.contigs.fa"
@@ -552,23 +551,10 @@ def oea_to_orphan(config):
 		clean_state( 14, workdir, config )
 	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg )
 	
-#	msg			  = "Recalibrating the oea_to_orphan.sam"
-#	input_file    = "{0}/oea2orphan.sam".format(workdir)
-#	output_file   = "{0}/oea2orphan.recal.sam".format(workdir)
-#	coor_file     = "{0}/orphan.contigs.single.coor".format(workdir)
-#	control_file  = "{0}/log/15.oea2orphan.recal.log".format(workdir);
-#	complete_file = "{0}/stage/15.oea2orphan.recal.finished".format(workdir);
-#	freeze_arg    = ""
-#	cmd           = "{0} {1} {2} {3}".format(pipeline.recalibrate, coor_file, input_file, output_file)
-#	freeze_arg=""
-#	run_cmd       = not (os.path.isfile(complete_file) )
-#	#if ( run_cmd ):
-#	#	clean_state( 15, workdir, config )
-#	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg )
 ################################################################################################
 ###### Map nohit oea reads as split reads onto orphan contigs.
 def oea_to_orphan_split(config):
-	msg			  = "Mapping oea reads as split onto orphan contigs"
+	msg			  = "Mapping first 50bp of OEA reads as split onto orphan contigs"
 	workdir		  = pipeline.workdir
 	orphan_ref    = "{0}/orphan.contigs.single.ref".format(workdir)
 	input_fastq	  = "{0}/oea2orphan.sam.nohit".format(workdir)
@@ -583,7 +569,7 @@ def oea_to_orphan_split(config):
 	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg )
 
 
-	msg			  = "Mapping oea reads as split rest of the read onto orphan contigs"
+	msg			  = "Mapping last 50bp of OEA reads as split onto orphan contigs"
 	workdir		  = pipeline.workdir
 	orphan_ref    = "{0}/orphan.contigs.single.ref".format(workdir)
 	input_fastq	  = "{0}/oea2orphan.sam.nohit".format(workdir)
@@ -597,21 +583,22 @@ def oea_to_orphan_split(config):
 		clean_state( 14, workdir, config )
 	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg )
 	
-	msg			  = "Concatenating all oea2orphan"
+	msg			   = "Concatenating all oea2orphan"
 	input_file1    = "{0}/split1_oea2orphan.sam".format(workdir)
 	input_file2    = "{0}/split2_oea2orphan.sam".format(workdir)
 	input_file3    = "{0}/oea2orphan.sam".format(workdir)
-	output_file   = "{0}/all_oea2orphan.sam".format(workdir)
-	control_file  = "{0}/log/17.concat_all_oea2orphan.log".format(workdir);
-	complete_file = "{0}/stage/17.concat_all_oea2orphan.finished".format(workdir);
-	freeze_arg    = ""
-	cmd           = "cat {0} {1} {2} > {3}".format(input_file1, input_file2, input_file3, output_file)
+	output_file    = "{0}/all_oea2orphan.sam".format(workdir)
+	control_file   = "{0}/log/17.concat_all_oea2orphan.log".format(workdir);
+	complete_file  = "{0}/stage/17.concat_all_oea2orphan.finished".format(workdir);
+	freeze_arg     = ""
+	cmd            = "cat {0} {1} {2} > {3}".format(input_file1, input_file2, input_file3, output_file)
 	freeze_arg=""
-	run_cmd       = not (os.path.isfile(complete_file) )
+	run_cmd        = not (os.path.isfile(complete_file) )
 	#if ( run_cmd ):
 	#	clean_state( 15, workdir, config )
 	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg )
 #############################################################################################
+###### Recalibrate all oea2orhan.sam.
 def recalibrate_all_oea_to_orphan(config):
 	msg			  = "Recalibrating the all_oea_to_orphan.sam"
 	workdir		  = pipeline.workdir
@@ -628,7 +615,7 @@ def recalibrate_all_oea_to_orphan(config):
 	#	clean_state( 15, workdir, config )
 	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg )
 #############################################################################################
-###### Map oea reads onto orphan contigs.
+###### Insert orphan contigs into OEA clusters.
 def orphans_into_oeacluster(config):
 	msg			  = "Inserting relevant orphan contigs into oea cluster"
 	workdir		  = pipeline.workdir
@@ -688,13 +675,10 @@ def updated_sniper_part(config ):
 	while i< workNum:
 		cmd+="{0}/sniper_part_updated.vcf.{1} ".format(workdir,i)
 		cmd2+="{0}/sniper_part_updated.log.{1} ".format(workdir,i)
-	#	cmd3+="{0}/sniper_part_updated.vcf.{1}_del ".format(workdir,i)
 		i+=1
 	cmd+="> {0}/sniper_part_updated.vcf".format(workdir)
 	cmd2+="> {0}/sniper_part_updated.log".format(workdir)
-#	cmd3+="> {0}/sniper_part_updated.vcf_del".format(workdir)
 	cmdall=cmd+";"+cmd2
-	#+";"+cmd3
 	freeze_arg=""
 	control_file  = "{0}/log/21.concatenate_vcf.log".format(workdir)
 	complete_file = "{0}/stage/21.concatenate_vcf.finished".format(workdir)
@@ -746,25 +730,6 @@ def post_processing(config):
 
 
 #############################################################################################
-###### Running commands for getfastq 
-def assemble(config ):
-	msg           = "Extracting micorSVs for cluster range {0}".format(config.get("sniper", "range"))
-	project_name  = config.get("project", "name")
-	workdir		  = pipeline.workdir
-	worker_id     = config.get("sniper", "worker-id")
-	rng           = config.get("sniper", "range")
-	ref_file    = "{0}/{1}.masked".format(workdir, config.get("project", "reference") )
-	unmapped_file = "{0}/unmapped".format(workdir)
-	output_prefix   = "{0}/jobs/mistrvar_{1}".format(workdir, worker_id )
-	control_file  = "{0}/log/20.sniper.{1}.log".format(workdir, worker_id);
-	complete_file = "{0}/stage/20.sniper.{1}.finished".format(workdir, worker_id);
-	freeze_arg    = "{0}\t{1}".format(worker_id, rng)
-	cmd           = pipeline.sniper + " assemble {0}/sniper_part {1} {2} {3}.vcf {3} {4} {5} {6} {7} 125 {8} {9} 1000".format(workdir, ref_file, rng, output_prefix, 2,
-	config.get("sniper", "max-contig"), config.get("sniper", "max-error"), config.get("sniper", "min-support"), config.get("sniper", "contig-identity"),config.get("sniper", "final-identity") )
-	run_cmd       = not ( os.path.isfile(complete_file) and freeze_arg in open(complete_file).read()) 
-	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
-
-#############################################################################################
 ###### Running commands for extracting clusters 
 def output_cluster(config, c_range ):
 	msg           = "Extracting Clusters for range {0}".format(c_range)
@@ -782,7 +747,7 @@ def run_command(config, force=False):
 	remove_concordant(config)
 	mrsfast_search(config)
 	sort(config)
-	oeaunm(config)
+	modify_oea_unmap(config)
 	sniper_part(config)
 #	orphan_assembly(config)
 	
@@ -857,10 +822,10 @@ def resume_state_help():
 	print "\tmask: masking reference genome"
 	print "\tmrsfast-index: indexing reference genome for further mapping"
 	print "\tmrsfast-best-search: mapping candidate reads"
-	print "\toea: extract oea reads"
+	print "\tremove_concordant: extract oea reads"
 	print "\tmrsfast-search: mapping oea reads to collect anchor locations"
 	print "\tsort: sorting reads according to anchor locations"
-	print "\toeaunm: extract unmapped mates for predicting microSVs"
+	print "\tmodify_oea_unmap: extract unmapped mates for predicting microSVs"
 	print "\tsniper_part: cluster unmapped reads according to anchor locations"
 	print "\tnum-worker: generate jobs for parallel processing"
 	print "\tsniper: output micorSVs"
@@ -967,9 +932,6 @@ def initialize_config_sniper( config, args):
 	config.set("sniper", "max-contig", str( args.max_contig ) if args.max_contig != None else  "25000")
 	config.set("sniper", "max-error", str( args.max_error ) if args.max_error != None else "1")
 	config.set("sniper","hybrid", str(args.hybrid) if args.hybrid !=None else "1")
-	config.set("sniper", "min-support", str( args.min_support ) if args.min_support !=None else "5")
-	config.set("sniper", "contig-identity", str( args.contig_identity)  if args.contig_identity !=None else "85")
-	config.set("sniper", "final-identity", str( args.final_identity ) if args.final_identity !=None else "95")
 	config.set("sniper", "mask-file", args.mask_file if args.mask_file != None else "" )
 	config.set("sniper","engine-mode",args.mode if args.mode != None else "normal")
 	config.set("sniper","invert-masker", str(args.invert_masker) if args.invert_masker !=None else "False")
