@@ -215,7 +215,7 @@ string prepare_sga_input (const string &out_vcf, const vector<pair<pair<string, 
 	return inputforsga;
 }
 /*****************************************************************/
-void print_calls(string chrName, vector< tuple< string, int, int, string, int, float > > &reports, FILE *fo_vcf, FILE *fo_full, const int &clusterId)
+void print_calls(string chrName, vector< tuple< string, int, int, string, int, float > > &reports, FILE *fo_vcf, const int &clusterId)
 {
 	for(int r=0;r<reports.size();r++)
 	{
@@ -224,16 +224,13 @@ void print_calls(string chrName, vector< tuple< string, int, int, string, int, f
 	}
 }
 /****************************************************************/
-void assemble (const string &partition_file, const string &reference, const string &range, const string &out_vcf, const string &out_full, int max_len, int read_length, const int &hybrid)
+void assemble (const string &partition_file, const string &reference, const string &range, const string &out_vcf, int max_len, int read_length, const int &hybrid)
 {
 	const double MAX_AT_GC 		= 0.7;
 	const int ANCHOR_SIZE 		= 16;
 	const int MAX_REF_LEN		= 300000000;
 	int LENFLAG					= 1000;
 	FILE *fo_vcf 				= fopen(out_vcf.c_str(), "w");
-	FILE *fo_vcf_del 			= fopen((out_vcf+"_del").c_str(), "w");
-	FILE *fo_full 				= fopen(out_full.c_str(), "w");	
-	FILE *fo_full_del 			= fopen((out_full+".del").c_str(), "w");	
 	
 	assembler as(max_len, 15);
 	genome ref(reference.c_str());
@@ -258,17 +255,14 @@ void assemble (const string &partition_file, const string &reference, const stri
 		int ref_start   = pt_start - LENFLAG;
 		int ref_end     = pt_end   + LENFLAG;
 		string ref_part = ref.extract(chrName, ref_start, ref_end);
-		fprintf(fo_full,"-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");
-		fprintf(fo_full," + Cluster ID      : %d\n", cluster_id);
-		fprintf(fo_full," + Reads Count     : %lu\n", p.size());
-		fprintf(fo_full," + Spanning Range  : %s:%d-%d", chrName.c_str(), pt_start, pt_end);
-		fprintf(fo_full," + Discovery Range : %s:%d-%d", chrName.c_str(), ref_start, ref_end);
+		fprintf(stdout,"-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");
+		fprintf(stdout," + Cluster ID      : %d\n", cluster_id);
+		fprintf(stdout," + Reads Count     : %lu\n", p.size());
+		fprintf(stdout," + Spanning Range  : %s:%d-%d", chrName.c_str(), pt_start, pt_end);
+		fprintf(stdout," + Discovery Range : %s:%d-%d", chrName.c_str(), ref_start, ref_end);
 
 		auto contigs    = as.assemble(p);
 
-
-//		fprintf(fo_full,"PARTITION %d | read number in partition= %lu; contig number in partition= %lu; partition range=%d\t%d\n*******************************************************************************************\n",cluster_id, p.size(), contigs.size(), pt_start, pt_end);
-		int contigNum=1;
 		vector< tuple< string, int, int, string, int, float > > reports;
 
 		for ( auto &contig: contigs )
@@ -277,14 +271,10 @@ void assemble (const string &partition_file, const string &reference, const stri
 			int con_len 			= contig.data.length();
 			if( check_AT_GC(contig.data, MAX_AT_GC) == 0 || contigSupport <= 1 || con_len > max_len + 400 || (pt_end + 1000 - (pt_start - 1000)) > MAX_REF_LEN ) continue;
 			
-			fprintf(fo_full,"\n");
+			fprintf(stdout,"\n");
 			for(int z=0;z<contig.read_information.size();z++)
-				fprintf(fo_full,"%s %d %d %s\n",contig.read_information[z].name.c_str(),contig.read_information[z].location,contig.read_information[z].in_genome_location, contig.read_information[z].data.c_str());
+				fprintf(stdout,"%s %d %d %s\n",contig.read_information[z].name.c_str(),contig.read_information[z].location,contig.read_information[z].in_genome_location, contig.read_information[z].data.c_str());
 			
-			//int ref_start 	= pt_start - LENFLAG;
-			//int ref_end 	= pt_end + LENFLAG;
-			//string ref_part = ref.extract( chrName, ref_start, ref_end );
-			//cout<<"ref_start: "<<ref_start<<"\t"<<"ref_end: "<<ref_end<<endl;
 			al.align(ref_part, contig.data);
 			if(al.extract_calls(cluster_id, reports, contigSupport, ref_start)==0)
 			{
@@ -292,9 +282,8 @@ void assemble (const string &partition_file, const string &reference, const stri
 				al.align(ref_part, rc_contig);
 				al.extract_calls(cluster_id, reports, contigSupport, ref_start);
 			}
-			contigNum++;
 		}
-		print_calls(chrName, reports, fo_vcf, fo_full, pt.get_cluster_id());
+		print_calls(chrName, reports, fo_vcf, pt.get_cluster_id());
 		if( ( reports.size() == 0 || reports.size() > 1 ) && hybrid == 1)
 		{
 			reports.clear();
@@ -302,7 +291,6 @@ void assemble (const string &partition_file, const string &reference, const stri
 			FILE *fcontig 		= fopen(outofsga.c_str(),"r");
 			char *line 			= new char[1000000];
 			int contigSupport 	= p.size();
-			int contigNum		= 0;
 			while( fgets( line, 1000000, fcontig ) != NULL )
 			{
 				fgets( line, 1000000, fcontig );
@@ -310,9 +298,6 @@ void assemble (const string &partition_file, const string &reference, const stri
 				string contig 				= string(line);
 				int con_len 				= contig.length();
 				if( check_AT_GC( contig, MAX_AT_GC ) == 0 || contigSupport <=1 || con_len > max_len + 400 || ( pt_end + 1000 - ( pt_start - 1000 ) ) > MAX_REF_LEN ) continue;
-				//int ref_start 			= pt_start - LENFLAG;
-				//int ref_end 			= pt_end + LENFLAG;
-				//string ref_part 		= ref.extract( chrName, ref_start, ref_end );
 				al.align(ref_part, contig);
 				if(al.extract_calls(cluster_id, reports, contigSupport, ref_start)==0)
 				{
@@ -320,17 +305,13 @@ void assemble (const string &partition_file, const string &reference, const stri
 					al.align(ref_part, rc_contig);
 					al.extract_calls(cluster_id, reports, contigSupport, ref_start);
 				}
-				contigNum++;
 			}
-			print_calls( chrName, reports, fo_vcf, fo_full, pt.get_cluster_id());
+			print_calls( chrName, reports, fo_vcf, pt.get_cluster_id());
 			reports.clear();
 		}
 
 	}
 	fclose(fo_vcf);
-	fclose(fo_full);
-	fclose(fo_full_del);
-	fclose(fo_vcf_del);
 }
 /*********************************************************************************************/
 int main(int argc, char **argv)
@@ -364,8 +345,8 @@ int main(int argc, char **argv)
 			partify(argv[2], argv[3], argv[4], atoi(argv[5]));
 		}
 		else if (mode == "assemble") {
-			if (argc != 10) throw "Usage:10 parameters needed\tsniper assemble [partition-file] [reference] [range] [output-file-vcf] [output-file-full] [max-len] [read-length] [hybrid]"; 
-			assemble(argv[2], argv[3], argv[4], argv[5], argv[6], atoi(argv[7]), atoi(argv[8]), atoi(argv[9]));
+			if (argc != 9) throw "Usage:10 parameters needed\tsniper assemble [partition-file] [reference] [range] [output-file-vcf] [max-len] [read-length] [hybrid]"; 
+			assemble(argv[2], argv[3], argv[4], argv[5], atoi(argv[6]), atoi(argv[7]), atoi(argv[8]));
 		}
 		else if (mode == "get_cluster") {
 			if (argc != 4) throw "Usage:\tsniper get_cluster [partition-file] [range]";

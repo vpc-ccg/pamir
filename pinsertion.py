@@ -667,7 +667,7 @@ def updated_sniper_part(config ):
 	while i<clusterNum:
 		output_file   = "{0}/sniper_part_updated.vcf.{1}".format(workdir,workNum)
 		output_log	  = "{0}/sniper_part_updated.log.{1}".format(workdir,workNum)
-		cmd           = pipeline.sniper + ' assemble {0} {1} {2}-{3} {4} {5} 30000 {6} {7}'.format( input_file, ref_file, str(i),str(i+perJob), output_file, output_log,str(config.get("project","readlength")), str(config.get("sniper","hybrid")))
+		cmd           = pipeline.sniper + ' assemble {0} {1} {2}-{3} {4} 30000 {5} {6} > {7}'.format( input_file, ref_file, str(i),str(i+perJob), output_file, str(config.get("project","readlength")), str(config.get("sniper","hybrid")), output_log)
 		f.write(cmd+'\n')
 		i+=perJob
 		workNum+=1
@@ -681,22 +681,23 @@ def updated_sniper_part(config ):
 
 ### concatenate outputs
 	i=1
-	msg = "Concatenating all vcf and log files"
+	msg = "Concatenating all vcf files"
 	cmd="cat "
 	cmd2="cat "
 	cmd3="cat "
 	while i< workNum:
 		cmd+="{0}/sniper_part_updated.vcf.{1} ".format(workdir,i)
 		cmd2+="{0}/sniper_part_updated.log.{1} ".format(workdir,i)
-		cmd3+="{0}/sniper_part_updated.vcf.{1}_del ".format(workdir,i)
+	#	cmd3+="{0}/sniper_part_updated.vcf.{1}_del ".format(workdir,i)
 		i+=1
 	cmd+="> {0}/sniper_part_updated.vcf".format(workdir)
 	cmd2+="> {0}/sniper_part_updated.log".format(workdir)
-	cmd3+="> {0}/sniper_part_updated.vcf_del".format(workdir)
-	cmdall=cmd+";"+cmd2+";"+cmd3
+#	cmd3+="> {0}/sniper_part_updated.vcf_del".format(workdir)
+	cmdall=cmd+";"+cmd2
+	#+";"+cmd3
 	freeze_arg=""
-	control_file  = "{0}/log/21.concatenate_vcf_and_log.log".format(workdir)
-	complete_file = "{0}/stage/21.concatenate_vcf_and_log.finished".format(workdir)
+	control_file  = "{0}/log/21.concatenate_vcf.log".format(workdir)
+	complete_file = "{0}/stage/21.concatenate_vcf.finished".format(workdir)
 	run_cmd       = not (os.path.isfile(complete_file) )
 	shell( msg, run_cmd, cmdall, control_file, complete_file, freeze_arg)
 ######################################################################################
@@ -719,7 +720,7 @@ def post_processing(config):
 	control_file  = "{0}/log/24.remove_partials.log".format(workdir)
 	complete_file = "{0}/stage/24.remove_partials.finished".format(workdir)
 	run_cmd       = not (os.path.isfile(complete_file))
-	cmd="rm {0}/sniper_part_updated.vcf.* {0}/sniper_part_updated.log.* ".format(workdir)
+	cmd="rm {0}/sniper_part_updated.vcf.* {0}/sniper_part_updated.log.*".format(workdir)
 	msg="Deleting partial outputs"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 #	fout= open("{0}/all_interleaved.fastq".format(workdir),'w')
