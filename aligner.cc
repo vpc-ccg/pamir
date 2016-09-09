@@ -253,9 +253,11 @@ void aligner::align(const string &ref, const string &ass)
 	identity = 1 - (mismatch+indel+log(l))/len;
 }
 /**********************************************************************/
-int aligner::extract_calls( const int &cluster_id, vector<tuple<string, int, int, string, int, float > > &reports, const int &contig_support, const int &ref_start)
+int aligner::extract_calls( const int &cluster_id, vector<tuple<string, int, int, string, int, float > > &reports, const int &contig_support, const int &ref_start, string direction)
 {
-	dump(stdout);
+	ref_abs_start = ref_start + p_start;
+	dump(stdout, direction);
+
 	int mapped					= 0;
 	int insertion_start_loc 	= -1;
 	int insertion_end_loc		= -1;
@@ -273,8 +275,6 @@ int aligner::extract_calls( const int &cluster_id, vector<tuple<string, int, int
 		int deletion_end_loc 	= 0;
 		int isdeletion			= 0;
 		string deletion_content;
-		cout<<"fwdIden: "<<fwdIden<<"\nfwdAE: "<<fwdAE<<"\tfwdAS: "<<"\tfwdS: "<<fwdS<<"\t"<<p_start<<endl;			
-		cout<<"REF PART OF MAPPING: "<<a.c_str()<<endl;
 		if( b.length() > 0 )
 		{
 			int p = 0;
@@ -344,8 +344,7 @@ int aligner::extract_calls( const int &cluster_id, vector<tuple<string, int, int
 					insertion_start_loc = insertion_start_loc+fwdS;
 					if( insertion_content.length() > 0 )
 					{
-						cout<<insertion_start_loc<<"\t"<<insertion_content.length()<<"\t"<<insertion_content.c_str()<<"\t"<<contig_support<<endl;
-						cout<<insertion_content.length()<<endl;
+						fprintf (stdout, "(-) %d\t%d\t%s\t%d (-)\n", insertion_start_loc, insertion_content.length(), insertion_content.c_str(), contig_support);
 						reports.push_back(tuple<string, int, int, string, int, float>("INS", insertion_start_loc, insertion_content.length(), insertion_content, contig_support, identity ) );
 						mapped = 1;
 					}
@@ -357,7 +356,7 @@ int aligner::extract_calls( const int &cluster_id, vector<tuple<string, int, int
 	return mapped;
 }
 /********************************************************************************/
-void aligner::dump(FILE *fo)
+void aligner::dump(FILE *fo, string direction)
 {
 	string cnt = "";
 	for (int i=1; i<=a.length(); i++)
@@ -369,7 +368,7 @@ void aligner::dump(FILE *fo)
 		else
 			cnt+=' ';
 	}
-	fprintf(fo, "               %s\nG(%10d): %s\n               %s\nA(%10d): %s\n",cnt.c_str(), p_start,a.c_str(), c.c_str(), 1,b.c_str());
+	fprintf(fo, "\n%s I:%6.2f   %s\nG(%10d): %s\n               %s\nA(%10d): %s\n", direction.c_str(), get_identity(), cnt.c_str(), ref_abs_start,a.c_str(), c.c_str(), 1,b.c_str());
 	//fprintf(fo, "   %s\nG: %s\n   %s\nA: %s\n",cnt.c_str(), a.c_str(), c.c_str(), b.c_str()); 
 }
 /********************************************************************************/

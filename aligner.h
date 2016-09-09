@@ -41,7 +41,7 @@ private:
 	int anchor_len;
 	int left_anchor;
 	int right_anchor;
-
+	int ref_abs_start;
 private:
 	void clear(int, int);
 	int max3(int, int, int);
@@ -51,8 +51,8 @@ public:
 	aligner(int anchor_length = 1,int reflen=10000);
 	~aligner();
 	void align(const string &, const string &);
-	int extract_calls(const int &, vector<tuple<string, int, int, string, int, float>> &, const int &, const int &);
-	void dump(FILE *fo);
+	int extract_calls(const int &, vector<tuple<string, int, int, string, int, float>> &, const int &, const int &, string);
+	void dump(FILE *fo, string);
 	int get_start();
 	int get_end();
 	float get_identity();
