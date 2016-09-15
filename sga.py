@@ -23,7 +23,7 @@ def main():
 	i =0 
 	while i < len(contigs):
 		splitted=contigs[i].split(" ")
-		if int(splitted[1]) > 100:
+		if int(splitted[1]) > 400:
 			fout.write(splitted[0]+ "\n" +contigs[i+1])
 		i+=2
 	fin.close()

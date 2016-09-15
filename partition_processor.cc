@@ -208,7 +208,7 @@ int main(int argc, char **argv)
 					acceptedContigNum++;
 					string content = map_cont[(*mit).first];
 					revcontent = reverse_complement(content);
-					reads.push_back((*mit).first);
+					reads.push_back((*mit).first + "_rv");
 					reads_content.push_back(revcontent);
 					reads_support.push_back(map_sup[(*mit).first]);
 					reads_pos.push_back(-1);

@@ -228,7 +228,7 @@ int output_log (const string &log_file, const string &range)
 			end = tok ? atol(tok) : start+1;
 		}
 		free(dup);
-		free(tok);
+		//free(tok);
 		fprintf(stdout, "extraction [%u, %u]\n", start, end-1);
 
 		FILE *fidx = fopen((log_file + ".idx").c_str(), "rb");
@@ -291,32 +291,26 @@ string assemble_with_sga (const string &input_fastq)
 	return outofsga;
 }
 /********************************************************************************/
-string prepare_sga_input (const string &out_vcf, const vector<pair<pair<string, string>, pair<int, int>>> &p, const int &read_length)
+string prepare_sga_input ( const string &prefix, const string &out_vcf, const vector<pair<pair<string, string>, pair<int, int>>> &p, const int &read_length)
 {
 	string qual(read_length,'I');
 	string inputforsga = string(out_vcf + "_fastq.fq");
 	string tmp 		   = string(out_vcf + "_tmp.fq");
 	FILE *fqtmp 	   = fopen(tmp.c_str(),"w");
-	vector <string> contigNames;
+	set<string> contigNames;
+	char *line = new char[100000];
 	for(int i =0;i < p.size(); i++)
 	{
 		if (p[i].first.second.length() == read_length )
 			fprintf( fqtmp, "@%s\n%s\n+\n%s\n", p[i].first.first.c_str(), p[i].first.second.c_str(), qual.c_str() );
 		else
 		{
-			contigNames.push_back(p[i].first.first);
-			/*int j		= 1;
-			int stpoint = 0;
-			while( stpoint + read_length < p[i].first.second.length() )
+			string conName = p[i].first.first;
+			if(conName[conName.length()-3]=='_')
 			{
-				string read = p[i].first.second.substr( stpoint, read_length );
-				fprintf( fqforsga,"@%s\n%s\n+\n%s\n",( p[i].first.first + "_" + itoa(j) ).c_str(), read.c_str(), qual.c_str() );
-				j++;
-				stpoint += 10;
+				conName.erase(conName.length()-3,3);
 			}
-			string read = p[i].first.second.substr( p[i].first.second.length() - read_length, read_length );
-			fprintf( fqforsga,"@%s\n%s\n+\n%s\n",( p[i].first.first + "_" + itoa(j) ).c_str(), read.c_str(), qual.c_str() );
-			*/
+			contigNames.insert(conName);
 		}
 	}
 	fclose(fqtmp);
@@ -324,15 +318,18 @@ string prepare_sga_input (const string &out_vcf, const vector<pair<pair<string, 
 	if(contigNames.size() > 0)
 	{
 		sprintf(cmd, "cat %s ", tmp.c_str());
-		for(int i =0; i < contigNames.size();i++)
+		set<string>::iterator it;	
+		for(it =contigNames.begin(); it != contigNames.end();it++)
 		{
-			sprintf(cmd, "%s %s_reads.fq ", cmd, contigNames[i].c_str());
+			sprintf(cmd, "%s %s/%s_reads.fq ", cmd, prefix.c_str(), (*it).c_str());
 		}	
 		sprintf(cmd, "%s > %s", cmd, inputforsga.c_str());
+		
 	}
 	else
 		sprintf(cmd, "mv %s %s", tmp.c_str(), inputforsga.c_str() );
 	system(cmd);
+
 	return inputforsga;
 }
 /*****************************************************************/
@@ -357,7 +354,7 @@ void print_calls(string chrName, vector< tuple< string, int, int, string, int, f
 	}
 }
 /****************************************************************/
-void assemble (const string &partition_file, const string &reference, const string &range, const string &out_vcf, int max_len, int read_length, const int &hybrid)
+void assemble (const string &partition_file, const string &reference, const string &range, const string &out_vcf, int max_len, int read_length, const int &hybrid, const string &prefix)
 {
 	const double MAX_AT_GC 		= 0.7;
 	const int ANCHOR_SIZE 		= 16;
@@ -428,10 +425,10 @@ void assemble (const string &partition_file, const string &reference, const stri
 			}
 		}
 		print_calls(chrName, reports, fo_vcf, pt.get_cluster_id());
-		if( ( reports.size() == 0 || reports.size() > 1 ) && hybrid == 1)
+		if( ( reports.size() == 0 || reports.size() > 1 ) && hybrid == 1 )
 		{
 			reports.clear();
-			string outofsga 	= assemble_with_sga( prepare_sga_input( out_vcf, p, read_length ) );
+			string outofsga 	= assemble_with_sga( prepare_sga_input( prefix, out_vcf, p, read_length ) );
 			FILE *fcontig 		= fopen(outofsga.c_str(),"r");
 			//WRONG contig_support
 			int contig_support 	= p.size();
@@ -441,6 +438,7 @@ void assemble (const string &partition_file, const string &reference, const stri
 				line[ strlen(line)-1 ]		='\0';
 				string contig 				= string(line);
 				int con_len 				= contig.length();
+				fprintf(stdout, "\n\nxxxxx Length: %d Support: %d Contig: %s\n", con_len, p.size(), contig.c_str());
 				if( check_AT_GC( contig, MAX_AT_GC ) == 0 || contig_support <=1 || con_len > max_len + 400 ) continue;
 				al.align(ref_part, contig);
 				if(al.extract_calls(cluster_id, reports, contig_support, ref_start,"}}}")==0)
@@ -489,8 +487,8 @@ int main(int argc, char **argv)
 			partify(argv[2], argv[3], argv[4], atoi(argv[5]));
 		}
 		else if (mode == "assemble") {
-			if (argc != 9) throw "Usage:10 parameters needed\tsniper assemble [partition-file] [reference] [range] [output-file-vcf] [max-len] [read-length] [hybrid]"; 
-			assemble(argv[2], argv[3], argv[4], argv[5], atoi(argv[6]), atoi(argv[7]), atoi(argv[8]));
+			if (argc != 10) throw "Usage:10 parameters needed\tsniper assemble [partition-file] [reference] [range] [output-file-vcf] [max-len] [read-length] [hybrid] dir_prefix"; 
+			assemble(argv[2], argv[3], argv[4], argv[5], atoi(argv[6]), atoi(argv[7]), atoi(argv[8]), argv[9]);
 		}
 		else if (mode == "get_cluster") {
 			if (argc != 4) throw "Usage:\tsniper get_cluster [partition-file] [range]";

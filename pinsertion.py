@@ -451,15 +451,11 @@ def orphan_assembly(config):
 	msg           = "Creating Orphan contigs"
 	project_name  = config.get("project", "name")
 	workdir		  = pipeline.workdir
-	input_file    = "{0}/orphan_part".format(workdir)
-	output_file   = "{0}/orphan.contigs".format(workdir)
-	output_log	  = "{0}/orphan.contigs.log".format(workdir)
 	control_file  = "{0}/log/10.orphan_assembly.log".format(workdir);
 	complete_file = "{0}/stage/10.orphan_assembly.finished".format(workdir);
-	num_orphans=int(open(input_file).readline().split(" ")[1])
 	input_file    = "{0}/orphan.fq".format(workdir)
 	freeze_arg    = ""
-	msg = "Creating Orphan contigs with SGA in orphan.contigs.fa"
+	msg = "Creating Orphan contigs with SGA in orphan.fq.sgaout.fa"
 	run_cmd       = not (os.path.isfile(complete_file) )
 	if ( run_cmd ):
 		clean_state( 10, workdir, config )
@@ -470,7 +466,7 @@ def orphan_assembly(config):
 def prepare_orphan_contig(config):
 	msg			  = "Preparing orphan contigs for mapping"
 	workdir		  = pipeline.workdir
-	input_file    = "{0}/orphan.fq-contigs.fa".format(workdir)
+	input_file    = "{0}/orphan.fq.sgaout.fa".format(workdir)
 	output_file   = "{0}/orphan.contigs.ref".format(workdir)
 	output_file2  = "{0}/orphan.contigs.single.ref".format(workdir)
 	coor_file     = "{0}/orphan.contigs.single.coor".format(workdir)
@@ -681,8 +677,8 @@ def updated_sniper_part(config ):
 	workNum=1
 	while i<clusterNum:
 		output_file   = "{0}/sniper_part_updated.vcf.{1}".format(workdir,workNum)
-		output_log	  = "{0}/sniper_part_updated.log.{1}".format(workdir,workNum)
-		cmd           = pipeline.sniper + ' assemble {0} {1} {2}-{3} {4} 30000 {5} {6} > {7}'.format( input_file, ref_file, str(i),str(i+perJob), output_file, str(config.get("project","readlength")), str(config.get("sniper","hybrid")), output_log)
+		output_log	  = "{0}/sniper_part_updated.logx{1}".format(workdir,workNum)
+		cmd           = pipeline.sniper + ' assemble {0} {1} {2}-{3} {4} 30000 {5} {6} {8} > {7}'.format( input_file, ref_file, str(i),str(i+perJob), output_file, str(config.get("project","readlength")), str(config.get("sniper","hybrid")), output_log, workdir)
 		f.write(cmd+'\n')
 		i+=perJob
 		workNum+=1
@@ -696,13 +692,13 @@ def updated_sniper_part(config ):
 
 ### concatenate outputs
 	i=1
-	msg = "Concatenating all vcf files"
+	msg = "Concatenating all vcf and files"
 	cmd="cat "
 	cmd2="cat "
 	cmd3="cat "
 	while i< workNum:
 		cmd+="{0}/sniper_part_updated.vcf.{1} ".format(workdir,i)
-		cmd2+="{0}/sniper_part_updated.log.{1} ".format(workdir,i)
+		cmd2+="{0}/sniper_part_updated.logx{1} ".format(workdir,i)
 		i+=1
 	cmd+="> {0}/sniper_part_updated.vcf".format(workdir)
 	cmd2+="> {0}/sniper_part_updated.log".format(workdir)
@@ -721,7 +717,7 @@ def updated_sniper_part(config ):
 	control_file  = "{0}/log/24.index_log.log".format(workdir)
 	complete_file = "{0}/stage/24.index_log.finished".format(workdir)
 	run_cmd       = not (os.path.isfile(complete_file) )
-	shell( msg, run_cmd, cmdall, control_file, complete_file, freeze_arg)
+	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
 ######################################################################################
 #### sort the vcf and remove the duplications generate interleaved and paired fastq files from orphans and unmapped oeas.
 def post_processing(config):	
@@ -742,7 +738,7 @@ def post_processing(config):
 	control_file  = "{0}/log/27.remove_partials.log".format(workdir)
 	complete_file = "{0}/stage/27.remove_partials.finished".format(workdir)
 	run_cmd       = not (os.path.isfile(complete_file))
-	cmd="rm {0}/sniper_part_updated.vcf.* {0}/sniper_part_updated.log.*".format(workdir)
+	cmd="rm {0}/sniper_part_updated.vcf.* {0}/sniper_part_updated.logx*".format(workdir)
 	msg="Deleting partial outputs"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 #	fout= open("{0}/all_interleaved.fastq".format(workdir),'w')
@@ -787,7 +783,7 @@ def run_command(config, force=False):
 	sort(config)
 	modify_oea_unmap(config)
 	sniper_part(config)
-#	orphan_assembly(config)
+	orphan_assembly(config)
 	
 	prepare_orphan_contig(config)
 	orphan_to_orphan(config)
