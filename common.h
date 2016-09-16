@@ -2,7 +2,6 @@
 #define __COMMON__
 #include <string>
 
-
 #define KB  1024LL
 #define MB  KB * 1024LL
 #define GB  MB * 1024LL
@@ -24,4 +23,5 @@ string reverse_complement ( const string & );
 string reverse ( const string & );
 string S (const char* fmt, ...);
 int check_AT_GC(const string &, const double &);
+
 #endif
