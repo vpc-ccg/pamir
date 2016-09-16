@@ -512,7 +512,7 @@ def orphan_to_orphan(config):
 	control_file  = "{0}/log/12.orphan2orphan.log".format(workdir);
 	complete_file = "{0}/stage/12.orphan2orphan.finished".format(workdir);
 	freeze_arg    = ""
-	cmd           = pipeline.mrsfast + ' --search {0} --seq {1} -o {2} -e 0 --disable-sam-header'.format(orphan_ref, orphan_fastq, output_file)
+	cmd           = pipeline.mrsfast + ' --search {0} --seq {1} -o {2} -e 1 --disable-sam-header'.format(orphan_ref, orphan_fastq, output_file)
 	run_cmd       = not (os.path.isfile(complete_file) )
 	#if ( run_cmd ):
 	#	clean_state( 12, workdir, config )

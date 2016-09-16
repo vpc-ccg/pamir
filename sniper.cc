@@ -463,8 +463,9 @@ int main(int argc, char **argv)
 
 		string mode = argv[1];
 		if (mode == "verify_sam") {
-			if (argc < 7) throw "Usage:\tsniper verify_sam [sam-file] [output] outputtype oea? orphan?";
-			extractor ext(argv[2], argv[3], atoi(argv[4]), atoi(argv[5]), atoi(argv[6]));
+			if (argc != 4) throw "Usage:\tsniper verify_sam [sam-file] [output_prefix]";
+			extractor ext(argv[2], argv[3]);
+			//extractor ext(argv[2], argv[3], atoi(argv[4]), atoi(argv[5]), atoi(argv[6]));
 		}
 		else if (mode == "remove_concordant") {
 			if (argc != 7) throw "Usage:\tsniper remove_concordant [sam-file] [output] outputtype oea? orphan?";
