@@ -12,6 +12,7 @@
 #include <cmath>
 #include <zlib.h>
 #include "common.h"
+#include "common2.h"
 #include "partition.h"
 #include "assembler.h"
 #include "assembler_ext.h"
@@ -357,7 +358,6 @@ void print_calls(string chrName, vector< tuple< string, int, int, string, int, f
 void assemble (const string &partition_file, const string &reference, const string &range, const string &out_vcf, int max_len, int read_length, const int &hybrid, const string &prefix)
 {
 	const double MAX_AT_GC 		= 0.7;
-	const int ANCHOR_SIZE 		= 16;
 	const int MAX_REF_LEN		= 300000000;
 	int LENFLAG					= 1000;
 	char *line 					= new char[MAX_CHAR];
@@ -367,7 +367,7 @@ void assemble (const string &partition_file, const string &reference, const stri
 	genome ref(reference.c_str());
 	genome_partition pt;
 	
-	aligner al( ANCHOR_SIZE, max_len + 2010 );
+	aligner al(max_len + 2010 );
 	while (1) 
 	{
 		auto p 			= pt.read_partition(partition_file, range);
@@ -399,23 +399,28 @@ void assemble (const string &partition_file, const string &reference, const stri
 
 		// holding the calls info, can be used to detect the repeated calls, etc.
 		vector< tuple< string, int, int, string, int, float > > reports;
+		
+		vector<string> reads;
+		for (int i =0;i<p.size();i++)
+		{
+			reads.push_back(p[i].first.second);
+		}
 
-
-		auto contigs    = as.assemble(p);
+		auto contigs    = as.assemble(reads);
 		for ( auto &contig: contigs )
 		{
-			int contig_support		= contig.support();
+			int contig_support		= contig.read_information.size();
 			int con_len 			= contig.data.length();
-			if( check_AT_GC(contig.data, MAX_AT_GC) == 0 || contig_support <= 1 || con_len > max_len + 400 ) continue;
+			if( check_AT_GC(contig.data, MAX_AT_GC) == 0 || /*contig_support <= 1 ||*/ con_len > max_len + 400 ) continue;
 		
-			fprintf(stdout, "\n\n>>>>> Length: %d Support: %d Contig: %s\n", con_len, contig_support, contig.data.c_str());
-			for(int z=0;z<contig.read_information.size();z++)
-				fprintf(stdout,"%s %d %d %s\n", 
+//			fprintf(stdout, "\n\n>>>>> Length: %d Support: %d Contig: %s\n", con_len, contig_support, contig.data.c_str());
+	/*		for(int z=0;z<contig.read_information.size();z++)
+				fprintf(stdout,"%s %d  %s\n", 
 					contig.read_information[z].name.c_str(),
 					contig.read_information[z].location,
 					contig.read_information[z].in_genome_location, 
 					contig.read_information[z].data.c_str());
-			
+	*/		
 			al.align(ref_part, contig.data);
 			if(al.extract_calls(cluster_id, reports, contig_support, ref_start,">>>")==0)
 			{
@@ -465,7 +470,6 @@ int main(int argc, char **argv)
 		if (mode == "verify_sam") {
 			if (argc != 4) throw "Usage:\tsniper verify_sam [sam-file] [output_prefix]";
 			extractor ext(argv[2], argv[3]);
-			//extractor ext(argv[2], argv[3], atoi(argv[4]), atoi(argv[5]), atoi(argv[6]));
 		}
 		else if (mode == "remove_concordant") {
 			if (argc != 7) throw "Usage:\tsniper remove_concordant [sam-file] [output] outputtype oea? orphan?";

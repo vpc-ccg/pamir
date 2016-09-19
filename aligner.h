@@ -48,7 +48,7 @@ private:
 	void print_matrix(string, const string &, const string &, int **);	
 
 public:
-	aligner(int anchor_length = 1,int reflen=10000);
+	aligner(int reflen=10000);
 	~aligner();
 	void align(const string &, const string &);
 	int extract_calls(const int &, vector<tuple<string, int, int, string, int, float>> &, const int &, const int &, string);

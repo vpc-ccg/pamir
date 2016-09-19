@@ -108,6 +108,14 @@ def command_line_process():
 		metavar='mrsfast_n',
 		help='Maximum number of mapping loci of anchor of an OEA. Anchor with higher mapping location will be ignored in microSV detection. 0 for considering all mapping locations (default: 1)',
 	)
+	parser.add_argument('--mrsfast-min',
+		metavar='mrsfast_min',
+		help='Minimum insert size for mrsFAST-Ultra paired-end best mapping (default: -1)',
+	)
+	parser.add_argument('--mrsfast-max',
+		metavar='mrsfast_max',
+		help='Maximum insert size for mrsFAST-Ultra paired-end best mapping (default: -1)',
+	)
 	parser.add_argument('--resume',
 		nargs='?',
 		const="sniper",
@@ -216,32 +224,6 @@ def shell(msg, run_command, command, control_file='', success_file='', success_m
 			suc_file.write(success_msg)
 		logOK()
 #############################################################################################
-### generate scripts to merge vcf, reads, and alignment when users run multiple workers
-def generate_merge_script( config, num_worker ):
-	appsdir  = os.path.dirname(os.path.realpath(__file__))
-	worker_prefix   = "{0}/jobs/mistrvar".format( pipeline.workdir )
-	output_prefix   = "{0}/{1}".format( pipeline.workdir, config.get("project", "name") )
-	with open( pipeline.workdir + "/merge_vcf.sh", 'w' ) as f_script:
-		f_script.write("#!/bin/bash\n")
-		cmd = 'FILE={0}.vcf\nif [ -f $FILE ]; then rm -f ${{FILE}}; fi & touch ${{FILE}}\n'.format( output_prefix )
-		cmd += 'cat {0}/header.vcf >> ${{FILE}}'.format( appsdir)
-		f_script.write("#!/bin/bash\n{0}\n".format(cmd))
-		for i in xrange( num_worker + 1):
-			f_script.write("part_info={0}_{1}.vcf; if [ -f ${{part_info}} ]; then cat ${{part_info}} >> ${{FILE}}; else printf \"Missing File %s\\n\" ${{part_info}};fi\n".format(worker_prefix, i))
-	with open( pipeline.workdir + "/merge_alignment.sh", 'w' ) as f_script:
-		f_script.write("#!/bin/bash\n")
-		cmd = 'FILE={0}.align\nif [ -f $FILE ]; then rm -f ${{FILE}}; fi & touch ${{FILE}}\n'.format( output_prefix )
-		f_script.write("#!/bin/bash\n{0}\n".format(cmd))
-		for i in xrange( num_worker + 1):
-			f_script.write("part_info={0}_{1}; if [ -f ${{part_info}} ]; then cat ${{part_info}} >> ${{FILE}}; else printf \"Missing File %s\\n\" ${{part_info}};fi\n".format(worker_prefix, i))
-	with open( pipeline.workdir + "/merge_sup.sh", 'w' ) as f_script:
-		f_script.write("#!/bin/bash\n")
-		cmd = 'FILE={0}.vcf.reads\nif [ -f $FILE ]; then rm -f ${{FILE}}; fi & touch ${{FILE}}\n'.format( output_prefix )
-		f_script.write("#!/bin/bash\n{0}\n".format(cmd))
-		for i in xrange( num_worker + 1):
-			f_script.write("part_info={0}_{1}.vcf.reads; if [ -f ${{part_info}} ]; then cat ${{part_info}} >> ${{FILE}}; else printf \"Missing File %s\\n\" ${{part_info}};fi\n".format(worker_prefix, i))
-
-#############################################################################################
 ########## Clean stage file for resuming
 def clean_state_worker( workdir, config):
 	workdir = pipeline.workdir
@@ -286,7 +268,7 @@ def verify_sam(config ):
 	control_file  = "{0}/log/01.verify_sam.log".format(workdir);
 	complete_file = "{0}/stage/01.verify_sam.finished".format(workdir);
 	freeze_arg    = ""
-	cmd           = pipeline.sniper + ' verify_sam {0} {1} 3 1 1'.format( input_file, output_file )
+	cmd           = pipeline.sniper + ' verify_sam {0} {1}'.format( input_file, output_file )
 	run_cmd       = not (os.path.isfile(complete_file) )
 
 	shell( msg, run_cmd , cmd, control_file, complete_file, freeze_arg)
@@ -345,7 +327,7 @@ def mrsfast_best_search(config):
 	control_file  = "{0}/log/04.mrsfast.best.log".format(workdir);
 	complete_file = "{0}/stage/04.mrsfast.best.finished".format(workdir);
 	freeze_arg    = "ws={0}.error={1}".format(config.get("mrsfast", "window_size"), config.get("mrsfast", "errors"))
-	cmd           = pipeline.mrsfast +' --search  {0} --threads {1} --best --disable-sam-header --seq {2} --seqcomp -o {3}'.format(index_file, threads, input_file, output_file )
+	cmd           = pipeline.mrsfast +' --search {0} --threads {1} -n 0 --best --disable-sam-header --disable-nohits --pe --seq {2} --min {3} --max {4} --seqcomp -o {5}'.format(index_file, threads, input_file, config.get("mrsfast","min"), config.get("mrsfast","max"), output_file )
 	if(config.get("mrsfast","errors")!="-1"):
 		cmd+=" -e {0}".format(config.get("mrsfast","errors"))
 	run_cmd       = not ( os.path.isfile(complete_file) and freeze_arg in open(complete_file).read()) 
@@ -741,28 +723,6 @@ def post_processing(config):
 	cmd="rm {0}/sniper_part_updated.vcf.* {0}/sniper_part_updated.logx*".format(workdir)
 	msg="Deleting partial outputs"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
-#	fout= open("{0}/all_interleaved.fastq".format(workdir),'w')
-#	fout2= open("{0}/all_1.fastq".format(workdir),'w')
-#	fout3= open("{0}/all_2.fastq".format(workdir),'w')
-#	with open("{0}/all.fastq".format(workdir)) as f:
-#		i=1
-#		for line in f:
-#			if i%8==1:
-#				fout.write(line[:len(line)-1]+"/1\n")
-#			elif i%8==5:
-#				fout.write(line[:len(line)-1]+"/2\n")
-#			else:
-#				fout.write(line)
-#			if( i%8 != 0 and i%8 <=4 ):
-#				fout2.write(line)
-#			if( i%8 >=5 or i%8 == 0 ):
-#				fout3.write(line)
-#			i=i+1
-#	fout.close()
-#	fout2.close()
-#	fout3.close()			
-
-
 #############################################################################################
 ###### Running commands for extracting clusters 
 def output_cluster(config, c_range ):
@@ -895,7 +855,7 @@ def check_input_preq( config ):
 	if "" != config.get("project", "fastq"):
 		if (inp) :
 			logFAIL()
-			logln("Please provide either alignment file, fastq file, or best-sesarch file.")
+			logln("Please provide either alignment file, fastq file, or best-search file.")
 			exit(1)
 		else:
 			inp = True
@@ -907,7 +867,7 @@ def check_input_preq( config ):
 	if "" != config.get("project", "alignment"):
 		if (inp) :
 			logFAIL()
-			logln("Please provide either alignment file, fastq file, or best-sesarch file.")
+			logln("Please provide either alignment file, fastq file, or best-search file.")
 			exit(1)
 		else:
 			inp = True
@@ -956,6 +916,8 @@ def initialize_config_mrsfast( config, args):
 	config.set("mrsfast", "window_size", str( args.mrsfast_index_ws ) if args.mrsfast_index_ws != None else  "12")
 	config.set("mrsfast", "threads", str( args.mrsfast_threads ) if args.mrsfast_threads != None else  "1")
 	config.set("mrsfast", "errors", str( args.mrsfast_errors ) if args.mrsfast_errors != None else  "-1")
+	config.set("mrsfast", "min", str( args.mrsfast_min ) if args.mrsfast_min != None else  "-1")
+	config.set("mrsfast", "max", str( args.mrsfast_max ) if args.mrsfast_max != None else  "-1")
 	config.set("mrsfast", "n", str( args.mrsfast_n ) if args.mrsfast_n != None else  "50")
 	return config
 
@@ -1055,7 +1017,7 @@ def check_project_preq():
 		if ( "" != config.get("project", "alignment")):
 			symlink(config.get("project", "alignment"), workdir)
 			config.set("project", "alignment", os.path.basename(config.get("project", "alignment")) )
-			config.set("project", "fastq",  project_name + ".fastq.gz" )
+			config.set("project", "fastq",  project_name + ".fastq" )
 			
 		elif( "" != config.get("project", "fastq")):
 			symlink(config.get("project", "fastq"), workdir)

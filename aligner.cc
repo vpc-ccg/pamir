@@ -7,10 +7,9 @@
 
 using namespace std;
 
-aligner::aligner(int anchor_length,int reflen)
+aligner::aligner(int reflen)
 {
 	MAX_SIDE=reflen;
-	anchor_len = anchor_length;
 	score = new int*[MAX_SIDE+1];
 	gapa  = new int*[MAX_SIDE+1];
 	gapb  = new int*[MAX_SIDE+1];
@@ -186,20 +185,7 @@ void aligner::align(const string &ref, const string &ass)
 			pj--;
 		}
 	}
-
-/*	left_anchor = 0;
-	for (int i=0; i<a.length(); i++)
-		if (a[i] == b[i])
-			left_anchor++;
-		else
-			break;
-	right_anchor = 0;
-	for (int i=a.length()-1; i>=0; i--)
-		if (a[i] == b[i])
-			right_anchor++;
-		else
-			break;
-*/
+//anchor calculation
 	left_anchor = 0;
 	right_anchor = 0;
 	int mm =0;

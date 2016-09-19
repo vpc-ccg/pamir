@@ -41,8 +41,7 @@ inline void output_record(FILE *fp, int ftype, const Record &rc)
 
 	fwrite(record.c_str(), 1, record.size(), fp);
 }
-
-
+/****************************************************************/
 extractor::extractor(string filename, string output_prefix, int ftype, int oea, int orphan) 
 {
 
@@ -85,7 +84,6 @@ extractor::extractor(string filename, string output_prefix, int ftype, int oea, 
 	{
 		const Record &rc = parser->next();
 		flag = rc.getMappingFlag();
-		fprintf(stdout, "%d\n",flag);
 		if ((flag & 0xD) == 0xD)
 		{
 			output_record (forphan, ftype, rc);
@@ -106,7 +104,6 @@ extractor::extractor(string filename, string output_prefix, int ftype, int oea, 
 	
 	delete parser;
 	
-	
 	// close file
 	if (oea)
 	{
@@ -119,7 +116,30 @@ extractor::extractor(string filename, string output_prefix, int ftype, int oea, 
 	}
 	fclose(fall_int);
 }
-extractor::extractor(string filename, string output_prefix) 
+/***************************************************************/
+int md_length( char *md)
+{
+	md+=5;
+	int length = 0;
+	int tmp = 0;
+	while( *md )
+	{
+		if (isdigit(*md))
+		{ 
+			tmp = 10 * tmp + (*md - '0');
+		}
+		else
+		{
+			length += tmp;
+			tmp = 0;
+		}
+		md++;
+	}
+	if (0 < tmp){length+=tmp;}
+	return length;
+}
+/*************************************************************/
+extractor::extractor(string filename, string output) 
 {
 
 	FILE *fi = fopen(filename.c_str(), "rb");
@@ -136,27 +156,24 @@ extractor::extractor(string filename, string output_prefix)
 	string comment = parser->readComment();
 
 
-	FILE *fq = fopen ((output_prefix + ".fastq").c_str(),"w");
-	FILE *fqsam = fopen ((output_prefix + ".sam").c_str(),"w");
+	FILE *fq = fopen (output.c_str(),"w");
+	FILE *fqsam = fopen ((output + ".sam").c_str(),"w");
 
 	char *opt 			= new char[1000000];
 	char *MD 			= new char[1000000];
 	string fr_rname;
 	string fr_seq;
 	string fr_qual;
-	char *expectedMD 	= new char[1000000];
 	uint32_t fr_flag;
 	uint32_t flag;
 	uint32_t tlen;
-	int a = 0;
-	while ( parser->hasNext())
+	int errNum;
+	while (parser->hasNext())
 	{
-		a++;
 		const Record &rc = parser->next();
 		flag = rc.getMappingFlag();
 		tlen = strlen(rc.getSequence());
-		sprintf(expectedMD, "MD:Z:%d", tlen);
-	//	fprintf(stdout, "flag: %s\n", rc.getFullRecord().c_str());
+		errNum = int(tlen*0.94);
 		if((flag & 0x800) != 0x800)
 		{
 			if((flag & 0x5) == 0x5 || (flag & 0x9)==0x9 || (flag & 0xD)==0xD)
@@ -168,7 +185,7 @@ extractor::extractor(string filename, string output_prefix)
 				strcpy(opt,rc.getOptional());
 				strtok(opt,"\t");
 				MD = strtok(NULL,"\t");
-				if(strcmp(MD, expectedMD)==0)
+				if(md_length(MD) >= errNum)
 				{
 					if((flag & 0x40) == 0x40)
 					{
@@ -187,19 +204,27 @@ extractor::extractor(string filename, string output_prefix)
 					{
 						output_record(fq, 2, rc);
 						output_record(fqsam, 3, rc);
-						parser->readNext();
-						if(parser->hasNext())
+						int secondWritten = 0;
+						while(secondWritten != 1)
 						{
-							const Record &rc2 = parser->next();
-							output_record(fq, 2, rc2);
-							output_record(fqsam, 3, rc2);
+							parser->readNext();
+							if(parser->hasNext())
+							{
+								const Record &rc2 = parser->next();
+								flag = rc2.getMappingFlag();
+								if((flag & 0x800) != 0x800)
+								{
+									output_record(fq, 2, rc2);
+									output_record(fqsam, 3, rc2);
+									secondWritten = 1;
+								}
+							}
 						}
 					}
 					else
 					{
 						fprintf(fq,"@%s/1\n%s\n+\n%s\n", fr_rname.c_str(), fr_seq.c_str(), fr_qual.c_str());
-						fprintf(fqsam,"@%s/1\t%s\t%s\n", fr_rname.c_str(), fr_seq.c_str(), fr_qual.c_str());
-				//		fprintf(stdout,"%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\t%s\n", rc.getReadName(), rc.getMappingFlag(),rc.getChromosome(), rc.getLocation(), rc.getMappingQuality(), rc.getCigar(), rc.getPairChromosome(), rc.getPairLocation(), rc.getTemplateLength(), rc.getSequence(), rc.getQuality(), rc.getOptional());
+						//fprintf(fqsam,"@%s/1\t%s\t%s\n", fr_rname.c_str(), fr_seq.c_str(), fr_qual.c_str());
 						output_record(fq, 2, rc);
 						output_record(fqsam, 3, rc);
 					}
@@ -213,8 +238,7 @@ extractor::extractor(string filename, string output_prefix)
 	fclose(fq);
 	fclose(fqsam);
 }
-
-
+/***************************************************************/
 extractor::~extractor()
 {
 		
