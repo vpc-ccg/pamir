@@ -1,164 +1,242 @@
-#include<iostream>
-#include<set>
-#include<vector>
-#include<utility>
-#include<cassert>
+#include <iostream>
+#include <set>
+#include <vector>
+#include <utility>
+#include <cassert>
+#include <set>
+#include <algorithm>
+#include <unordered_map>
+
+#include "common.h"
+#include "common2.h"
 #include "assembler.h"
 
 using namespace std;
 
-inline char DNA(char c) {
-	return (c=='T'?3:(c=='G'?2:(c=='C'?1:0)));
-}
-
-assembler::assembler (): assembler(20000, 10) {}
-
-assembler::assembler (int mcs, int mgs):
-	max_contig_size (mcs), min_glue_size(mgs)
+assembler::assembler(): 
+	assembler(20000, 20) 
 {
-	initialize(max_contig_size, prime_seed);
 }
 
-assembler::~assembler (void) {
-	for (int i = 0; i < max_contig_size; i++) {
-		delete[] hash_p[i];
-		delete[] hash_s[i];
+assembler::assembler(int max_contig_size, int min_glue_size):
+	max_contig_size(max_contig_size), min_glue_size(min_glue_size)
+{
+}
+
+assembler::~assembler(void) 
+{	
+}
+
+// prefix of A == suffix of B
+bool assembler::validate(const string &a, const string &b, int sz) 
+{
+	for (int i = 0; i < sz + 1; i++) {
+		if (a[i] != b[b.size() - 1 - sz + i]) 
+			return false;
 	}
-	delete[] hash_p;
-	delete[] hash_s;
+	return true;
 }
 
-void assembler::initialize (int mcs, int ps) {
-	hash_p = new set<sread*>*[mcs];
-	hash_s = new set<sread*>*[mcs];
-	for (int i = 0; i < mcs; i++) {
-		hash_p[i] = new set<sread*>[ps];
-		hash_s[i] = new set<sread*>[ps];
-	}
-}
-
-void assembler::update (sread *r, char mode) {
-	int h = 0, p = 0;
-	for (int i = 0; i < r->data.size(); i++) {
-		h = ((h * 4) % prime_seed + DNA(r->data[i])) % prime_seed;
-		p = i;
-		assert(i < max_contig_size) ;
-		if (!mode)
-			hash_p[p][h].insert(r);
-		else
-			hash_p[p][h].erase(r);
+vector<contig> assembler::assemble(vector<string> reads) 
+{
+	auto lens = set<int>();
+	for (auto &r: reads) {
+		lens.insert(r.size());
 	}
 
-	int exp = 1;
-	h = 0;
-	for (int i = r->data.size() - 1; i >= 0; i--) {
-		h = ((DNA(r->data[i]) * exp) % prime_seed + h) % prime_seed;
-		p = r->data.size() - 1 - i;
-
-		assert(p >= 0 && p < max_contig_size);
-		if (!mode)
-			hash_s[p][h].insert(r);
-		else
-			hash_s[p][h].erase(r);
-		exp = (exp * 4) % prime_seed;
-	}
-}
-
-bool assembler::full_compare (const string &a, const string &b, int glue_sz) {
-	for (int i = 0; i < glue_sz + 1; i++)
-		if (a[i] != b[b.size() - 1 - glue_sz + i]) 
-			return 0;
-	return 1;
-}
-
-bool assembler::assemble_single (int sz, int ha) {
-	bool ret = 0;
-	vector<sread*> rm;
-	for (auto ix = hash_p[sz][ha].begin(); ix != hash_p[sz][ha].end(); ix++) if (!(*ix)->used) {
-		auto iy = hash_s[sz][ha].begin();
-		for (; iy != hash_s[sz][ha].end(); iy++) if (!(*iy)->used) {
-			if (*iy == *ix) 
-				continue;
-			if (full_compare((*ix)->data, (*iy)->data, sz) 
-					&& (*iy)->data.size() + (*ix)->data.size() - sz - 2 < max_contig_size)
-			{
-				break;
+	auto s = set<string>(), R = set<string>();
+	for (auto &r: reads) {
+		for (int i = 0; i < r.size(); i++) {
+			for (auto rl: lens) {
+				if (i + rl >= r.size()) break;
+				s.insert(r.substr(i, rl));
 			}
 		}
-		if (iy == hash_s[sz][ha].end())
-		{
-			continue;
+	}
+	for (auto &r: reads) {
+		if (s.find(r) == s.end()) {
+			R.insert(r);
+			s.insert(r);
 		}
-		sread *nr = new sread();
-		string sx=string((*ix)->data.c_str() + sz + 1);
-		nr->data = (*iy)->data + sx;
-		nr->reads.insert(nr->reads.end(), (*iy)->reads.begin(), (*iy)->reads.end());
-		nr->reads.insert(nr->reads.end(), (*ix)->reads.begin(), (*ix)->reads.end());
-		for (int i = (*iy)->reads.size(); i < (*iy)->reads.size() + (*ix)->reads.size(); i++)
-			nr->reads[i].first.first.second += (*iy)->data.size() - sz - 1;
-		reads.insert(nr);
-		update(nr, 0);
-
-		rm.push_back(*ix);
-		rm.push_back(*iy);
-		(*ix)->used = 1;
-		(*iy)->used = 1;
-		ret = 1;
-		auto it = reads.begin();
 	}
-	for (int i = 0; i < rm.size(); i++) {
-		update(rm[i], 1);
-		reads.erase(rm[i]);
-		delete rm[i];
-	}
+	reads = vector<string>(R.begin(), R.end());
 
-	return ret;
-}
+	int min_len = *lens.begin();
+	int max_len = *lens.rbegin();
 
-void assembler::assemble (void) {
-	while (1) {
-		bool no_br = 0;
-		// all prefix/suffix lengths
-		for (int i = max_contig_size - 1; i >= min_glue_size; i--) { 
-			// check pref=sfx
-			for (int h = 0; h < prime_seed; h++) 
-				if (hash_p[i][h].size() && hash_s[i][h].size()) {
-					while (assemble_single(i, h))
-						no_br = 1;
-				}
+	vector<unordered_map<int, vector<int>>> phash(max_len), shash(max_len);
+	graph = Graph(reads.size());
+	for (int ri = 0; ri < reads.size(); ri++) {
+		auto &r = reads[ri];
+		for (int i = 0, hp = 0, hs = 0, exp = 1; i < r.size(); i++, exp = (exp << 2) % SEED) {
+			hp = ((hp * 4) % SEED + getDNAValue(r[i])) % SEED;
+			hs = ((getDNAValue(r[r.size() - 1 - i]) * exp) % SEED + hs) % SEED;
+	
+			if (i < min_glue_size) 
+				continue;
+			for (auto ni: phash[i][hs]) {
+				if (validate(reads[ni], r, i)) 
+					graph[ri].neighbors.push_back({ni, i});
+			}
+			for (auto ni: shash[i][hp]) {
+				if (validate(r, reads[ni], i)) 
+					graph[ni].neighbors.push_back({ri, i});
+			}
+			phash[i][hp].push_back(ri);
+			shash[i][hs].push_back(ri);
 		}
-		if (!no_br) 
-			break;
+		graph[ri].seq = r;
 	}
-}
 
-vector<contig> assembler::assemble (const vector<pair<pair<string, string>,pair<int, int>>> &input) {
-	for (int i = 0; i < input.size(); i++) {
-		sread *r = new sread();
-		reads.insert(r);
-		r->data = input[i].first.second;
-		r->reads.push_back({{{input[i].second.second, 0}, input[i].first},input[i].second.first});
-		update(r, 0);
-	}
-	assemble();
-	vector<contig> result(reads.size());
-	int ri = 0;
-	for (auto it = reads.begin(); it != reads.end(); it++) {
-		result[ri].data = (*it)->data;
-		result[ri].read_information.resize((*it)->reads.size());
-		for (int i = 0; i < (*it)->reads.size(); i++) {
-			result[ri].read_information[i].in_genome_location = (*it)->reads[i].first.first.first;
-			result[ri].read_information[i].location = (*it)->reads[i].first.first.second;
-			result[ri].read_information[i].name = (*it)->reads[i].first.second.first;
-			result[ri].read_information[i].data = (*it)->reads[i].first.second.second;
-			result[ri].supportVal+=(*it)->reads[i].second;
-		}
-		ri++;
-
-		update(*it, 1);
-		delete *it;
-	}
-	reads.clear();
+	auto result = path();
 	return result;
 }
 
+vector<int> assembler::topsort() 
+{
+	vector<int> top;
+
+	int no_edges = 0;
+	for (auto &v: graph) {
+		v.indegree = 0;
+	}
+	for (auto &v: graph) {
+		int outdegree = 0;
+		for (auto &n: v.neighbors) if (n.first != -1) {
+			graph[n.first].indegree++, outdegree++;
+		}
+		no_edges += outdegree;
+	}
+
+	vector<bool> processed(graph.size(), false);
+	int deleted = 0;
+	while (no_edges > 0) {
+		vector<int> zeros;
+		for (auto &v: graph) {
+			int vi = &v - &graph[0];
+			if (!processed[vi] && v.indegree == 0) {
+				processed[vi] = true;
+				zeros.push_back(vi);
+			}
+		}
+		for (int zi = 0; zi < zeros.size(); zi++) {
+			int z = zeros[zi];
+			top.push_back(z);
+
+			for (auto &n: graph[z].neighbors) {
+				int ni = n.first;
+				if (ni == -1 || processed[ni]) continue;
+				graph[ni].indegree--;
+				if (graph[ni].indegree == 0) {
+					processed[ni] = true;
+					zeros.push_back(ni);
+				}
+				no_edges--;
+			}
+		}
+		if (no_edges != 0) {
+			E("Not DAG, remaining {} edges", no_edges);
+			tuple<int, int, int, int> minw(99999999, 99999999, 99999999, 99999999);
+			for (auto &v: graph) {
+				int vi = &v - &graph[0];
+				if (processed[vi]) continue;
+				// delete for 
+				for (auto &n: v.neighbors) {
+					int ni = n.first;
+					if(ni == -1) continue;
+					int nix = &n - &v.neighbors[0];
+					auto yy = make_tuple(  graph[ni].indegree, n.second, vi, nix);
+					if (ni != -1 && !processed[ni] && yy < minw) {
+						minw = yy;
+					}
+				}
+			}
+			int fr = get<2>(minw);
+			int to = graph[fr].neighbors[get<3>(minw)].first;
+			E("  [{:2}] deleted: {}->{}, weight {}, indegree {}",
+				++deleted, fr, to, get<1>(minw), get<0>(minw));
+
+			graph[to].indegree--;
+			no_edges--;
+			graph[fr].neighbors[get<3>(minw)] = {-1, -1};
+		}
+		end:;
+	}
+	return top;
+}
+
+vector<vector<pair<int, int>>> max_path(const Graph &graph, vector<int> top) 
+{
+	vector<bool> visited(graph.size(), false);
+	vector<vector<pair<int, int>>> paths;
+	while (true) {
+		vector<int> len(graph.size(), 0);
+		vector<int> parent(graph.size(), -1);
+
+		// maximize number of reads in the thing?!
+		for (auto &vi: top) if (!visited[vi]) {
+			for (auto &n: graph[vi].neighbors) {
+				int ni = n.first;
+				if (ni == -1) continue;
+				int val = n.second ; //+ graph[ni].seq.size();
+				if (!visited[ni] && len[ni] <= len[vi] + val) {
+					len[ni] = len[vi] + val;
+					parent[ni] = vi;
+				}
+			}
+		}
+
+		int max_len = -1, max_ni = -1;
+		for (int ni = 0; ni < len.size(); ni++) {
+			if (!visited[ni] && len[ni] > max_len) {
+				max_len = len[ni], max_ni = ni;
+			}
+		}
+		if (max_ni == -1) break;
+
+		vector<pair<int, int>> path;
+		while (parent[max_ni] != -1) {
+			path.push_back({max_ni, len[max_ni] - len[parent[max_ni]]});// - graph[max_ni].seq.size()});
+			visited[max_ni] = true;
+			max_ni = parent[max_ni];
+		}
+		visited[max_ni] = true;
+		path.push_back({max_ni, 0});
+		reverse(path.begin(), path.end());
+		paths.push_back(path);
+	}
+
+	return paths;
+}
+
+vector<contig> assembler::path() 
+{
+	auto top = topsort();
+	auto paths = max_path(graph, top);
+
+	vector<contig> result;
+
+	int maxpath = 1000;
+	for (auto &path: paths) {
+		contig c;
+
+		string pad = "", seq = graph[path[0].first].seq.substr(0, 1);
+		int prev_len = 1;
+		for (auto &t: path) {
+			pad += string(prev_len - t.second - 1, ' ');
+			seq += graph[t.first].seq.substr(t.second + 1);
+			//E("{:3} {:5}: {}{}", t.first, t.second, pad, graph[t.first].seq);
+			prev_len = graph[t.first].seq.size();
+			c.read_information.push_back({string(), graph[t.first].seq, 0, (int)pad.size()});
+		}
+
+		c.data = seq;
+		//E("{:3} reads, {:5}: {}", path.size(), seq.size(), seq.substr(0, 100) + (seq.size() > 100 ? "..." : ""));
+		//fmt::print("{} {}\n", seq.size(), seq);
+		//E("");
+
+		result.push_back(c);
+	}
+
+	return result;
+}

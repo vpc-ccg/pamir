@@ -1,6 +1,8 @@
 CC=g++
-CFLAGS= -c -g -std=gnu++0x -O3  
-SOURCES=partition.cc sniper.cc assembler.cc genome.cc aligner.cc  assembler_ext.cc extractor.cc common.cc bam_parser.cc sam_parser.cc record.cc sort.cc
+FLAGS= -g -std=c++11 
+CFLAGS= -c -Ifmt $(FLAGS) -Wfatal-errors
+#CFLAGS= -c -g -std=gnu++0x -O3  
+SOURCES=partition.cc sniper.cc assembler.cc genome.cc aligner.cc  assembler_ext.cc extractor.cc common.cc bam_parser.cc sam_parser.cc record.cc sort.cc fmt/fmt/format.cc
 LDFLAGS=-lm -lz
 OBJECTS=$(SOURCES:.cc=.o) 
 EXECUTABLE=sniper

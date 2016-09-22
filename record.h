@@ -19,7 +19,7 @@ enum StringField {
 };
 enum IntField {
     MF,
-    LOC,
+	LOC,
     MQ,
     P_LOC,
     TLEN
@@ -43,7 +43,7 @@ public:
     const char* getCigar() const { return strFields[CIGAR]; }
     const char* getPairChromosome() const { return strFields[P_CHR]; }
     const size_t getPairLocation() const { return intFields[P_LOC] - 1; }
-    const int getTemplateLenght() const { return intFields[TLEN]; }
+    const int getTemplateLength() const { return intFields[TLEN]; }
     const char* getSequence() const { return strFields[SEQ]; }
     const char* getQuality() const { return strFields[QUAL]; }
     const char* getOptional() const { return strFields[OPT]; }
@@ -59,7 +59,7 @@ public:
             getCigar(),
             getPairChromosome(),
             getPairLocation(),
-            getTemplateLenght(),
+            getTemplateLength(),
             getSequence(),
             getQuality(),
             getOptional()
@@ -77,7 +77,7 @@ public:
             getCigar(),
             getPairChromosome(),
             getPairLocation(),
-            getTemplateLenght(),
+            getTemplateLength(),
             getSequence(),
             getQuality(),
             getOptional()

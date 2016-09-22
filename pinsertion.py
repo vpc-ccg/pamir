@@ -441,6 +441,7 @@ def orphan_assembly(config):
 	run_cmd       = not (os.path.isfile(complete_file) )
 	if ( run_cmd ):
 		clean_state( 10, workdir, config )
+	#cmd			  = pipeline.sniper + " assemble_orphan {0} 400 30000".format(input_file)
 	cmd 		  = "python " + pipeline.sga + " " + input_file;
 	shell(msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
 #############################################################################################

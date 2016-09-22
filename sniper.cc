@@ -281,6 +281,31 @@ reset:
 	return num_cluster;
 }
 /******************************************************************/
+/*void assemble_orphan (const string &input_fastq, int insert_size, int max_len)
+{
+	vector<string> orphans;
+	FILE *fin = fopen(input_fastq.c_str(),"r");
+	FILE *fp = fopen((input_fastq + string(".sgaout.fa") ).c_str(),"w");
+	char *line = new char [100000];
+	while(fgets(line,100000,fin))
+	{
+		fgets(line, 100000, fin);
+		line[strlen(line)-1] = '\0';
+		orphans.emplace_back(string(line));
+		fgets(line, 100000, fin);
+		fgets(line, 100000, fin);
+	}
+	assembler as(max_len, 70);
+	auto contigs = as.assemble(orphans);
+	for(int i=0;i < contigs.size(); i++)
+	{
+		//if(contigs[i].data.size() > insert_size)
+		fprintf(fp, "contig-%d\n%s\n", i+1, contigs[i].data.c_str());
+	}
+	fclose(fin);
+	fclose(fp);
+}*/
+/********************************************************************************/
 string assemble_with_sga (const string &input_fastq)
 {
 	char *sgapython = new char[MAX_CHAR];
@@ -411,7 +436,7 @@ void assemble (const string &partition_file, const string &reference, const stri
 		{
 			int contig_support		= contig.read_information.size();
 			int con_len 			= contig.data.length();
-			if( check_AT_GC(contig.data, MAX_AT_GC) == 0 || contig_support <= 1 || con_len > max_len + 400 ) continue;
+			if( check_AT_GC(contig.data, MAX_AT_GC) == 0 || (con_len == read_length && contig_support <= 1) || con_len > max_len + 400 ) continue;
 		
 			fprintf(stdout, "\n\n>>>>> Length: %d Support: %d Contig: %s\n", con_len, contig_support, contig.data.c_str());
 		for(int z=0;z<contig.read_information.size();z++)
@@ -495,6 +520,10 @@ int main(int argc, char **argv)
 			if (argc != 10) throw "Usage:10 parameters needed\tsniper assemble [partition-file] [reference] [range] [output-file-vcf] [max-len] [read-length] [hybrid] dir_prefix"; 
 			assemble(argv[2], argv[3], argv[4], argv[5], atoi(argv[6]), atoi(argv[7]), atoi(argv[8]), argv[9]);
 		}
+		/*else if (mode == "assemble_orphan") {
+			if (argc != 5) throw "Usage:3 parameters needed\tsniper assemble_orphan [orphan.fq] [insert_size] [max_len]"; 
+			assemble_orphan(argv[2], atoi(argv[3]), atoi(argv[4]));
+		}*/
 		else if (mode == "get_cluster") {
 			if (argc != 4) throw "Usage:\tsniper get_cluster [partition-file] [range]";
 			genome_partition pt;
