@@ -26,6 +26,8 @@ void genome::load_next(void)
 		return;
 	
 	getline(fin, reference_name);
+	if(reference_name!="")
+		reference_name = reference_name.substr(0, reference_name.find(" \n"));
 	string tmp;
 	char ch;
 
@@ -43,8 +45,8 @@ void genome::load_next(void)
 
 string genome::extract(const string &rname, int &start, int &end)
 {
-	if (rname != reference_name) {
-		fprintf(stderr, "%s\n",  reference_name.c_str());
+	while (rname != reference_name) {
+		//fprintf(stderr, "%s\n",  reference_name.c_str());
 		load_next();
 		
 	}

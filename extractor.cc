@@ -157,7 +157,7 @@ extractor::extractor(string filename, string output)
 
 
 	FILE *fq = fopen (output.c_str(),"w");
-	FILE *fqsam = fopen ((output + ".sam").c_str(),"w");
+	//FILE *fqsam = fopen ((output + ".sam").c_str(),"w");
 
 	char *opt 			= new char[1000000];
 	char *MD 			= new char[1000000];
@@ -203,7 +203,7 @@ extractor::extractor(string filename, string output)
 					if((flag & 0x40) == 0x40)
 					{
 						output_record(fq, 2, rc);
-						output_record(fqsam, 3, rc);
+						//output_record(fqsam, 3, rc);
 						int secondWritten = 0;
 						while(secondWritten != 1)
 						{
@@ -215,7 +215,7 @@ extractor::extractor(string filename, string output)
 								if((flag & 0x800) != 0x800)
 								{
 									output_record(fq, 2, rc2);
-									output_record(fqsam, 3, rc2);
+									//output_record(fqsam, 3, rc2);
 									secondWritten = 1;
 								}
 							}
@@ -226,7 +226,7 @@ extractor::extractor(string filename, string output)
 						fprintf(fq,"@%s/1\n%s\n+\n%s\n", fr_rname.c_str(), fr_seq.c_str(), fr_qual.c_str());
 						//fprintf(fqsam,"@%s/1\t%s\t%s\n", fr_rname.c_str(), fr_seq.c_str(), fr_qual.c_str());
 						output_record(fq, 2, rc);
-						output_record(fqsam, 3, rc);
+						//output_record(fqsam, 3, rc);
 					}
 				}
 			}
@@ -236,7 +236,7 @@ extractor::extractor(string filename, string output)
 	
 	delete parser;
 	fclose(fq);
-	fclose(fqsam);
+	//fclose(fqsam);
 }
 /***************************************************************/
 extractor::~extractor()

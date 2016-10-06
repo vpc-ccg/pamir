@@ -281,7 +281,7 @@ reset:
 	return num_cluster;
 }
 /******************************************************************/
-/*void assemble_orphan (const string &input_fastq, int insert_size, int max_len)
+void assemble_orphan (const string &input_fastq, int insert_size, int max_len)
 {
 	vector<string> orphans;
 	FILE *fin = fopen(input_fastq.c_str(),"r");
@@ -304,7 +304,7 @@ reset:
 	}
 	fclose(fin);
 	fclose(fp);
-}*/
+}
 /********************************************************************************/
 string assemble_with_sga (const string &input_fastq)
 {
@@ -331,12 +331,13 @@ string prepare_sga_input ( const string &prefix, const string &out_vcf, const ve
 			fprintf( fqtmp, "@%s\n%s\n+\n%s\n", p[i].first.first.c_str(), p[i].first.second.c_str(), qual.c_str() );
 		else
 		{
-			string conName = p[i].first.first;
+			/*string conName = p[i].first.first;
 			if(conName[conName.length()-3]=='_')
 			{
 				conName.erase(conName.length()-3,3);
 			}
-			contigNames.insert(conName);
+			contigNames.insert(conName);*/
+			contigNames.insert(p[i].first.first);
 		}
 	}
 	fclose(fqtmp);
@@ -401,9 +402,8 @@ void assemble (const string &partition_file, const string &reference, const stri
 			break;
 		
 		// cluster has too many or too few reads
-		if ( p.size() > 100000 || p.size() <= 2 ) 	
+		if ( p.size() > 15000 || p.size() <= 2 ) 
 			continue;
-		
 		string chrName  = pt.get_reference();
 		int cluster_id  = pt.get_cluster_id();
 		int pt_start    = pt.get_start();
@@ -417,7 +417,6 @@ void assemble (const string &partition_file, const string &reference, const stri
 		fprintf(stdout," + Spanning Range  : %s:%d-%d\n", chrName.c_str(), pt_start, pt_end);
 		fprintf(stdout," + Discovery Range : %s:%d-%d\n", chrName.c_str(), ref_start, ref_end);
 		fprintf(stdout," + Reference       : %s\n\n", ref_part.c_str());
-
 		// if the genomic region is too big
 		if (ref_end - ref_start > MAX_REF_LEN) 
 			continue;
@@ -430,7 +429,6 @@ void assemble (const string &partition_file, const string &reference, const stri
 		{
 			reads.push_back(p[i].first.second);
 		}
-
 		auto contigs    = as.assemble(reads);
 		for ( auto &contig: contigs )
 		{
@@ -520,10 +518,10 @@ int main(int argc, char **argv)
 			if (argc != 10) throw "Usage:10 parameters needed\tsniper assemble [partition-file] [reference] [range] [output-file-vcf] [max-len] [read-length] [hybrid] dir_prefix"; 
 			assemble(argv[2], argv[3], argv[4], argv[5], atoi(argv[6]), atoi(argv[7]), atoi(argv[8]), argv[9]);
 		}
-		/*else if (mode == "assemble_orphan") {
+		else if (mode == "assemble_orphan") {
 			if (argc != 5) throw "Usage:3 parameters needed\tsniper assemble_orphan [orphan.fq] [insert_size] [max_len]"; 
 			assemble_orphan(argv[2], atoi(argv[3]), atoi(argv[4]));
-		}*/
+		}
 		else if (mode == "get_cluster") {
 			if (argc != 4) throw "Usage:\tsniper get_cluster [partition-file] [range]";
 			genome_partition pt;

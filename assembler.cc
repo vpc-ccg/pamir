@@ -71,7 +71,6 @@ vector<contig> assembler::assemble(vector<string> reads)
 		for (int i = 0, hp = 0, hs = 0, exp = 1; i < r.size(); i++, exp = (exp << 2) % SEED) {
 			hp = ((hp * 4) % SEED + getDNAValue(r[i])) % SEED;
 			hs = ((getDNAValue(r[r.size() - 1 - i]) * exp) % SEED + hs) % SEED;
-	
 			if (i < min_glue_size) 
 				continue;
 			for (auto ni: phash[i][hs]) {
@@ -135,7 +134,7 @@ vector<int> assembler::topsort()
 			}
 		}
 		if (no_edges != 0) {
-			E("Not DAG, remaining {} edges", no_edges);
+			//E("Not DAG, remaining {} edges", no_edges);
 			tuple<int, int, int, int> minw(99999999, 99999999, 99999999, 99999999);
 			for (auto &v: graph) {
 				int vi = &v - &graph[0];
@@ -153,8 +152,14 @@ vector<int> assembler::topsort()
 			}
 			int fr = get<2>(minw);
 			int to = graph[fr].neighbors[get<3>(minw)].first;
-			E("  [{:2}] deleted: {}->{}, weight {}, indegree {}",
-				++deleted, fr, to, get<1>(minw), get<0>(minw));
+			++deleted;
+			if (deleted == 1000)
+			{
+				vector<int> empty;
+				return empty;
+			}
+			//E("  [{:2}] deleted: {}->{}, weight {}, indegree {}",
+			//	++deleted, fr, to, get<1>(minw), get<0>(minw));
 
 			graph[to].indegree--;
 			no_edges--;
@@ -215,8 +220,7 @@ vector<contig> assembler::path()
 	auto paths = max_path(graph, top);
 
 	vector<contig> result;
-
-	int maxpath = 1000;
+	int maxpath = 100;
 	for (auto &path: paths) {
 		contig c;
 
