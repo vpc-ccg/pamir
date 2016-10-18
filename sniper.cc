@@ -515,7 +515,7 @@ int main(int argc, char **argv)
 			partify(argv[2], argv[3], argv[4], atoi(argv[5]));
 		}
 		else if (mode == "assemble") {
-			if (argc != 10) throw "Usage:10 parameters needed\tsniper assemble [partition-file] [reference] [range] [output-file-vcf] [max-len] [read-length] [hybrid] dir_prefix"; 
+			if (argc != 10) throw "Usage:10 parameters needed\tsniper assemble [partition-file] [reference] [range] [output-file-vcf] [max-len] [read-length] [hybrid] dir_prefix";
 			assemble(argv[2], argv[3], argv[4], argv[5], atoi(argv[6]), atoi(argv[7]), atoi(argv[8]), argv[9]);
 		}
 		else if (mode == "assemble_orphan") {
