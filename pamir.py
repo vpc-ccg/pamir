@@ -15,10 +15,12 @@ class bcolors:
 	UNDERLINE = '\033[4m'
 
 class pipeline:
-	mistrvar 	= os.path.dirname(os.path.realpath(__file__)) + "/pinsertion.py"
+	pamir 	= os.path.dirname(os.path.realpath(__file__)) + "/pamir.py"
 	sniper   	= os.path.dirname(os.path.realpath(__file__)) + "/sniper"
 	sga		   	= os.path.dirname(os.path.realpath(__file__)) + "/sga.py"
 	minia	   	= os.path.dirname(os.path.realpath(__file__)) + "/minia"
+	velveth		= os.path.dirname(os.path.realpath(__file__)) + "/velveth"
+	velvetg		= os.path.dirname(os.path.realpath(__file__)) + "/velvetg"
 	mrsfast  	= os.path.dirname(os.path.realpath(__file__)) + "/mrsfast"
 	bedtools  	= os.path.dirname(os.path.realpath(__file__)) + "/bedtools"
 	samtools	= os.path.dirname(os.path.realpath(__file__)) + "/samtools"
@@ -30,23 +32,23 @@ class pipeline:
 	# example usage for help
 	example  = "\tTo create a new project: specify (1) project name, (2) reference genomes and (3) input sequences (either --alignment, --fastq, or --mrsfast-best-search)\n"
 	example += "\n\t--starting from a sam or bam file\n"
-	example += "\t$ ./pinsertion.py -p my_project -r ref.fa --files alignment=my.sam\n"
+	example += "\t$ ./pamir.py -p my_project -r ref.fa --files alignment=my.sam\n"
 	example += "\n\t--starting from a gzipped fastq file\n"
-	example += "\t$ ./pinsertion.py -p my_project -r ref.fa --files fastq=my.fastq.gz\n"
+	example += "\t$ ./pamir.py -p my_project -r ref.fa --files fastq=my.fastq.gz\n"
 	example += "\n\t--starting from a remapping result\n"
-	example += "\t$ ./pinsertion.py -p my_project -r ref.fa --files mrsfast-best-search=my.best.sam\n"
+	example += "\t$ ./pamir.py -p my_project -r ref.fa --files mrsfast-best-search=my.best.sam\n"
 	example += "\n\t--starting with a masked file\n"
-	example += "\t$ ./pinsertion.py -p my_project -r ref.fa -m my-mask.txt  --files alignment=my.sam\n"	
-	example += "\n\n\tTo resume a project, just type project folder and pinsertion.py will automatically resume from the previous stages:\n"
-	example += "\t$ ./pinsertion.py -p my_project\n"
-	example += "\t$ ./pinsertion.py -p /home/this/is/my/folder/project\n"
+	example += "\t$ ./pamir.py -p my_project -r ref.fa -m my-mask.txt  --files alignment=my.sam\n"	
+	example += "\n\n\tTo resume a project, just type project folder and pamir.py will automatically resume from the previous stages:\n"
+	example += "\t$ ./pamir.py -p my_project\n"
+	example += "\t$ ./pamir.py -p /home/this/is/my/folder/project\n"
 
 
 #############################################################################################
 # Default values will be set up later in check_proj_preq
 def command_line_process():
 	parser = argparse.ArgumentParser(
-		description='MiStrVar: Micro Structural Variant Caller',
+		description='Pamir: Insertion Discovery in Whole Genome Sequencing Data',
 		usage = pipeline.example,
 		formatter_class=argparse.RawTextHelpFormatter
 	)
@@ -461,10 +463,33 @@ def orphan_assembly(config):
 	if ( run_cmd ):
 		clean_state( 10, workdir, config )
 	cmd=""
-	if(config.get("project","assembler")=="sga"):
+	if(config.get("project","assembler")=="velvet"):
+		cmd 		  = pipeline.velveth + " {0}/velvetRes/ 31 -fastq -short {1}".format(workdir, input_file)
+		shell(msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
+		control_file  = "{0}/log/10.orphan_assembly_2.log".format(workdir);
+		complete_file = "{0}/stage/10.orphan_assembly_2.finished".format(workdir);
+		msg 		  = "Running velvetg"
+		cmd 		  = pipeline.velvetg + " {0}/velvetRes/ -min_contig_lgth 400 -cov_cutoff 2".format(workdir)
+		run_cmd       = not (os.path.isfile(complete_file) )
+		shell(msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
+		contigfile    = open("{0}/velvetRes/contigs.fa".format(workdir),"r").readlines()
+		fout		  = open("{0}.contigs.fa".format(input_file),"w")
+		a=0
+		while a < len(contigfile):
+			content =""
+			if(contigfile[a][0]=='>'):
+				conname = contigfile[a].strip().split("_")
+				fout.write(">contig-"+conname[1]+"\n")
+				a+=1
+				while a < len(contigfile) and contigfile[a][0]!='>':
+					content+=contigfile[a].strip()
+					a+=1
+				fout.write(content+"\n")
+		fout.close()
+	elif(config.get("project","assembler")=="sga"):
 		cmd 		  = "python " + pipeline.sga + " " + input_file;
 		shell(msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
-	else:
+	elif(config.get("project","assembler")=="minia"):
 		cmd 		  = "{0} -in {1} -kmer-size 47 -abundance-min 3 -out {1}_tmp".format(pipeline.minia, input_file, input_file);
 		shell(msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
 		fin = open("{0}_tmp.contigs.fa".format(input_file),"r")
@@ -1030,7 +1055,7 @@ def check_project_preq():
 		config.set("project", "alignment",'')
 		config.set("project", "fastq",'')
 		config.set("project", "mrsfast-best-search",'')
-		config.set("project", "assembler",str(args.assembler) if args.assembler!=None else "sga")
+		config.set("project", "assembler",str(args.assembler) if args.assembler!=None else "velvet")
 		config = get_input_file( config, args.files)
 
 		# Parameters for other parts in the pipeline
