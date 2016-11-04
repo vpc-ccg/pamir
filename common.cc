@@ -50,14 +50,18 @@ string S (const char* fmt, ...) {
 /********************************************************************/
 int check_AT_GC(const string &contig, const double &MAX_AT_GC)
 {
-	double AT_count = 0, GC_count = 0;
+	double AT_count = 0, GC_count = 0, A_count = 0, T_count = 0, G_count = 0, C_count = 0;
 	int clen        = contig.length();
 	for(int i = 0; i < clen-1; i++)
 	{
 		if((contig[i] == 'A' && contig[i+1] == 'T') ||(contig[i] == 'T' && contig[i+1] == 'A')) AT_count++;
 		if((contig[i] == 'C' && contig[i+1] == 'G') ||(contig[i] == 'G' && contig[i+1] == 'C'))	GC_count++;
+		if((contig[i] == 'A' && contig[i+1] == 'A')) A_count++;
+		if((contig[i] == 'T' && contig[i+1] == 'T')) T_count++;
+		if((contig[i] == 'G' && contig[i+1] == 'G')) G_count++;
+		if((contig[i] == 'C' && contig[i+1] == 'C')) C_count++;
 	}
-	if(AT_count/(double)clen >= MAX_AT_GC || GC_count/(double)clen >= MAX_AT_GC) 
+	if(AT_count/(double)clen >= MAX_AT_GC || GC_count/(double)clen >= MAX_AT_GC || A_count/(double)clen >=MAX_AT_GC || T_count/(double)clen >=MAX_AT_GC || G_count/(double)clen >=MAX_AT_GC || C_count/(double)clen >=MAX_AT_GC )
 		return 0;
 	else
 		return 1;

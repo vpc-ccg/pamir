@@ -190,7 +190,6 @@ void sortFile (const string &path, const string &pathNew, size_t memLimit) {
 		}	
 		finput = f;
 	}
-
 	bufsz = memLimit;
 	buffer = (char*)malloc(memLimit + 1);
 
@@ -266,8 +265,8 @@ void sortFile (const string &path, const string &pathNew, size_t memLimit) {
 				f = new gzfile(fn, "wb1+");
 			else
 				f = new rawfile(fn, "wb+");
-			if (files.size() <= fsz)
-				f->write(header.data(), header.size());
+			//if (files.size() <= fsz)
+			//	f->write(header.data(), header.size());
 			size_t sz;
 			//ZAMAN_START();
 			sz = mergeSort(files.data() + i, 

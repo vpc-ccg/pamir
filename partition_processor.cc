@@ -28,7 +28,6 @@ int main(int argc, char **argv)
 	string rname,gname;
 
 	// reading the conting content
-	//
 
 	fin.open(argv[1]);
 	while( fin >> gname >> cont )
@@ -99,8 +98,6 @@ int main(int argc, char **argv)
 	vector <string> reads_content;
 	vector <int> reads_support;
 	vector <int> reads_pos;
-//	set<string> myset;
-//	set<string>::iterator mit;
 	
 	map<string, vector<int> > myset;
 	map<string, vector<int> >::iterator mit;
@@ -161,9 +158,7 @@ int main(int argc, char **argv)
 		int acceptedContigNum =0;
 		for (mit=myset.begin(); mit!=myset.end(); mit++) 
 		{
-			//cout<<(*mit).first<<endl;
 			fprintf(flog,"readNum: %d\tcontigname: %s\tleft: %d\tright: %d\tforward: %d\treverse: %d\n", numOfReads, (*mit).first.c_str(), myset[(*mit).first][2], myset[(*mit).first][3], myset[(*mit).first][0], myset[(*mit).first][1]);
-			//cout<<"readNum: "<<numOfReads<<"\tcontigname: "<<(*mit).first<<"\tleft: "<<myset[(*mit).first][2]<<"\tright: "<<myset[(*mit).first][3]<<endl;
 			int decided =0;
 			if (map_sup.find((*mit).first) != map_sup.end() ) 
 			{
@@ -182,47 +177,41 @@ int main(int argc, char **argv)
 					if((myset[(*mit).first][2]==0|| myset[(*mit).first][3]==0) && myset[(*mit).first][2] +myset[(*mit).first][3] < 0.3*numOfReads )
 					{
 						decided =0;
-				//		cout<<"either no OEAs mapping on left or right flank and not enough left + right flank support < 40%"<<endl;
 						fprintf(flog, "either no OEAs mapping on left or right flank and not enough left + right flank support < 40%%\n");
 					}
 				}
 				if ( myset[(*mit).first][0] == myset[(*mit).first][1])
 				{
 					tie++;
-//					decided = 0;
-			//		cout<<"Forward and reverse are exactly same, we cannot decide which version of the contig to add"<<endl;
 					fprintf(flog, "Forward and reverse are exactly same, we cannot decide which version of the contig to add\n");
 				}
 
 			}			
-			//cout<<"decided: "<< decided<<endl;
 			if(decided == 1)
 			{
 				string revcontent;
-				if( abs( myset[(*mit).first][0] -  myset[(*mit).first][1] ) <=1 )
+				if( myset[(*mit).first][0] ==  myset[(*mit).first][1] )
 				{
 					reads.push_back((*mit).first);
 					reads_content.push_back(map_cont[(*mit).first]);
 					reads_support.push_back(map_sup[(*mit).first]);
 					reads_pos.push_back(-1);
-					acceptedContigNum++;
 					string content = map_cont[(*mit).first];
 					revcontent = reverse_complement(content);
 					reads.push_back((*mit).first + "_rv");
 					reads_content.push_back(revcontent);
 					reads_support.push_back(map_sup[(*mit).first]);
 					reads_pos.push_back(-1);
-					acceptedContigNum++;
+					acceptedContigNum+=2;
 
 				}
 				else
 				{
 					if(myset[(*mit).first][0] > myset[(*mit).first][1])
 					{
-
 						revcontent = map_cont[(*mit).first];
 					}
-					else
+					else if(myset[(*mit).first][1] > myset[(*mit).first][0])
 					{
 						string content = map_cont[(*mit).first];
 						revcontent = reverse_complement(content);
@@ -242,13 +231,8 @@ int main(int argc, char **argv)
 		fwrite(&fout_size,1,sizeof(size_t),fidx);
 		fprintf(fucluster,"%d %d %d %d %s\n",cluster_id, lines, start, end, ref.c_str());
 
-
-
-//		cout <<cluster_id <<" "<< lines << " " << start << " " << end << " " << ref << endl;
-
 		for (i=0; i<lines; i++) {
 			fprintf(fucluster,"%s %s %d %d\n",reads[i].c_str(),reads_content[i].c_str(),reads_support[i],reads_pos[i]);
-//			cout << reads[i] << " " << reads_content[i] << " " << reads_support[i] << " " << reads_pos[i] << endl;
 		}
 
 		if ( 0 < myset.size() )

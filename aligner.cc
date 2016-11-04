@@ -302,6 +302,7 @@ int aligner::extract_calls( const int &cluster_id, vector<tuple<string, int, int
 		{
 			int p 						= 0;
 			int decreaseFromInsStartLoc = 0;
+			int prevLen					= 0;
 			while( p < a.length() )
 			{
 				ins_len = 0;
@@ -328,6 +329,7 @@ int aligner::extract_calls( const int &cluster_id, vector<tuple<string, int, int
 				{
 					insertion_content   = b.substr(insertion_start_loc,insertion_end_loc-insertion_start_loc);
 					insertion_start_loc = insertion_start_loc+fwdS;
+					insertion_start_loc = insertion_start_loc-prevLen;
 					if( insertion_content.length() > 0 )
 					{
 						fprintf (stdout, "(-) %d\t%d\t%s\t%d (-)\n", insertion_start_loc, insertion_content.length(), insertion_content.c_str(), contig_support);
@@ -335,6 +337,7 @@ int aligner::extract_calls( const int &cluster_id, vector<tuple<string, int, int
 						mapped = 1;
 					}
 				}
+				prevLen = ins_len;
 				p++;
 			}
 		}

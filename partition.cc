@@ -191,7 +191,7 @@ int genome_partition::output_partition (const string &partition_file, const stri
 			end = tok ? atol(tok) : start+1;
 		}
 		free(dup);
-		free(tok);
+		//free(tok);
 		fprintf(stdout, "extraction [%u, %u]\n", start, end-1);
 
 		FILE *fidx = fopen((partition_file + ".idx").c_str(), "rb");
@@ -200,7 +200,6 @@ int genome_partition::output_partition (const string &partition_file, const stri
 			offsets.push_back(offset);
 		fclose(fidx);
 	}
-
 	FILE *fi, *fo, *foidx;
 	int sz, i;
 	int cluster_id;
@@ -215,15 +214,11 @@ int genome_partition::output_partition (const string &partition_file, const stri
 	fclose(foidx);
 	size_t foidx_size;
 reset:
-//	assert(start < offsets.size());
 	if (start >= offsets.size() || start >= end)
 		return 0;
-	//fprintf(stderr,"Seeking to %d--%d (%lu)\n", start, end, offsets[start]);
-
 	fi = fopen(partition_file.c_str(), "rb");
 	fo = fopen(c_file.c_str(), "a");
 	fseek(fi, offsets[start++], SEEK_SET);
-
 	foidx = fopen((c_file+".idx").c_str(),"ab");
 	fscanf(fi, "%d %d %d %d %s\n", &cluster_id, &sz, &p_start, &p_end, pref);
 	foidx_size = ftell(fo);
@@ -232,7 +227,6 @@ reset:
 	p_ref = pref;
 
 	num_read = 0;
-
 	for (i = 0; i < sz; i++) {
 		fgets(pref, MAXB, fi);
 		int loc;
@@ -240,13 +234,12 @@ reset:
 		sscanf(pref, "%s %s %d %d", name, read, &support, &loc);
 		fprintf( fo, "%s %s %d %d\n", name, read, support, loc);
 		num_read = 0;
-		//result.push_back({{string(name), string(read)}, loc});
 	}
 	fclose(fi);
 	fclose(fo);
+	fclose(foidx);
 	if ( num_read == 0)
 		goto reset;
-	fclose(foidx);
 	return num_cluster;
 }
 

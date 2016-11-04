@@ -15,10 +15,10 @@ def main():
 	os.system(SGA + " correct -a overlap -t 8 " + FASTQ + ".preprocess");
 	os.system(SGA + " index -a ropebwt -t 8 " + FASTQ + ".ec.fa");
 	os.system(SGA + " filter -t 8 " + FASTQ + ".ec.fa --no-kmer-check");
-	os.system(SGA + " overlap -m 70 " + FASTQ + ".ec.filter.pass.fa -t 8");
-	os.system(SGA + " assemble -o " + FASTQ + " -m 70 " + FASTQ + ".ec.filter.pass.asqg.gz");
+	os.system(SGA + " overlap -m 51 " + FASTQ + ".ec.filter.pass.fa -t 8");
+	os.system(SGA + " assemble -o " + FASTQ + " -m 51 " + FASTQ + ".ec.filter.pass.asqg.gz");
 	fin = open(FASTQ + "-contigs.fa","r")
-	fout = open(FASTQ + ".sgaout.fa","w")
+	fout = open(FASTQ + ".contigs.fa","w")
 	contigs = fin.readlines()
 	i =0 
 	while i < len(contigs):

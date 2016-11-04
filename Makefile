@@ -16,6 +16,7 @@ rd:
 	g++ -O3 -o remove_duplicate_insertions remove_duplicate_insertions.cc
 es: 
 	g++ -O3 -o extract_support extract_support.cc common.cc
+
 snp: $(SOURCES) $(EXECUTABLE)
 
 $(EXECUTABLE): $(OBJECTS) 

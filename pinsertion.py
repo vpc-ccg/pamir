@@ -18,7 +18,10 @@ class pipeline:
 	mistrvar 	= os.path.dirname(os.path.realpath(__file__)) + "/pinsertion.py"
 	sniper   	= os.path.dirname(os.path.realpath(__file__)) + "/sniper"
 	sga		   	= os.path.dirname(os.path.realpath(__file__)) + "/sga.py"
+	minia	   	= os.path.dirname(os.path.realpath(__file__)) + "/minia"
 	mrsfast  	= os.path.dirname(os.path.realpath(__file__)) + "/mrsfast"
+	bedtools  	= os.path.dirname(os.path.realpath(__file__)) + "/bedtools"
+	samtools	= os.path.dirname(os.path.realpath(__file__)) + "/samtools"
 	recalibrate = os.path.dirname(os.path.realpath(__file__)) + "/recalibrate"
 	pprocessor  = os.path.dirname(os.path.realpath(__file__)) + "/partition_processor"
 	removedup   = os.path.dirname(os.path.realpath(__file__)) + "/remove_duplicate_insertions"
@@ -59,6 +62,10 @@ def command_line_process():
 	parser.add_argument('--reference','-r',
 		metavar='reference',
 		help='The path to the reference genome that should be used for analysis'
+	)
+	parser.add_argument('--assembler','-a',
+		metavar='assembler',
+		help='The type of the assembler for assembling orphans: sga/minia. (default:sga)'
 	)
 	parser.add_argument('--max-contig','-c',
 		type=int,
@@ -260,6 +267,17 @@ def clean_state( mode_index, workdir, config ):
 #############################################################################################
 ###### Running commands for verify_sam 
 def verify_sam(config ):
+	msg           = "Sorting bam file"	
+	project_name  = config.get("project", "name")
+	workdir		  = pipeline.workdir
+	input_file    = "{0}/{1}".format(workdir, config.get("project","alignment"))
+	output_file   = "{0}/{1}".format(workdir, config.get("project","fastq"))
+	control_file  = "{0}/log/01.verify_sam_1.log".format(workdir);
+	complete_file = "{0}/stage/01.verify_sam_1.finished".format(workdir);
+	freeze_arg    = ""
+	cmd			  = pipeline.samtools + " sort -n {0} {0}.sorted.bam".format(input_file) 
+	run_cmd       = not (os.path.isfile(complete_file) )
+	shell( msg, run_cmd , cmd, control_file, complete_file, freeze_arg)
 	msg           = "Extracting FASTQ from Alignment file"
 	project_name  = config.get("project", "name")
 	workdir		  = pipeline.workdir
@@ -268,7 +286,8 @@ def verify_sam(config ):
 	control_file  = "{0}/log/01.verify_sam.log".format(workdir);
 	complete_file = "{0}/stage/01.verify_sam.finished".format(workdir);
 	freeze_arg    = ""
-	cmd           = pipeline.sniper + ' verify_sam {0} {1}'.format( input_file, output_file )
+	cmd			  = pipeline.bedtools + "bamtofastq -i {0}.sorted.bam -fq {1}/input_1.fq -fq2 {1}/input_2.fq".format(input_file,output_file) 
+#	cmd           = pipeline.sniper + ' verify_sam {0} {1}'.format( input_file, output_file )
 	run_cmd       = not (os.path.isfile(complete_file) )
 
 	shell( msg, run_cmd , cmd, control_file, complete_file, freeze_arg)
@@ -398,7 +417,7 @@ def sort(config ):
 #############################################################################################
 ###### Running commands for modifying oea.unmapped.fq  
 def modify_oea_unmap(config ):
-	msg           = "Modify unmapped OEA read file format"
+	msg           = "Modifying unmapped OEA read file format"
 	project_name  = config.get("project", "name")
 	workdir		  = pipeline.workdir
 	input_file    = "{0}/oea.unmapped.fq".format(workdir )
@@ -437,19 +456,34 @@ def orphan_assembly(config):
 	complete_file = "{0}/stage/10.orphan_assembly.finished".format(workdir);
 	input_file    = "{0}/orphan.fq".format(workdir)
 	freeze_arg    = ""
-	msg = "Creating Orphan contigs with SGA in orphan.fq.sgaout.fa"
+	msg = "Creating Orphan contigs"
 	run_cmd       = not (os.path.isfile(complete_file) )
 	if ( run_cmd ):
 		clean_state( 10, workdir, config )
-	#cmd			  = pipeline.sniper + " assemble_orphan {0} 400 30000".format(input_file)
-	cmd 		  = "python " + pipeline.sga + " " + input_file;
-	shell(msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
+	cmd=""
+	if(config.get("project","assembler")=="sga"):
+		cmd 		  = "python " + pipeline.sga + " " + input_file;
+		shell(msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
+	else:
+		cmd 		  = "{0} -in {1} -kmer-size 47 -abundance-min 3 -out {1}_tmp".format(pipeline.minia, input_file, input_file);
+		shell(msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
+		fin = open("{0}_tmp.contigs.fa".format(input_file),"r")
+		fout = open("{0}.contigs.fa".format(input_file),"w")
+		contigs = fin.readlines()
+		i =0 
+		while i < len(contigs):
+			splitted=contigs[i].split("__")
+			if int(splitted[2]) > 400:
+				fout.write(">contig-"+splitted[0][1:]+ "\n" +contigs[i+1])
+			i+=2
+		fin.close()
+		fout.close()
 #############################################################################################
 ###### Preparing necessary file for orphan.contigs.fa to make it a single line ref: Easier to map.
 def prepare_orphan_contig(config):
 	msg			  = "Preparing orphan contigs for mapping"
 	workdir		  = pipeline.workdir
-	input_file    = "{0}/orphan.fq.sgaout.fa".format(workdir)
+	input_file    = "{0}/orphan.fq.contigs.fa".format(workdir)
 	output_file   = "{0}/orphan.contigs.ref".format(workdir)
 	output_file2  = "{0}/orphan.contigs.single.ref".format(workdir)
 	coor_file     = "{0}/orphan.contigs.single.coor".format(workdir)
@@ -495,7 +529,7 @@ def orphan_to_orphan(config):
 	control_file  = "{0}/log/12.orphan2orphan.log".format(workdir);
 	complete_file = "{0}/stage/12.orphan2orphan.finished".format(workdir);
 	freeze_arg    = ""
-	cmd           = pipeline.mrsfast + ' --search {0} --seq {1} -o {2} -e 1 --disable-sam-header'.format(orphan_ref, orphan_fastq, output_file)
+	cmd           = pipeline.mrsfast + ' --search {0} --seq {1} --crop {2} -o {3} -e 1 --disable-sam-header'.format(orphan_ref, orphan_fastq, config.get("project","readlength"),output_file)
 	run_cmd       = not (os.path.isfile(complete_file) )
 	#if ( run_cmd ):
 	#	clean_state( 12, workdir, config )
@@ -552,7 +586,7 @@ def oea_to_orphan(config):
 	control_file  = "{0}/log/16.oea2orphan.log".format(workdir);
 	complete_file = "{0}/stage/16.oea2orphan.finished".format(workdir);
 	freeze_arg    = ""
-	cmd           = pipeline.mrsfast + ' --search {0} --seq {1} -o {2} -e 0 --disable-sam-header'.format(orphan_ref, orphan_fastq, output_file)
+	cmd           = pipeline.mrsfast + ' --search {0} --seq {1} -o {3} -e 0 --disable-sam-header'.format(orphan_ref, orphan_fastq, config.get("project","readlength"),output_file)
 	run_cmd       = not (os.path.isfile(complete_file) )
 	if ( run_cmd ):
 		clean_state( 14, workdir, config )
@@ -724,6 +758,12 @@ def post_processing(config):
 	cmd="rm {0}/sniper_part_updated.vcf.* {0}/sniper_part_updated.logx*".format(workdir)
 	msg="Deleting partial outputs"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
+	control_file  = "{0}/log/28.generate_loclen.log".format(workdir)
+	complete_file = "{0}/stage/28.generate_loclen.finished".format(workdir)
+	run_cmd       = not (os.path.isfile(complete_file))
+	cmd="cut -f2,3 {0}/sniper_part_updated.vcf_sorted_wodups > {0}/sniper_part_updated.vcf_sorted_wodups_loclen".format(workdir)
+	msg="Generating _loclen"
+	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 #############################################################################################
 ###### Running commands for extracting clusters 
 def output_cluster(config, c_range ):
@@ -747,8 +787,8 @@ def run_command(config, force=False):
 	orphan_assembly(config)
 	
 	prepare_orphan_contig(config)
-	orphan_to_orphan(config)
-	orphancontig_support(config)
+	#orphan_to_orphan(config)
+	#orphancontig_support(config)
 	oea_to_orphan(config)
 	oea_to_orphan_split(config)
 	recalibrate_all_oea_to_orphan(config)
@@ -990,6 +1030,7 @@ def check_project_preq():
 		config.set("project", "alignment",'')
 		config.set("project", "fastq",'')
 		config.set("project", "mrsfast-best-search",'')
+		config.set("project", "assembler",str(args.assembler) if args.assembler!=None else "sga")
 		config = get_input_file( config, args.files)
 
 		# Parameters for other parts in the pipeline
@@ -1048,6 +1089,7 @@ def check_project_preq():
 	if ("" == config.get("project", "alignment") ):
 		file = open ("{0}/stage/01.verify_sam.finished".format(workdir), 'w')
 		file.close()
+		file = open ("{0}/stage/01.verify_sam_1.finished".format(workdir), 'w')
 
 	return config
 #############################################################################################

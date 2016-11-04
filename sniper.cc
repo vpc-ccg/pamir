@@ -402,7 +402,7 @@ void assemble (const string &partition_file, const string &reference, const stri
 			break;
 		
 		// cluster has too many or too few reads
-		if ( p.size() > 15000 || p.size() <= 2 ) 
+		if ( p.size() > 10000 || p.size() <= 2 ) 
 			continue;
 		string chrName  = pt.get_reference();
 		int cluster_id  = pt.get_cluster_id();
@@ -434,7 +434,7 @@ void assemble (const string &partition_file, const string &reference, const stri
 		{
 			int contig_support		= contig.read_information.size();
 			int con_len 			= contig.data.length();
-			if( check_AT_GC(contig.data, MAX_AT_GC) == 0 || (con_len == read_length && contig_support <= 1) || con_len > max_len + 400 ) continue;
+			if( check_AT_GC(contig.data, MAX_AT_GC) == 0 || (con_len <= read_length && contig_support <= 1) || con_len > max_len + 400 ) continue;
 		
 			fprintf(stdout, "\n\n>>>>> Length: %d Support: %d Contig: %s\n", con_len, contig_support, contig.data.c_str());
 		for(int z=0;z<contig.read_information.size();z++)
