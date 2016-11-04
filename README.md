@@ -1,4 +1,4 @@
-**Pamir**: Insertion Discovery Tool for Single or Multiple Whole Genome Sequencing Data
+**Pamir**: Insertion Discovery Tool for Whole Genome Sequencing Data
 ===================
 ### What is Pamir?
 Pamir is a computational tool for detecting novel sequence insertions in single or multiple paired-end WGS(Whole Genome Sequencing) Illumina reads based on orphans and one-end anchors (OEA).
