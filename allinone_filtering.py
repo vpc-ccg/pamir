@@ -91,9 +91,9 @@ def main():
 		firstloc = int(msamlist[i].split()[3])
 		tlen	 = int(msamlist[i].split()[8])
 		rightCl = int(1000+int(vcfcontent[locName][0])+1)
-		if firstloc <=leftCl and firstloc + tlen + readlength >= 1001:
+		if firstloc <=leftCl and firstloc + tlen >= 1001:
 			lsupport+=1
-		if firstloc >=rightCl and firstloc + tlen <= rightCl:
+		if firstloc >=rightCl and firstloc + tlen + readlength <= rightCl:
 			rsupport+=1
 		i +=1;
 		while(i < len(msamlist)):
@@ -104,9 +104,9 @@ def main():
 				end = i
 				break;
 			lastloc = tmp
-			if lastloc <= leftCl and firstloc + tlen + readlength >= 1001:
+			if lastloc <= leftCl and firstloc + tlen >= 1001:
 				lsupport+=1
-			if lastloc >= rightCl and firstloc + tlen <= rightCl:
+			if lastloc >= rightCl and firstloc + tlen + readlength <= rightCl:
 				rsupport+=1
 			i+=1
 		tsupport=lsupport+rsupport
