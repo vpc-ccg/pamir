@@ -81,32 +81,36 @@ def main():
 		lsupport=0
 		rsupport=0
 		tsupport=0
-		locName = msamlist[i].split()[2]
+		splitmsam = msamlist[i].split()
+		flag = int(splitmsam[1])
+		locName = splitmsam[2]
 		first_sep = locName.find("_")
 		last_sep = locName.rfind("_")
 		chrName = locName[0:first_sep]
 		if(first_sep ==last_sep):
 			last_sep = len(locName)
 		location = locName[first_sep+1:last_sep]
-		firstloc = int(msamlist[i].split()[3])
-		tlen	 = int(msamlist[i].split()[8])
+		firstloc = int(splitmsam[3])
+		tlen	 = int(splitmsam[8])
 		rightCl = int(1000+int(vcfcontent[locName][0])+1)
-		if firstloc <=leftCl and firstloc + tlen >= 1001:
+		if flag & 2 ==2 and firstloc <=leftCl and firstloc + tlen >= 1001:
 			lsupport+=1
-		if firstloc >=rightCl and firstloc + tlen + readlength <= rightCl:
+		if flag & 2 == 2 and firstloc >=rightCl and firstloc + tlen + readlength <= rightCl:
 			rsupport+=1
 		i +=1;
 		while(i < len(msamlist)):
-			nextlocName = msamlist[i].split()[2]
-			tmp = int(msamlist[i].split()[3])
-			tlen	 = int(msamlist[i].split()[8])
+			splitmsam	= msamlist[i].split()
+			flag 		= int(splitmsam[1])
+			nextlocName = splitmsam[2]
+			tmp = int(splitmsam[3])
+			tlen	 = int(splitmsam[8])
 			if(nextlocName != locName):
 				end = i
 				break;
 			lastloc = tmp
-			if lastloc <= leftCl and firstloc + tlen >= 1001:
+			if flag & 2 == 2 and lastloc <= leftCl and firstloc + tlen >= 1001:
 				lsupport+=1
-			if lastloc >= rightCl and firstloc + tlen + readlength <= rightCl:
+			if flag & 2 == 2 and lastloc >= rightCl and firstloc + tlen + readlength <= rightCl:
 				rsupport+=1
 			i+=1
 		tsupport=lsupport+rsupport
