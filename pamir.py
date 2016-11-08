@@ -209,7 +209,8 @@ def shell(msg, run_command, command, control_file='', success_file='', success_m
 	
 	if shell_log:
 		log("{0}...".format(msg))
-
+	if run_command and command =='':
+		print ""
 	if (not run_command):
 		logWAR()
 		return 
@@ -248,7 +249,8 @@ def clean_state_worker( workdir, config):
 def clean_state( mode_index, workdir, config ):
 	flag_clean = 0 # 1 only when we delete files due to changes in project.config
 	workdir = pipeline.workdir	
-	valid_state = [ '01.verify_sam', '02.mask', '03.mrsfast-index', '04.mrsfast.best', '05.remove_concordant', '06.mrsfast', '07.sorted', '08.oeaunm', '09.sniper_part', '10.orphan_assembly', 'normal']
+	#valid_state = [ '01.verify_sam', '02.mask', '03.mrsfast-index', '04.mrsfast.best', '05.remove_concordant', '06.mrsfast', '07.sorted', '08.oeaunm', '09.sniper_part', '10.orphan_assembly', '10.orphan_assembly_2','11.index_orphan_ref','16.oea2orphan','17.split1_oea2orphan','18.split2_oea2orphan','19.concat_all_oea2orphan','20.all_oea2orphan_recal','21.insert_orphans_into_cluster','22.updated_sniper_assembly','23.concatenate_vcf','24.index_log','25.sort_vcf','26.filter_duplicate_calls','27.remove_partials','28.generate_loclen','normal']
+	valid_state = [ '01.verify_sam', '02.mask', '03.mrsfast-index', '04.mrsfast.best', '05.remove_concordant','normal']
 	for i in range( mode_index, len(valid_state)):
 		if ( 3==i and ""!=config.get("project","mrsfast-best-search")):
 			continue
@@ -291,7 +293,8 @@ def verify_sam(config ):
 	cmd			  = pipeline.bedtools + "bamtofastq -i {0}.sorted.bam -fq {1}/input_1.fq -fq2 {1}/input_2.fq".format(input_file,output_file) 
 #	cmd           = pipeline.sniper + ' verify_sam {0} {1}'.format( input_file, output_file )
 	run_cmd       = not (os.path.isfile(complete_file) )
-
+	if ( run_cmd ):
+		clean_state( 1, workdir, config )
 	shell( msg, run_cmd , cmd, control_file, complete_file, freeze_arg)
 	
 #############################################################################################
@@ -314,7 +317,7 @@ def mask(config):
 	run_cmd       = not ( os.path.isfile(complete_file) and freeze_arg in open(complete_file).read()) 
 
 	if ( run_cmd ):
-		clean_state( 1, workdir, config )
+		clean_state( 2, workdir, config )
 	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
 
 #############################################################################################
@@ -331,7 +334,7 @@ def index(config):
 	run_cmd       = not ( os.path.isfile(complete_file) and freeze_arg in open(complete_file).read()) 
 
 	if ( run_cmd ):
-		clean_state( 2, workdir, config)
+		clean_state( 3, workdir, config)
 	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
 	
 	#return msg, run_cmd, cmd, control_file, complete_file, freeze_arg
@@ -353,17 +356,17 @@ def mrsfast_best_search(config):
 		cmd+=" -e {0}".format(config.get("mrsfast","errors"))
 	run_cmd       = not ( os.path.isfile(complete_file) and freeze_arg in open(complete_file).read()) 
 
-	if ( run_cmd ):
-		clean_state( 3, workdir, config )
+	#if ( run_cmd ):
+	#	clean_state( 4, workdir, config )
 	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
 	
 	
 #############################################################################################
 ###### Running commands for remove_concordant 
-def remove_concordant(config):
-	msg           = "Extracting OEA and Orphan reads"
+def remove_concordant(config,f):
 	project_name  = config.get("project", "name")
 	workdir		  = pipeline.workdir
+	msg           = "Extracting OEA and Orphan reads of {0}".format(f)
 	input_file    = "{0}/mrsfast.best.sam".format(workdir)
 	config.set("project","readlength", str(len((open(input_file).readline()).split("\t")[10])))
 	with open ( workdir +"/project.config", "w") as configFile:
@@ -374,6 +377,8 @@ def remove_concordant(config):
 	freeze_arg    = ""
 	cmd           = pipeline.sniper + ' remove_concordant {0} {1} 2 1 1'.format(  input_file, output_file )
 	run_cmd       = not (os.path.isfile(complete_file) )
+	if ( run_cmd ):
+		clean_state( 5, workdir, config )
 	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
 #############################################################################################
 ###### Running commands for mrsfast_search
@@ -399,7 +404,7 @@ def mrsfast_search(config ):
 	run_cmd       = not ( os.path.isfile(complete_file) and freeze_arg in open(complete_file).read()) 
 
 	if ( run_cmd ):
-		clean_state( 5, workdir, config )
+		clean_state( 6, workdir, config )
 	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
 #############################################################################################
 ###### Running commands for sorting all mapping output 
@@ -460,8 +465,8 @@ def orphan_assembly(config):
 	freeze_arg    = ""
 	msg = "Creating Orphan contigs"
 	run_cmd       = not (os.path.isfile(complete_file) )
-	if ( run_cmd ):
-		clean_state( 10, workdir, config )
+	#if ( run_cmd ):
+	#	clean_state( 10, workdir, config )
 	cmd=""
 	if(config.get("project","assembler")=="velvet"):
 		cmd 		  = pipeline.velveth + " {0}/velvetRes/ 31 -fastq -short {1}".format(workdir, input_file)
@@ -490,7 +495,7 @@ def orphan_assembly(config):
 		cmd 		  = "python " + pipeline.sga + " " + input_file;
 		shell(msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
 	elif(config.get("project","assembler")=="minia"):
-		cmd 		  = "{0} -in {1} -kmer-size 47 -abundance-min 3 -out {1}_tmp".format(pipeline.minia, input_file, input_file);
+		cmd 		  = "{0} -in {1} -kmer-size 31 -abundance-min 3 -out {1}_tmp".format(pipeline.minia, input_file, input_file);
 		shell(msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
 		fin = open("{0}_tmp.contigs.fa".format(input_file),"r")
 		fout = open("{0}.contigs.fa".format(input_file),"w")
@@ -540,8 +545,8 @@ def prepare_orphan_contig(config):
 	complete_file = "{0}/stage/11.index_orphan_ref.finished".format(workdir);
 	freeze_arg    = ""
 	run_cmd       = not (os.path.isfile(complete_file) )
-	#if ( run_cmd ):
-	#	clean_state( 11, workdir, config )
+#	if ( run_cmd ):
+#		clean_state( 11, workdir, config )
 	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
 #############################################################################################
 ###### Map orphan reads onto orphan contigs to find the support value of each contig (If they come from an assembler).
@@ -556,8 +561,8 @@ def orphan_to_orphan(config):
 	freeze_arg    = ""
 	cmd           = pipeline.mrsfast + ' --search {0} --seq {1} --crop {2} -o {3} -e 1 --disable-sam-header'.format(orphan_ref, orphan_fastq, config.get("project","readlength"),output_file)
 	run_cmd       = not (os.path.isfile(complete_file) )
-	#if ( run_cmd ):
-	#	clean_state( 12, workdir, config )
+	if ( run_cmd ):
+		clean_state( 12, workdir, config )
 	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg )
 	
 	msg			  = "Recalibrating orphan_to_orphan.sam"
@@ -570,8 +575,8 @@ def orphan_to_orphan(config):
 	cmd           = pipeline.recalibrate + " {0} {1} {2}".format(coor_file, input_file, output_file)
 	freeze_arg=""
 	run_cmd       = not (os.path.isfile(complete_file) )
-	#if ( run_cmd ):
-	#	clean_state( 13, workdir, config )
+	if ( run_cmd ):
+		clean_state( 13, workdir, config )
 	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg )
 #############################################################################################
 ###### Map orphan reads onto orphan contigs to find the support value of each contig (If they come from an assembler).
@@ -585,8 +590,8 @@ def orphancontig_support(config):
 	freeze_arg    = ""
 	cmd           = pipeline.sniper + ' sort {0} {1}'.format(input_file, output_file)
 	run_cmd       = not (os.path.isfile(complete_file) )
-	#if ( run_cmd ):
-	#	clean_state( 12, workdir, config )
+	if ( run_cmd ):
+		clean_state( 14, workdir, config )
 	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg )
 	
 	msg			  = "Printing contig-N_reads.fq for each orphan contig"
@@ -597,8 +602,8 @@ def orphancontig_support(config):
 	cmd           = pipeline.ext_sup + " {0} {1}".format(input_file, pipeline.workdir)
 	freeze_arg=""
 	run_cmd       = not (os.path.isfile(complete_file) )
-	#if ( run_cmd ):
-	#	clean_state( 13, workdir, config )
+	if ( run_cmd ):
+		clean_state( 15, workdir, config )
 	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg )
 #############################################################################################
 ###### Map oea reads onto orphan contigs.
@@ -606,21 +611,21 @@ def oea_to_orphan(config):
 	msg			  = "Mapping oea reads onto orphan contigs"
 	workdir		  = pipeline.workdir
 	orphan_ref    = "{0}/orphan.contigs.single.ref".format(workdir)
-	orphan_fastq	  = "{0}/oea.unmapped.fq".format(workdir)
+	seq_fastq	  = "{0}/oea.unmapped.fq".format(workdir)
 	output_file   = "{0}/oea2orphan.sam".format(workdir)
 	control_file  = "{0}/log/16.oea2orphan.log".format(workdir);
 	complete_file = "{0}/stage/16.oea2orphan.finished".format(workdir);
 	freeze_arg    = ""
-	cmd           = pipeline.mrsfast + ' --search {0} --seq {1} -o {3} -e 0 --disable-sam-header'.format(orphan_ref, orphan_fastq, config.get("project","readlength"),output_file)
+	cmd           = pipeline.mrsfast + ' --search {0} --seq {1} -o {3} -e 0 --disable-sam-header'.format(orphan_ref, seq_fastq, config.get("project","readlength"),output_file)
 	run_cmd       = not (os.path.isfile(complete_file) )
-	if ( run_cmd ):
-		clean_state( 14, workdir, config )
+#	if ( run_cmd ):
+#		clean_state( 16, workdir, config )
 	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg )
 	
 ################################################################################################
 ###### Map nohit oea reads as split reads onto orphan contigs.
 def oea_to_orphan_split(config):
-	msg			  = "Mapping first 50bp of OEA reads as split onto orphan contigs"
+	msg			  = "Mapping first readlength/2 of OEA reads as split onto orphan contigs"
 	workdir		  = pipeline.workdir
 	orphan_ref    = "{0}/orphan.contigs.single.ref".format(workdir)
 	input_fastq	  = "{0}/oea2orphan.sam.nohit".format(workdir)
@@ -628,14 +633,15 @@ def oea_to_orphan_split(config):
 	control_file  = "{0}/log/17.split1_oea2orphan.log".format(workdir);
 	complete_file = "{0}/stage/17.split1_oea2orphan.finished".format(workdir);
 	freeze_arg    = ""
-	cmd           = pipeline.mrsfast + ' --search {0} --seq {1} -o {2} --crop 50 -e 0 --disable-sam-header'.format(orphan_ref, input_fastq, output_file)
+	half 		  = (int(config.get("project","readlength"))/2)
+	cmd           = pipeline.mrsfast + ' --search {0} --seq {1} -o {2} --crop {3} -e 0 --disable-sam-header'.format(orphan_ref, input_fastq, output_file, str(half))
 	run_cmd       = not (os.path.isfile(complete_file) )
-	if ( run_cmd ):
-		clean_state( 14, workdir, config )
+#	if ( run_cmd ):
+#		clean_state( 17, workdir, config )
 	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg )
 
 
-	msg			  = "Mapping last 50bp of OEA reads as split onto orphan contigs"
+	msg			  = "Mapping last readlength/2 of OEA reads as split onto orphan contigs"
 	workdir		  = pipeline.workdir
 	orphan_ref    = "{0}/orphan.contigs.single.ref".format(workdir)
 	input_fastq	  = "{0}/oea2orphan.sam.nohit".format(workdir)
@@ -643,10 +649,10 @@ def oea_to_orphan_split(config):
 	control_file  = "{0}/log/18.split2_oea2orphan.log".format(workdir);
 	complete_file = "{0}/stage/18.split2_oea2orphan.finished".format(workdir);
 	freeze_arg    = ""
-	cmd           = pipeline.mrsfast + ' --search {0} --seq {1} -o {2} --tail-crop 50 -e 0 --disable-sam-header'.format(orphan_ref, input_fastq, output_file)
+	cmd           = pipeline.mrsfast + ' --search {0} --seq {1} -o {2} --tail-crop {3} -e 0 --disable-sam-header'.format(orphan_ref, input_fastq, output_file, str(half))
 	run_cmd       = not (os.path.isfile(complete_file) )
-	if ( run_cmd ):
-		clean_state( 14, workdir, config )
+#	if ( run_cmd ):
+#		clean_state( 18, workdir, config )
 	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg )
 	
 	msg			   = "Concatenating all oea2orphan"
@@ -661,7 +667,7 @@ def oea_to_orphan_split(config):
 	freeze_arg=""
 	run_cmd        = not (os.path.isfile(complete_file) )
 	#if ( run_cmd ):
-	#	clean_state( 15, workdir, config )
+	#	clean_state( 19, workdir, config )
 	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg )
 #############################################################################################
 ###### Recalibrate all oea2orhan.sam.
@@ -677,8 +683,8 @@ def recalibrate_all_oea_to_orphan(config):
 	cmd           = "{0} {1} {2} {3}".format(pipeline.recalibrate, coor_file, input_file, output_file)
 	freeze_arg=""
 	run_cmd       = not (os.path.isfile(complete_file) )
-	#if ( run_cmd ):
-	#	clean_state( 15, workdir, config )
+#	if ( run_cmd ):
+#		clean_state( 20, workdir, config )
 	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg )
 #############################################################################################
 ###### Insert orphan contigs into OEA clusters.
@@ -696,8 +702,8 @@ def orphans_into_oeacluster(config):
 	freeze_arg    = ""
 	cmd           = pipeline.pprocessor + ' {0} {1} {2} {3} {4} > {5}'.format(orphan_ref, orphan_to_orphan, oea_to_orphan, partition_file, upartition_file, clusterNumFile)
 	run_cmd       = not (os.path.isfile(complete_file) )
-	#if ( run_cmd ):
-	#	clean_state( 16, workdir, config )
+	if ( run_cmd ):
+		clean_state( 21, workdir, config )
 	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg )
 #############################################################################################
 ###### Assemble updated cluster 
@@ -728,8 +734,8 @@ def updated_sniper_part(config ):
 	freeze_arg    = ""
 	cmd           =  'cat {0} | xargs -I CMD --max-procs={1} bash -c CMD'.format( jobFileName, config.get("project","num-worker"))
 	run_cmd       = not (os.path.isfile(complete_file) )
-	#if ( run_cmd ):
-	#	clean_state( 17, workdir, config )
+	if ( run_cmd ):
+		clean_state( 22, workdir, config )
 	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
 
 ### concatenate outputs
@@ -777,6 +783,8 @@ def post_processing(config):
 	cmd			  = pipeline.removedup + " {0}/sniper_part_updated.vcf_sorted {0}/sniper_part_updated.vcf_sorted_wodups".format(workdir)
 	msg="Eliminating duplicated insertions"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
+	msg = "You can check output file now: sniper_part_updated.vcf_sorted_wodups"
+	shell(msg,True,"")
 	control_file  = "{0}/log/27.remove_partials.log".format(workdir)
 	complete_file = "{0}/stage/27.remove_partials.finished".format(workdir)
 	run_cmd       = not (os.path.isfile(complete_file))
@@ -798,19 +806,56 @@ def output_cluster(config, c_range ):
 	cmd           = pipeline.sniper + " get_cluster {0}/sniper_part {1}".format(workdir, c_range)
 	shell( msg, True, cmd, control_file, '', '')
 #############################################################################################
+def remove_concordant_for_each_bestsam(config):
+	workdir = pipeline.workdir
+	inputfiles = os.listdir(workdir+'/bestsam')
+	if not os.path.isfile("{0}/stage/05.all_remove_concordant.finished".format(workdir)):
+		cmd = "cat "
+		cmd2 = "cat "
+		cmd3 = "cat "
+		cmd4 = "cat "
+		a=1
+		for f in inputfiles:
+			if os.path.isfile("{0}/stage/05.remove_concordant.finished".format(workdir)):
+				os.system("rm {0}/stage/05.remove_concordant.finished".format(workdir))
+			if os.path.isfile("{0}/mrsfast.best.sam".format(workdir)):
+				os.system("rm {0}/mrsfast.best.sam".format(workdir))
+			if os.path.isfile(workdir+"/bestsam/"+f):
+				symlink_name(workdir+"/bestsam/"+f, workdir, "mrsfast.best.sam")
+			config.set("project", "mrsfast-best-search", os.path.abspath(f))
+			remove_concordant(config,f)
+			os.system("mv {0}/orphan.fq {0}/{1}.orphan.fq".format(workdir,a))
+			os.system("mv {0}/oea.mapped.fq {0}/{1}.oea.mapped.fq".format(workdir,a))
+			os.system("mv {0}/oea.unmapped.fq {0}/{1}.oea.unmapped.fq".format(workdir,a))
+			os.system("mv {0}/all_interleaved.fastq {0}/{1}.all_interleaved.fastq".format(workdir,a))
+			cmd+="{0}/{1}.orphan.fq ".format(workdir,a)
+			cmd2+="{0}/{1}.oea.mapped.fq ".format(workdir,a)
+			cmd3+="{0}/{1}.oea.unmapped.fq ".format(workdir,a)
+			cmd4+="{0}/{1}.all_interleaved.fastq ".format(workdir,a)
+			a+=1
+		cmd+= " > {0}/orphan.fq".format(workdir)
+		cmd2+= " > {0}/oea.mapped.fq".format(workdir)
+		cmd3+= " > {0}/oea.unmapped.fq".format(workdir)
+		cmd4+= " > {0}/all_interleaved.fastq".format(workdir)
+		os.system(cmd)
+		os.system(cmd2)
+		os.system(cmd3)
+		os.system(cmd4)
+		os.system("touch {0}/stage/05.all_remove_concordant.finished".format(workdir))
+
+#############################################################################################
 ###### Running commands for each mode 
 def run_command(config, force=False):
 	verify_sam(config)
 	mask(config)
 	index(config)
 	mrsfast_best_search(config)
-	remove_concordant(config)
+	remove_concordant_for_each_bestsam(config)
 	mrsfast_search(config)
 	sort(config)
 	modify_oea_unmap(config)
 	sniper_part(config)
 	orphan_assembly(config)
-	
 	prepare_orphan_contig(config)
 	#orphan_to_orphan(config)
 	#orphancontig_support(config)
@@ -830,13 +875,12 @@ def mkdir_p(path):
 		if e.errno == errno.EEXIST and os.path.isdir(path):
 			print "[ERROR] The project folder exists. Please run in resume mode or delete the project folder to re-run from scartch"
 			exit(1);
-
 #############################################################################################
 ######### link the absolute path of src in dest with identical filename
 def symlink(src, dest):
 	if src == '':
 		return
-	if not os.path.isfile(src):
+	if not os.path.isfile(src) and not os.path.isdir(src):
 		print "[ERROR] Input file {0} does not exist".format(src)
 		exit(1)
 	basename = os.path.basename(src)
@@ -850,7 +894,7 @@ def symlink(src, dest):
 def symlink_name(src, dest, filename ):
 	if src == '':
 		return
-	if not os.path.isfile(src):
+	if not os.path.isfile(src) and not os.path.isdir(src):
 		print "[ERROR] Input file {0} does not exist".format(src)
 		exit(1)
 	basename = os.path.basename(filename)
@@ -862,7 +906,7 @@ def symlink_name(src, dest, filename ):
 ##########	Make sure the project is successfully built
 def is_exec(f):
 	return os.path.isfile(f) and os.access(f, os.X_OK)
-
+#############################################################################################
 def check_binary_preq():
 	execs = ['mrsfast', 'sniper']
 	log( "Checking binary pre-requisites... ")
@@ -878,7 +922,7 @@ def check_binary_preq():
 
 #############################################################################################
 def resume_state_help():
-	print "\nMiStrVar supports the following resume states:"
+	print "\nPamir supports the following resume states:"
 	print "\tverify_sam: extract fastq file from given alignment"
 	print "\tmask: masking reference genome"
 	print "\tmrsfast-index: indexing reference genome for further mapping"
@@ -913,11 +957,10 @@ def check_input_preq( config ):
 	inp = False # detect any valid input file or not
 	if "" != config.get("project", "mrsfast-best-search"):
 		inp = True
-		if not os.path.isfile(config.get("project", "mrsfast-best-search")):
+		if not (os.path.isfile(config.get("project", "mrsfast-best-search")) or os.path.isdir(config.get("project","mrsfast-best-search")) or config.get("project","mrsfast-best-search").find(",")==-1) :
 			logFAIL()
 			logln("mrsFAST remapping file {0} does not exist. Please provide a correct path.".format( config.get("project", "mrsfast-best-search")))
 			exit(1)
-	
 	if "" != config.get("project", "fastq"):
 		if (inp) :
 			logFAIL()
@@ -1090,8 +1133,16 @@ def check_project_preq():
 			symlink(config.get("project", "fastq"), workdir)
 			config.set("project", "fastq", os.path.basename(config.get("project", "fastq")))
 		elif( "" != config.get("project", "mrsfast-best-search")):
-			symlink_name(config.get("project", "mrsfast-best-search"), workdir, "mrsfast.best.sam")
-			config.set("project", "mrsfast-best-search", os.path.basename(config.get("project", "mrsfast-best-search")))
+			if(os.path.isdir(config.get("project","mrsfast-best-search"))):
+				symlink_name(config.get("project","mrsfast-best-search"),workdir,'/bestsam')
+			else:
+				mkdir_p(workdir + '/bestsam');
+				flist =  config.get("project","mrsfast-best-search").split(",")
+				for f in flist:
+					symlink_name(f,workdir+'/bestsam/',f)
+
+		#	symlink_name(config.get("project", "mrsfast-best-search"), workdir, "mrsfast.best.sam")
+		#	config.set("project", "mrsfast-best-search", os.path.basename(config.get("project", "mrsfast-best-search")))
 			# Make sure mrsfast-best-search will not start when giving best mapping file
 			with open("{0}/stage/04.mrsfast.best.finished".format(workdir), 'w') as complete_file:
 				complete_file.write("ws={0}.error={1}\n".format(config.get("mrsfast", "window_size"), config.get("mrsfast", "errors")) )

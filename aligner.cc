@@ -4,6 +4,7 @@
 #include<cmath>
 #include<vector>
 #include "aligner.h"
+#include <tuple>
 
 using namespace std;
 

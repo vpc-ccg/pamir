@@ -85,7 +85,7 @@ int main(int argc, char **argv)
 	cerr << "Updating OEA contigs"<<endl; 
 
 
-	// original oea partiion file
+	// original oea partition file
 
 	// converted oea mapped file
 
@@ -177,7 +177,7 @@ int main(int argc, char **argv)
 					if((myset[(*mit).first][2]==0|| myset[(*mit).first][3]==0) && myset[(*mit).first][2] +myset[(*mit).first][3] < 0.3*numOfReads )
 					{
 						decided =0;
-						fprintf(flog, "either no OEAs mapping on left or right flank and not enough left + right flank support < 40%%\n");
+						fprintf(flog, "either no OEAs mapping on left or right flank and not enough left + right flank support < 30%%\n");
 					}
 				}
 				if ( myset[(*mit).first][0] == myset[(*mit).first][1])
@@ -190,8 +190,12 @@ int main(int argc, char **argv)
 			if(decided == 1)
 			{
 				string revcontent;
+				//if (strcmp( (*mit).first.c_str(),"contig-222")==0 && cluster_id ==2129)
+				//	cerr<<"\nXXXXXXXXXXXXXXXXXXXX\t"<<myset[ (*mit).first][0]<<"\t"<<myset[(*mit).first][1]<<endl;
 				if( myset[(*mit).first][0] ==  myset[(*mit).first][1] )
 				{
+				//	if (strcmp( (*mit).first.c_str(),"contig-222")==0)
+				//		cerr<<"IF"<<endl;
 					reads.push_back((*mit).first);
 					reads_content.push_back(map_cont[(*mit).first]);
 					reads_support.push_back(map_sup[(*mit).first]);
@@ -207,6 +211,8 @@ int main(int argc, char **argv)
 				}
 				else
 				{
+				//	if (strcmp( (*mit).first.c_str(),"contig-222")==0 && cluster_id == 2129)
+				//		cerr<<"ELSE"<<endl;
 					if(myset[(*mit).first][0] > myset[(*mit).first][1])
 					{
 						revcontent = map_cont[(*mit).first];

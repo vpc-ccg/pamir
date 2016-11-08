@@ -1,8 +1,11 @@
 #!/usr/bin/env python
 import os, sys, errno, argparse, subprocess, fnmatch, ConfigParser, shutil
 def main():
-	REF=sys.argv[2]
-	FILE=sys.argv[1]
+	REF			=	sys.argv[2]
+	FILE		=	sys.argv[1]
+	readlength  =	int(sys.argv[3])
+	MIN			=	sys.argv[4]
+	MAX			=	sys.argv[5]
 #	if(os.path.isfile(FILE+"_filtered_recal")):
 #		os.unlink(FILE+"_filtered_recal")
 	folder  ="fpcheck_recal"
@@ -16,7 +19,6 @@ def main():
 	failed = 0
 	passed = 0
 	a = 2
-	exact   = 1006
 	vcfcontent = dict()
 	fil = open (FILE + "_filtered_recal","w")
 	fil2 = open (FILE + "_filtered_recal_forSETCOVER","w")
@@ -66,7 +68,7 @@ def main():
 	f.close()
 	coor.close()
 	os.system("../mrsfast --index {0}/allinsertions.fa > {0}/mrsfast.index.log".format(folder))
-	os.system("../mrsfast --search {0}/allinsertions.fa --pe --min 300 --max 600 -o {0}/seq.mrsfast.sam -e 3 --seq all_interleaved.fastq --threads 8 --disable-sam-header --disable-nohits > {0}/.seq.mrsfast.sam.log".format(folder, ))
+	os.system("../mrsfast --search {0}/allinsertions.fa --pe --min {1} --max {2} -o {0}/seq.mrsfast.sam -e 3 --seq all_interleaved.fastq --threads 8 --disable-sam-header --disable-nohits > {0}/.seq.mrsfast.sam.log".format(folder, MIN, MAX))
 	os.system("../recalibrate {0}/allinsertions.coor {0}/seq.mrsfast.sam {0}/seq.mrsfast.recal.sam".format(folder))
 #	os.system("../sniper sort {0}/seq.mrsfast.recal.sam {0}/seq.mrsfast.recal.sam.sorted".format(folder))
 	os.system("sort -k 3,3 -k 4,4n {0}/seq.mrsfast.recal.sam > {0}/seq.mrsfast.recal.sam.sorted".format(folder))
@@ -87,37 +89,42 @@ def main():
 			last_sep = len(locName)
 		location = locName[first_sep+1:last_sep]
 		firstloc = int(msamlist[i].split()[3])
+		tlen	 = int(msamlist[i].split()[8])
 		rightCl = int(1000+int(vcfcontent[locName][0])+1)
-		if firstloc <=leftCl:
+		if firstloc <=leftCl and firstloc + tlen + readlength >= 1001:
 			lsupport+=1
-		if firstloc>=rightCl:
+		if firstloc >=rightCl and firstloc + tlen <= rightCl:
 			rsupport+=1
 		i +=1;
 		while(i < len(msamlist)):
 			nextlocName = msamlist[i].split()[2]
 			tmp = int(msamlist[i].split()[3])
+			tlen	 = int(msamlist[i].split()[8])
 			if(nextlocName != locName):
 				end = i
 				break;
 			lastloc = tmp
-			if lastloc <= leftCl:
+			if lastloc <= leftCl and firstloc + tlen + readlength >= 1001:
 				lsupport+=1
-			if lastloc >= rightCl:
+			if lastloc >= rightCl and firstloc + tlen <= rightCl:
 				rsupport+=1
 			i+=1
 		tsupport=lsupport+rsupport
 		ispass 		   = 0	
-		if(firstloc<=leftCl and lastloc >= rightCl):
+		#if(firstloc<=leftCl and lastloc >= rightCl):
+		if(lsupport > 0 and rsupport > 0):
 			ispass =1
 			passNum+=1
 		else:
 			reffastaleft=vcfcontent[locName][2][0:leftCl]
 			if(reffastaleft.count('N')>=(len(reffastaleft)/2)):
-				if(int(firstloc)<=leftCl or int(lastloc)>=rightCl):
+				#if(int(firstloc)<=leftCl or int(lastloc)>=rightCl):
+				if(lsupport > 0 or rsupport > 0):
 					ispass=1
 			reffastaright = vcfcontent[locName][2][rightCl:len(vcfcontent[locName][2])]
 			if(reffastaright.count('N')>=(len(reffastaright)/2)):
-				if(int(firstloc)<=leftCl or int(lastloc)>=rightCl):
+				#if(int(firstloc)<=leftCl or int(lastloc)>=rightCl):
+				if(lsupport > 0 or rsupport > 0):
 					ispass=1
 		num+=1
 		elem = vcfcontent[locName]
@@ -129,10 +136,10 @@ def main():
 			fil.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\tFAIL\n".format(chrName, location, elem[1], elem[0], lsupport, rsupport, tsupport) )
 			fil2.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\tFAIL\n".format(locName, elem[1], elem[0], lsupport, rsupport, tsupport) )
 			failed+=1
-	os.system("sort -k 1,1 "+FILE+"_filtered_recal_forSETCOVER > "+FILE+"_filtered_recal_forSETCOVER.sorted")
 	fil.close()
 	fil2.close()
 	os.system("grep PASS "+FILE+"_filtered_recal | awk '{print $2\"\t\"$4;}' | sort -k 1,1n > "+FILE+"_filtered_recal_PASS_loc")
+	os.system("sort -k 1,1 "+FILE+"_filtered_recal_forSETCOVER > "+FILE+"_filtered_recal_forSETCOVER.sorted")
 
 #############################################################################################
 if __name__ == "__main__":
