@@ -17,7 +17,7 @@ rd:
 es: 
 	g++ -O3 -o extract_support extract_support.cc common.cc
 sm:
-	g++ -O3 -c -Ifmt -g -std=c++1y -Wfatal-errors -I$(BOOST_INCLUDE) -o smooth smoother.cc
+	g++ -O3 -o smoother -Ifmt -g -std=c++1y -Wfatal-errors -I$(BOOST_INCLUDE) smoother.cc fmt/fmt/format.cc
 
 snp: $(SOURCES) $(EXECUTABLE)
 
@@ -34,4 +34,4 @@ clean:
 	rm -f recalibrate
 	rm -f remove_duplicate_insertions
 	rm -f extract_support
-	rm -f smooth
+	rm -f smoother

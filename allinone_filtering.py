@@ -6,9 +6,10 @@ def main():
 	readlength  =	int(sys.argv[3])
 	MIN			=	sys.argv[4]
 	MAX			=	sys.argv[5]
+	workdir		= 	sys.argv[6]
 #	if(os.path.isfile(FILE+"_filtered_recal")):
 #		os.unlink(FILE+"_filtered_recal")
-	folder  ="fpcheck_recal"
+	folder  ="{0}/filtering".format(workdir)
 	os.system("mkdir -p {0}".format(folder))
 	start=1
 	f = open("{0}/allinsertions.fa".format(folder),"w")
@@ -67,9 +68,9 @@ def main():
 				start=start+len(left)-1+len(seq)+len(right)-1
 	f.close()
 	coor.close()
-	os.system("../mrsfast --index {0}/allinsertions.fa > {0}/mrsfast.index.log".format(folder))
-	os.system("../mrsfast --search {0}/allinsertions.fa --pe --min {1} --max {2} -o {0}/seq.mrsfast.sam -e 3 --seq all_interleaved.fastq --threads 8 --disable-sam-header --disable-nohits > {0}/.seq.mrsfast.sam.log".format(folder, MIN, MAX))
-	os.system("../recalibrate {0}/allinsertions.coor {0}/seq.mrsfast.sam {0}/seq.mrsfast.recal.sam".format(folder))
+	os.system("./mrsfast --index {0}/allinsertions.fa > {0}/mrsfast.index.log".format(folder))
+	os.system("./mrsfast --search {0}/allinsertions.fa --pe --min {1} --max {2} -o {0}/seq.mrsfast.sam -e 3 --seq {3}/all_interleaved.fastq --threads 8 --disable-sam-header --disable-nohits > {0}/.seq.mrsfast.sam.log".format(folder, MIN, MAX, workdir))
+	os.system("./recalibrate {0}/allinsertions.coor {0}/seq.mrsfast.sam {0}/seq.mrsfast.recal.sam".format(folder))
 #	os.system("../sniper sort {0}/seq.mrsfast.recal.sam {0}/seq.mrsfast.recal.sam.sorted".format(folder))
 	os.system("sort -k 3,3 -k 4,4n {0}/seq.mrsfast.recal.sam > {0}/seq.mrsfast.recal.sam.sorted".format(folder))
 	msamlist = open("{0}/seq.mrsfast.recal.sam.sorted".format(folder),"r").readlines()
@@ -143,7 +144,7 @@ def main():
 	fil.close()
 	fil2.close()
 	os.system("grep PASS "+FILE+"_filtered_recal | awk '{print $2\"\t\"$4;}' | sort -k 1,1n > "+FILE+"_filtered_recal_PASS_loc")
-	os.system("sort -k 1,1 "+FILE+"_filtered_recal_forSETCOVER > "+FILE+"_filtered_recal_forSETCOVER.sorted")
+	os.system("perl sort_file.pl "+FILE+"_filtered_recal_forSETCOVER > "+FILE+"_filtered_recal_forSETCOVER.sorted")
 
 #############################################################################################
 if __name__ == "__main__":

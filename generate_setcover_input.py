@@ -7,7 +7,7 @@ class Usage(Exception):
 	def __init__(self, msg):
 		self.msg = msg
 def usage():
-	print '\nUsage: python generateClustersForSetCover.py VCF SAM output'
+	print '\nUsage: python generateClustersForSetCover.py VCF SAM forSetCover'
 	sys.exit(-1)
 
 def main():
@@ -28,7 +28,7 @@ def main():
 	while vcfnum < len(vcffile):
 		readnames.clear()
 		elem = vcffile[vcfnum].strip().split()
-		while elem[6]=="FAIL":
+		while vcfnum< len(vcffile) and elem[6]=="FAIL":
 			vcfnum+=1
 			if vcfnum < len(vcffile):
 				elem = vcffile[vcfnum].strip().split()
@@ -36,29 +36,29 @@ def main():
 		if(elem[0].count("_")>1):
 			name = elem[0][0:elem[0].rfind("_")]
 
-		while samline < len(samfile) and elem[0]>samel[2]:
+		while vcfnum < len(vcffile) and samline < len(samfile) and elem[0]>samel[2]:
 			samel = samfile[samline].strip().split()
 			samline+=1
 		if elem[0]==samel[2]:
-			while samline < len(samfile) and elem[0]==samel[2]:
+			while vcfnum < len(vcffile) and samline < len(samfile) and elem[0]==samel[2]:
 				readnames.add(samel[0])
 				samel = samfile[samline].strip().split()
 				samline+=1
 
 		if vcfnum+1 < len(vcffile):
 			nextelem = vcffile[vcfnum+1].strip().split()
-		while  nextelem[0].count("_") >1 and nextelem[0][0:nextelem[0].rfind("_")]==name and nextelem[6]=="FAIL":
+		while vcfnum+1 < len(vcffile) and nextelem[0].count("_") >1 and nextelem[0][0:nextelem[0].rfind("_")]==name and nextelem[6]=="FAIL":
 			vcfnum+=1
 			nextelem = vcffile[vcfnum+1].strip().split()
 
-		while nextelem[0].count("_") >1 and nextelem[0][0:nextelem[0].rfind("_")]==name:
-			while samline < len(samfile) and nextelem[0]==samel[2]:
+		while vcfnum< len(vcffile) and nextelem[0].count("_") >1 and nextelem[0][0:nextelem[0].rfind("_")]==name:
+			while vcfnum < len(vcffile) and samline < len(samfile) and nextelem[0]==samel[2]:
 				readnames.add(samel[0])
 				samel = samfile[samline].strip().split()
 				samline+=1
 			vcfnum+=1
 			nextelem = vcffile[vcfnum+1].strip().split()
-			while(nextelem[6]=="FAIL"):
+			while(vcfnum < len(vcffile) and nextelem[6]=="FAIL"):
 				vcfnum+=1
 				nextelem = vcffile[vcfnum+1].strip().split()
 
@@ -67,7 +67,6 @@ def main():
 			clusterId+=1
 			for a in readnames:
 				fout.write(a+"\n")
-
 		vcfnum+=1
 
 	fout.close()

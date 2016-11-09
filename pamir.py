@@ -28,6 +28,11 @@ class pipeline:
 	pprocessor  = os.path.dirname(os.path.realpath(__file__)) + "/partition_processor"
 	removedup   = os.path.dirname(os.path.realpath(__file__)) + "/remove_duplicate_insertions"
 	ext_sup     = os.path.dirname(os.path.realpath(__file__)) + "/extract_support"
+	filtering	= os.path.dirname(os.path.realpath(__file__)) + "/allinone_filtering.py"
+	gensetcov	= os.path.dirname(os.path.realpath(__file__)) + "/generate_setcover_input.py"
+	smoother	= os.path.dirname(os.path.realpath(__file__)) + "/smoother"
+	genotyping	= os.path.dirname(os.path.realpath(__file__)) + "/allinone_genotyping.py"
+	filterbysetcover	= os.path.dirname(os.path.realpath(__file__)) + "/filter_by_setcover.py"
 	workdir  	= os.path.dirname(os.path.realpath(__file__))
 	# example usage for help
 	example  = "\tTo create a new project: specify (1) project name, (2) reference genomes and (3) input sequences (either --alignment, --fastq, or --mrsfast-best-search)\n"
@@ -55,7 +60,7 @@ def command_line_process():
 	parser.add_argument('--project','-p',
 		required=True,
 		metavar='project',
-		help='The name of the project. MiStrVar creates the folder if it does not exist'
+		help='The name of the project. Pamir creates the folder if it does not exist'
 	)
 	parser.add_argument('--dest','-d',
 		metavar='destination',
@@ -736,6 +741,7 @@ def updated_sniper_part(config ):
 	run_cmd       = not (os.path.isfile(complete_file) )
 	if ( run_cmd ):
 		clean_state( 22, workdir, config )
+	
 	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
 
 ### concatenate outputs
@@ -768,22 +774,22 @@ def updated_sniper_part(config ):
 	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
 ######################################################################################
 #### sort the vcf and remove the duplications generate interleaved and paired fastq files from orphans and unmapped oeas.
-def post_processing(config):	
+def dupremoval_cleaning(config):	
 	workdir		  = pipeline.workdir
 	freeze_arg=""
 	control_file  = "{0}/log/25.sort_vcf.log".format(workdir)
 	complete_file = "{0}/stage/25.sort_vcf.finished".format(workdir)
 	run_cmd		  = not (os.path.isfile(complete_file))
-	cmd="sort -k 2,2n -k 3,3n {0}/sniper_part_updated.vcf > {0}/sniper_part_updated.vcf_sorted".format(workdir)
+	cmd="perl sort_file.pl {0}/sniper_part_updated.vcf".format(workdir)
 	msg="Sorting vcf file"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 	control_file  = "{0}/log/26.filter_duplicate_calls.log".format(workdir)
 	complete_file = "{0}/stage/26.filter_duplicate_calls.finished".format(workdir)
 	run_cmd		  = not (os.path.isfile(complete_file))
-	cmd			  = pipeline.removedup + " {0}/sniper_part_updated.vcf_sorted {0}/sniper_part_updated.vcf_sorted_wodups".format(workdir)
+	cmd			  = pipeline.removedup + " {0}/sniper_part_updated.vcf.sorted {0}/sniper_part_updated.vcf.sorted_wodups".format(workdir)
 	msg="Eliminating duplicated insertions"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
-	msg = "You can check output file now: sniper_part_updated.vcf_sorted_wodups"
+	msg = "You can check output file now: sniper_part_updated.vcf.sorted_wodups"
 	shell(msg,True,"")
 	control_file  = "{0}/log/27.remove_partials.log".format(workdir)
 	complete_file = "{0}/stage/27.remove_partials.finished".format(workdir)
@@ -794,8 +800,47 @@ def post_processing(config):
 	control_file  = "{0}/log/28.generate_loclen.log".format(workdir)
 	complete_file = "{0}/stage/28.generate_loclen.finished".format(workdir)
 	run_cmd       = not (os.path.isfile(complete_file))
-	cmd="cut -f2,3 {0}/sniper_part_updated.vcf_sorted_wodups > {0}/sniper_part_updated.vcf_sorted_wodups_loclen".format(workdir)
+	cmd="cut -f2,3 {0}/sniper_part_updated.vcf.sorted_wodups > {0}/sniper_part_updated.vcf.sorted_wodups_loclen".format(workdir)
 	msg="Generating _loclen"
+	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
+######################################################################################
+#### filtering and genotyping.
+def post_processing(config):	
+	workdir		  = pipeline.workdir
+	freeze_arg=""
+	control_file  = "{0}/log/29.filtering.log".format(workdir)
+	complete_file = "{0}/stage/29.filtering.finished".format(workdir)
+	run_cmd		  = not (os.path.isfile(complete_file))
+	cmd			  = pipeline.filtering + " {0}/sniper_part_updated.vcf.sorted_wodups {0}/{1}.masked {2} {3} {4} {0}".format(workdir, config.get("project","reference"), config.get("project","readlength"), config.get("mrsfast","min"), config.get("mrsfast","max"))
+	msg="Filtering insertion candidates"
+	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
+	###### Prepare input file for setcover
+	control_file  = "{0}/log/30.generate_set_cover_input.log".format(workdir)
+	complete_file = "{0}/stage/30.generate_set_cover_input.finished".format(workdir)
+	run_cmd		  = not (os.path.isfile(complete_file))
+	cmd			  = pipeline.gensetcov + " {0}/sniper_part_updated.vcf.sorted_wodups_filtered_recal_forSETCOVER.sorted {0}/filtering/seq.mrsfast.recal.sam.sorted {0}/forSETCOVER".format(workdir)
+	msg="Preparing input file for setcover"
+	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
+	###### Run setcover
+	control_file  = "{0}/log/31.setcover.log".format(workdir)
+	complete_file = "{0}/stage/31.setcover.finished".format(workdir)
+	run_cmd		  = not (os.path.isfile(complete_file))
+	cmd			  = pipeline.smoother + " {0}/forSETCOVER > {0}/fromSETCOVER".format(workdir)
+	msg="Running setcover"
+	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
+	###### Eliminate the ones removed by setcover
+	control_file  = "{0}/log/32.filter_by_setcover.log".format(workdir)
+	complete_file = "{0}/stage/32.filter_by_setcover.finished".format(workdir)
+	run_cmd		  = not (os.path.isfile(complete_file))
+	cmd			  = pipeline.filterbysetcover + " {0}/fromSETCOVER {0}/sniper_part_updated.vcf.sorted_wodups_filtered_recal {0}/sniper_part_updated.vcf.sorted_wodups_filtered_recal_aftersetcov".format(workdir)
+	msg="Filter removed calls by setcover"
+	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
+	###### Grep PASS calls
+	control_file  = "{0}/log/33.grepPASS.log".format(workdir)
+	complete_file = "{0}/stage/33.grepPASS.finished".format(workdir)
+	run_cmd		  = not (os.path.isfile(complete_file))
+	cmd			  = "grep PASS {0}/sniper_part_updated.vcf.sorted_wodups_filtered_recal_aftersetcov > {0}/sniper_part_updated.vcf.sorted_wodups_filtered_recal_aftersetcov_PASS".format(workdir)
+	msg="Grep PASS calls"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 #############################################################################################
 ###### Running commands for extracting clusters 
@@ -846,24 +891,25 @@ def remove_concordant_for_each_bestsam(config):
 #############################################################################################
 ###### Running commands for each mode 
 def run_command(config, force=False):
-	verify_sam(config)
-	mask(config)
-	index(config)
-	mrsfast_best_search(config)
-	remove_concordant_for_each_bestsam(config)
-	mrsfast_search(config)
-	sort(config)
-	modify_oea_unmap(config)
-	sniper_part(config)
-	orphan_assembly(config)
-	prepare_orphan_contig(config)
+#	verify_sam(config)
+#	mask(config)
+#	index(config)
+#	mrsfast_best_search(config)
+#	remove_concordant_for_each_bestsam(config)
+#	mrsfast_search(config)
+#	sort(config)
+#	modify_oea_unmap(config)
+#	sniper_part(config)
+#	orphan_assembly(config)
+#	prepare_orphan_contig(config)
 	#orphan_to_orphan(config)
 	#orphancontig_support(config)
-	oea_to_orphan(config)
-	oea_to_orphan_split(config)
-	recalibrate_all_oea_to_orphan(config)
-	orphans_into_oeacluster(config)
-	updated_sniper_part(config)
+#	oea_to_orphan(config)
+#	oea_to_orphan_split(config)
+#	recalibrate_all_oea_to_orphan(config)
+#	orphans_into_oeacluster(config)
+#	updated_sniper_part(config)
+	dupremoval_cleaning(config)
 	post_processing(config)
 	exit(0)
 
@@ -873,7 +919,7 @@ def mkdir_p(path):
 		os.makedirs(path)
 	except OSError as e:
 		if e.errno == errno.EEXIST and os.path.isdir(path):
-			print "[ERROR] The project folder exists. Please run in resume mode or delete the project folder to re-run from scartch"
+			print "[ERROR] The project folder exists. Please run in resume mode or delete the project folder to re-run from scratch"
 			exit(1);
 #############################################################################################
 ######### link the absolute path of src in dest with identical filename
@@ -1066,7 +1112,7 @@ def check_project_preq():
 		log ("Checking the project pre-requisites... ")
 		if ( None == args.resume):
 			logFAIL()
-			logln("MiStrVar can not overwrite an existing project. Please add --resume or change project name.")
+			logln("Pamir can not overwrite an existing project. Please add --resume or change project name.")
 			exit(1)
 			
 		if not os.path.isfile( workdir + "/project.config"):

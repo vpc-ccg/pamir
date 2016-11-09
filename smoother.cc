@@ -103,7 +103,7 @@ void set_cover (auto &clusters, auto &reads)
 
 		L("{} {} {}", c.orig_id, c.reads.size(), c.name);
 		for (auto &r: c.reads) {
-			L("{}", read_names[r]);
+			//L("{}", read_names[r]);
 		}
 		
 		rx += c.reads.size(), i++;
