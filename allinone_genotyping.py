@@ -8,9 +8,12 @@ def main():
 	SEQ2=sys.argv[4]
 	readlen=int(sys.argv[5])
 	EXT=sys.argv[6]
+	MIN=sys.argv[7]
+	MAX=sys.argv[8]
+	DIR=sys.argv[9]
 #	if(os.path.isfile(FILE+"_genotype_recal")):
 #		os.unlink(FILE+"_genotype_recal")
-	folder  ="genotype"
+	folder  ="{0}/genotype".format(DIR)
 	os.system("mkdir -p {0}".format(folder))
 	start=1
 	start2=1
@@ -79,13 +82,13 @@ def main():
 	coor.close()
 	coor2.close()
 	os.system("./mrsfast --index {0}/allref.fa > {0}/mrsfast.index.log".format(folder))
-	os.system("./mrsfast --search {0}/allref.fa --pe --min 300 --max 600 -o {0}/seq.mrsfast.ref.{1}.sam -e 3 --seq1 {2} --seq2 {3} --disable-sam-header --disable-nohits > {0}/seq.mrsfast.ref.{1}.sam.log".format(folder, EXT, SEQ1, SEQ2))
+	os.system("./mrsfast --search {0}/allref.fa --pe --min {4} --max {5} --threads 40 -o {0}/seq.mrsfast.ref.{1}.sam -e 3 --seq1 {2} --seq2 {3} --disable-sam-header --disable-nohits > {0}/seq.mrsfast.ref.{1}.sam.log".format(folder, EXT, SEQ1, SEQ2, MIN, MAX))
 	os.system("./recalibrate {0}/allref.coor {0}/seq.mrsfast.ref.{1}.sam {0}/seq.mrsfast.ref.{1}.recal.sam".format(folder,EXT))
 	os.system("sort -k 3,3 -k 4,4n {0}/seq.mrsfast.ref.{1}.recal.sam > {0}/seq.mrsfast.ref.{1}.recal.sam.sorted".format(folder,EXT))
 	msamlist = open("{0}/seq.mrsfast.ref.{1}.recal.sam.sorted".format(folder,EXT),"r").readlines()
 
 	os.system("./mrsfast --index {0}/allinsertions.fa > {0}/mrsfast.index2.log".format(folder))
-	os.system("./mrsfast --search {0}/allinsertions.fa --pe --min 300 --max 600 -o {0}/seq.mrsfast.ins.{1}.sam -e 3 --seq1 {2} --seq2 {3} --disable-sam-header --disable-nohits > {0}/seq.mrsfast.ins.{1}.sam.log".format(folder, EXT, SEQ1, SEQ2))
+	os.system("./mrsfast --search {0}/allinsertions.fa --pe --min {4} --max {5} --threads 40 -o {0}/seq.mrsfast.ins.{1}.sam -e 3 --seq1 {2} --seq2 {3} --disable-sam-header --disable-nohits > {0}/seq.mrsfast.ins.{1}.sam.log".format(folder, EXT, SEQ1, SEQ2, MIN, MAX))
 	os.system("./recalibrate {0}/allinsertions.coor {0}/seq.mrsfast.ins.{1}.sam {0}/seq.mrsfast.ins.{1}.recal.sam".format(folder,EXT))
 	os.system("sort -k 3,3 -k 4,4n {0}/seq.mrsfast.ins.{1}.recal.sam > {0}/seq.mrsfast.ins.{1}.recal.sam.sorted".format(folder,EXT))
 	msamlist2 = open("{0}/seq.mrsfast.ins.{1}.recal.sam.sorted".format(folder, EXT),"r").readlines()

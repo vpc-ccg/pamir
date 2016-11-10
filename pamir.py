@@ -112,7 +112,7 @@ def command_line_process():
 	)
 	parser.add_argument('--mrsfast-errors',
 		metavar='mrsfast_errors',
-		help='Number of the errors used by mrsFAST-Ultra for mapping (default: -1)',
+		help='Number of the errors allowed by mrsFAST-Ultra for mapping (default: -1)',
 	)
 	parser.add_argument('--mrsfast-threads',
 		metavar='mrsfast_threads',
@@ -120,7 +120,7 @@ def command_line_process():
 	)
 	parser.add_argument('--mrsfast-n',
 		metavar='mrsfast_n',
-		help='Maximum number of mapping loci of anchor of an OEA. Anchor with higher mapping location will be ignored in microSV detection. 0 for considering all mapping locations (default: 1)',
+		help='Maximum number of mapping loci of anchor of an OEA. Anchor with higher mapping location will be ignored. 0 for considering all mapping locations (default: 1)',
 	)
 	parser.add_argument('--mrsfast-min',
 		metavar='mrsfast_min',
@@ -132,8 +132,8 @@ def command_line_process():
 	)
 	parser.add_argument('--resume',
 		nargs='?',
-		const="sniper",
-		help='Ignore existing progress and restart pipeline. Put sniper if you want to automatically resume from an previously killed task.',
+		const="pamir",
+		help='Restart pipeline from the stage that has not been completed yet.',
 	)
 	parser.add_argument('--cluster',
 		metavar='cluster',
@@ -145,7 +145,7 @@ def command_line_process():
 	)
 	parser.add_argument('--num-worker',
 		type=int,
-		help='Number of independent prediction jobs which will be created. (default: 1)',
+		help='Number of independent prediction jobs to be created. (default: 1)',
 	)
 	parser.add_argument('--range',
 		help='Intervals of OEA clusters in partition to be analyzed.',
@@ -163,12 +163,8 @@ def command_line_process():
 		default='06:00:00'
 	)
 	parser.add_argument('--job-max-memory',
-		help='Max job memory in PBS file. Read docuemnts before changing its value! (default: 16 GB.)',
+		help='Max job memory in PBS file. Read documents before changing its value! (default: 16 GB.)',
 		default='16G'
-	)
-	parser.add_argument('--hybrid',
-		metavar='hybrid',
-		help='Flag deciding if hybrid (both inhouse assembler and SGA) or not (just in house assembler) (default: 1)',
 	)
 	parser.add_argument('--files',
 		metavar='files',
@@ -731,7 +727,7 @@ def updated_sniper_part(config ):
 	while i<clusterNum:
 		output_file   = "{0}/sniper_part_updated.vcf.{1}".format(workdir,workNum)
 		output_log	  = "{0}/sniper_part_updated.logx{1}".format(workdir,workNum)
-		cmd           = pipeline.sniper + ' assemble {0} {1} {2}-{3} {4} 30000 {5} {6} {8} > {7}'.format( input_file, ref_file, str(i),str(i+perJob), output_file, str(config.get("project","readlength")), str(config.get("sniper","hybrid")), output_log, workdir)
+		cmd           = pipeline.sniper + ' assemble {0} {1} {2}-{3} {4} 30000 {5} {7} > {6}'.format( input_file, ref_file, str(i),str(i+perJob), output_file, str(config.get("project","readlength")), output_log, workdir)
 		f.write(cmd+'\n')
 		i+=perJob
 		workNum+=1
@@ -1083,7 +1079,6 @@ def initialize_config_sniper( config, args):
 	config.add_section("sniper")
 	config.set("sniper", "max-contig", str( args.max_contig ) if args.max_contig != None else  "25000")
 	config.set("sniper", "max-error", str( args.max_error ) if args.max_error != None else "1")
-	config.set("sniper","hybrid", str(args.hybrid) if args.hybrid !=None else "1")
 	config.set("sniper", "mask-file", args.mask_file if args.mask_file != None else "" )
 	config.set("sniper","engine-mode",args.mode if args.mode != None else "normal")
 	config.set("sniper","invert-masker", str(args.invert_masker) if args.invert_masker !=None else "False")

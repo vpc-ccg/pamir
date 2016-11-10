@@ -381,7 +381,7 @@ void print_calls(string chrName, vector< tuple< string, int, int, string, int, f
 	}
 }
 /****************************************************************/
-void assemble (const string &partition_file, const string &reference, const string &range, const string &out_vcf, int max_len, int read_length, const int &hybrid, const string &prefix)
+void assemble (const string &partition_file, const string &reference, const string &range, const string &out_vcf, int max_len, int read_length, const string &prefix)
 {
 	const double MAX_AT_GC 		= 0.7;
 	const int MAX_REF_LEN		= 300000000;
@@ -453,7 +453,7 @@ void assemble (const string &partition_file, const string &reference, const stri
 			}
 		}
 		print_calls(chrName, reports, fo_vcf, pt.get_cluster_id());
-		if( ( reports.size() == 0 || reports.size() > 1 ) && hybrid == 1 )
+	/*	if( ( reports.size() == 0 || reports.size() > 1 ) && hybrid == 1 )
 		{
 			reports.clear();
 			string outofsga 	= assemble_with_sga( prepare_sga_input( prefix, out_vcf, p, read_length ) );
@@ -479,7 +479,7 @@ void assemble (const string &partition_file, const string &reference, const stri
 			print_calls( chrName, reports, fo_vcf, pt.get_cluster_id());
 			reports.clear();
 		}
-
+		*/
 	}
 	fclose(fo_vcf);
 }
@@ -515,8 +515,8 @@ int main(int argc, char **argv)
 			partify(argv[2], argv[3], argv[4], atoi(argv[5]));
 		}
 		else if (mode == "assemble") {
-			if (argc != 10) throw "Usage:10 parameters needed\tsniper assemble [partition-file] [reference] [range] [output-file-vcf] [max-len] [read-length] [hybrid] dir_prefix";
-			assemble(argv[2], argv[3], argv[4], argv[5], atoi(argv[6]), atoi(argv[7]), atoi(argv[8]), argv[9]);
+			if (argc != 9) throw "Usage:10 parameters needed\tsniper assemble [partition-file] [reference] [range] [output-file-vcf] [max-len] [read-length] dir_prefix";
+			assemble(argv[2], argv[3], argv[4], argv[5], atoi(argv[6]), atoi(argv[7]), argv[9]);
 		}
 		else if (mode == "assemble_orphan") {
 			if (argc != 5) throw "Usage:3 parameters needed\tsniper assemble_orphan [orphan.fq] [insert_size] [max_len]"; 
