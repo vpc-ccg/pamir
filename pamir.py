@@ -838,6 +838,13 @@ def post_processing(config):
 	cmd			  = "grep PASS {0}/sniper_part_updated.vcf.sorted_wodups_filtered_recal_aftersetcov > {0}/sniper_part_updated.vcf.sorted_wodups_filtered_recal_aftersetcov_PASS".format(workdir)
 	msg="Grep PASS calls"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
+	###### Sort setcover output
+	control_file  = "{0}/log/33.grepPASS.log".format(workdir)
+	complete_file = "{0}/stage/33.grepPASS.finished".format(workdir)
+	run_cmd		  = not (os.path.isfile(complete_file))
+	cmd			  = "perl sort_file.py {0}/sniper_part_updated.vcf.sorted_wodups_filtered_recal_aftersetcov_PASS".format(workdir)
+	msg="Sort setcover output"
+	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 #############################################################################################
 ###### Running commands for extracting clusters 
 def output_cluster(config, c_range ):
@@ -887,24 +894,24 @@ def remove_concordant_for_each_bestsam(config):
 #############################################################################################
 ###### Running commands for each mode 
 def run_command(config, force=False):
-#	verify_sam(config)
-#	mask(config)
-#	index(config)
-#	mrsfast_best_search(config)
-#	remove_concordant_for_each_bestsam(config)
-#	mrsfast_search(config)
-#	sort(config)
-#	modify_oea_unmap(config)
-#	sniper_part(config)
-#	orphan_assembly(config)
-#	prepare_orphan_contig(config)
+	verify_sam(config)
+	mask(config)
+	index(config)
+	mrsfast_best_search(config)
+	remove_concordant_for_each_bestsam(config)
+	mrsfast_search(config)
+	sort(config)
+	modify_oea_unmap(config)
+	sniper_part(config)
+	orphan_assembly(config)
+	prepare_orphan_contig(config)
 	#orphan_to_orphan(config)
 	#orphancontig_support(config)
-#	oea_to_orphan(config)
-#	oea_to_orphan_split(config)
-#	recalibrate_all_oea_to_orphan(config)
-#	orphans_into_oeacluster(config)
-#	updated_sniper_part(config)
+	oea_to_orphan(config)
+	oea_to_orphan_split(config)
+	recalibrate_all_oea_to_orphan(config)
+	orphans_into_oeacluster(config)
+	updated_sniper_part(config)
 	dupremoval_cleaning(config)
 	post_processing(config)
 	exit(0)

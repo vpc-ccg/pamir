@@ -54,4 +54,14 @@ string genome::extract(const string &rname, int &start, int &end)
 	end = min(end, (int)reference.size());
 	return reference.substr(start-1, end-start+1);
 }
+int genome::get_size()
+{
+	cout<<reference.size()<<endl;
+	return (int)reference.size();
+}
+string genome::get_name()
+{
+	cout<<reference_name.c_str();
+	return reference_name;
+}
 

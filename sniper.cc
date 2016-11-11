@@ -380,6 +380,28 @@ void print_calls(string chrName, vector< tuple< string, int, int, string, int, f
 		}
 	}
 }
+void print_header(FILE *fo_vcf_h, const string &reference)
+{
+	genome toread(reference.c_str());
+	toread.load_next();
+	fprintf(fo_vcf_h, "##fileformat=VCFv4.2\n");
+	fprintf(fo_vcf_h, "##FILTER=<ID=PASS,Description=\"All filters passed\">\n");
+	fprintf(fo_vcf_h, "##reference=%s\n",reference.c_str());
+	fprintf(fo_vcf_h, "##source=Pamir\n");
+	fprintf(fo_vcf_h, "##INFO=<ID=CONTIG_DEPTH,Number=1,Type=Integer,Description=\"Total depth of local assemblies\">\n");
+	string prevName="";
+	string name = toread.get_name();
+	int ssize = toread.get_size();
+	while (name!=prevName && ssize!=0)
+	{
+		fprintf(fo_vcf_h, "##contig=<ID=%s,length=%d>\n",name.c_str(),ssize);
+		prevName=name;
+		toread.load_next();
+		name=toread.get_name();
+		ssize = toread.get_size();
+	}
+	fprintf(fo_vcf_h, "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n");
+}
 /****************************************************************/
 void assemble (const string &partition_file, const string &reference, const string &range, const string &out_vcf, int max_len, int read_length, const string &prefix)
 {
@@ -388,6 +410,7 @@ void assemble (const string &partition_file, const string &reference, const stri
 	int LENFLAG					= 1000;
 	char *line 					= new char[MAX_CHAR];
 	FILE *fo_vcf 				= fopen(out_vcf.c_str(), "w");
+	FILE *fo_vcf_h 				= fopen((out_vcf+string(".header")).c_str(), "w");
 	
 	assembler as(max_len, 15);
 	genome ref(reference.c_str());
@@ -482,6 +505,8 @@ void assemble (const string &partition_file, const string &reference, const stri
 		*/
 	}
 	fclose(fo_vcf);
+	print_header(fo_vcf_h,reference);
+	fclose(fo_vcf_h);
 }
 /*********************************************************************************************/
 int main(int argc, char **argv)
@@ -516,7 +541,7 @@ int main(int argc, char **argv)
 		}
 		else if (mode == "assemble") {
 			if (argc != 9) throw "Usage:10 parameters needed\tsniper assemble [partition-file] [reference] [range] [output-file-vcf] [max-len] [read-length] dir_prefix";
-			assemble(argv[2], argv[3], argv[4], argv[5], atoi(argv[6]), atoi(argv[7]), argv[9]);
+			assemble(argv[2], argv[3], argv[4], argv[5], atoi(argv[6]), atoi(argv[7]), argv[8]);
 		}
 		else if (mode == "assemble_orphan") {
 			if (argc != 5) throw "Usage:3 parameters needed\tsniper assemble_orphan [orphan.fq] [insert_size] [max_len]"; 

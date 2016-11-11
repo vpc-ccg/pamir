@@ -11,12 +11,15 @@ private:
 	ifstream fin;
 	string reference_name;
 	string reference;
-	void load_next(void);
+//	void load_next(void);
 
 public:
 	genome(string);
 	~genome();
 	string extract(const string&, int &, int &);
+	void load_next(void);
+	int get_size();
+	string get_name();
 };
 
 #endif
