@@ -3,7 +3,7 @@ import os, sys, errno, argparse, subprocess, fnmatch, ConfigParser, shutil
 
 
 def usage():
-	print '\nUsage: python allinone_filtering.py VCF REF readlength mrsFAST-min mrsFAST-max workdir TLEN'
+	print '\nUsage: python filtering.py VCF REF readlength mrsFAST-min mrsFAST-max workdir TLEN'
 	sys.exit(-1)
 def main():
 	args = sys.argv[1:]
@@ -83,10 +83,8 @@ def main():
 	os.system("./recalibrate {0}/allinsertions.coor {0}/seq.mrsfast.sam {0}/seq.mrsfast.recal.sam".format(folder))
 	os.system("sort -k 3,3 -k 4,4n {0}/seq.mrsfast.recal.sam > {0}/seq.mrsfast.recal.sam.sorted".format(folder))
 	msamlist = open("{0}/seq.mrsfast.recal.sam.sorted".format(folder),"r")
-	i=0 
 	chrName=""
 	passNum =0 
-	num =0
 	line = msamlist.readline()
 	while(line!=''):
 		lsupport=0
@@ -104,28 +102,26 @@ def main():
 		firstloc = int(splitmsam[3])
 		tlen	 = int(splitmsam[8])
 		rightCl = int(TLEN+int(vcfcontent[locName][0])+1)
-		if flag & 2 ==2 and firstloc <=leftCl and firstloc + tlen >= (TLEN+1):
-			lsupport+=1
-		if flag & 2 == 2 and firstloc >=rightCl and firstloc + tlen + readlength <= rightCl:
-			rsupport+=1
-		i +=1;
+		if flag & 2 == 2:
+			if firstloc <=leftCl and firstloc + tlen >= (TLEN+1):
+				lsupport+=1
+			elif firstloc >=rightCl and firstloc + tlen + readlength <= rightCl:
+				rsupport+=1
 		line = msamlist.readline()
 		while(line !=''):
 			splitmsam	= line.split()
 			flag 		= int(splitmsam[1])
 			nextlocName = splitmsam[2]
-			tmp = int(splitmsam[3])
+			nextloc = int(splitmsam[3])
 			tlen	 = int(splitmsam[8])
 			if(nextlocName != locName):
-				end = i
 				break;
-			lastloc = tmp
-			if flag & 2 == 2 and lastloc <= leftCl and firstloc + tlen >= (TLEN+1):
-				lsupport+=1
-			if flag & 2 == 2 and lastloc >= rightCl and firstloc + tlen + readlength <= rightCl:
-				rsupport+=1
+			if flag & 2 ==2:
+				if nextloc <= leftCl and nextloc + tlen >= (TLEN+1):
+					lsupport+=1
+				elif nextloc >= rightCl and nextloc + tlen + readlength <= rightCl:
+					rsupport+=1
 			line = msamlist.readline()
-			i+=1
 		tsupport=lsupport+rsupport
 		ispass 		   = 0	
 		if(lsupport > 0 and rsupport > 0):
@@ -140,7 +136,6 @@ def main():
 			if(reffastaright.count('N')>=(len(reffastaright)/2)):
 				if(lsupport > 0):
 					ispass=1
-		num+=1
 		elem = vcfcontent[locName]
 		if ispass ==1:
 			fil.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\tPASS\n".format(chrName, location, elem[1], elem[0], lsupport, rsupport, tsupport) )

@@ -28,7 +28,7 @@ class pipeline:
 	pprocessor  = os.path.dirname(os.path.realpath(__file__)) + "/partition_processor"
 	removedup   = os.path.dirname(os.path.realpath(__file__)) + "/remove_duplicate_insertions"
 	ext_sup     = os.path.dirname(os.path.realpath(__file__)) + "/extract_support"
-	filtering	= os.path.dirname(os.path.realpath(__file__)) + "/allinone_filtering.py"
+	filtering	= os.path.dirname(os.path.realpath(__file__)) + "/filtering.py"
 	gensetcov	= os.path.dirname(os.path.realpath(__file__)) + "/generate_setcover_input.py"
 	smoother	= os.path.dirname(os.path.realpath(__file__)) + "/smoother"
 	genotyping	= os.path.dirname(os.path.realpath(__file__)) + "/allinone_genotyping.py"
