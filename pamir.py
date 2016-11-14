@@ -814,7 +814,7 @@ def post_processing(config):
 	control_file  = "{0}/log/30.generate_set_cover_input.log".format(workdir)
 	complete_file = "{0}/stage/30.generate_set_cover_input.finished".format(workdir)
 	run_cmd		  = not (os.path.isfile(complete_file))
-	cmd			  = pipeline.gensetcov + " {0}/sniper_part_updated.vcf.sorted_wodups_filtered_recal_forSETCOVER.sorted {0}/filtering/seq.mrsfast.recal.sam.sorted {0}/forSETCOVER".format(workdir)
+	cmd			  = pipeline.gensetcov + " {0}/sniper_part_updated.vcf.sorted_wodups_filtered_forSETCOVER.sorted {0}/filtering/seq.mrsfast.recal.sam.sorted {0}/forSETCOVER".format(workdir)
 	msg="Preparing input file for setcover"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 	###### Run setcover
@@ -828,21 +828,21 @@ def post_processing(config):
 	control_file  = "{0}/log/32.filter_by_setcover.log".format(workdir)
 	complete_file = "{0}/stage/32.filter_by_setcover.finished".format(workdir)
 	run_cmd		  = not (os.path.isfile(complete_file))
-	cmd			  = pipeline.filterbysetcover + " {0}/fromSETCOVER {0}/sniper_part_updated.vcf.sorted_wodups_filtered_recal {0}/sniper_part_updated.vcf.sorted_wodups_filtered_recal_aftersetcov".format(workdir)
+	cmd			  = pipeline.filterbysetcover + " {0}/fromSETCOVER {0}/sniper_part_updated.vcf.sorted_wodups_filtered {0}/sniper_part_updated.vcf.sorted_wodups_filtered_aftersetcov".format(workdir)
 	msg="Filter removed calls by setcover"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 	###### Grep PASS calls
 	control_file  = "{0}/log/33.grepPASS.log".format(workdir)
 	complete_file = "{0}/stage/33.grepPASS.finished".format(workdir)
 	run_cmd		  = not (os.path.isfile(complete_file))
-	cmd			  = "grep PASS {0}/sniper_part_updated.vcf.sorted_wodups_filtered_recal_aftersetcov > {0}/sniper_part_updated.vcf.sorted_wodups_filtered_recal_aftersetcov_PASS".format(workdir)
+	cmd			  = "grep PASS {0}/sniper_part_updated.vcf.sorted_wodups_filtered_aftersetcov > {0}/sniper_part_updated.vcf.sorted_wodups_filtered_aftersetcov_PASS".format(workdir)
 	msg="Grep PASS calls"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 	###### Sort setcover output
 	control_file  = "{0}/log/33.grepPASS.log".format(workdir)
 	complete_file = "{0}/stage/33.grepPASS.finished".format(workdir)
 	run_cmd		  = not (os.path.isfile(complete_file))
-	cmd			  = "perl sort_file.py {0}/sniper_part_updated.vcf.sorted_wodups_filtered_recal_aftersetcov_PASS".format(workdir)
+	cmd			  = "perl sort_file.py {0}/sniper_part_updated.vcf.sorted_wodups_filtered_aftersetcov_PASS".format(workdir)
 	msg="Sort setcover output"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 #############################################################################################
