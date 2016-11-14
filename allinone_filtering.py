@@ -1,14 +1,24 @@
 #!/usr/bin/env python
 import os, sys, errno, argparse, subprocess, fnmatch, ConfigParser, shutil
+
+
+def usage():
+	print '\nUsage: python allinone_filtering.py VCF REF readlength mrsFAST-min mrsFAST-max workdir TLEN'
+	sys.exit(-1)
 def main():
+	args = sys.argv[1:]
+	if len(args) !=7:
+		usage()
 	REF			=	sys.argv[2]
 	FILE		=	sys.argv[1]
 	readlength  =	int(sys.argv[3])
+	#mrsfast min
 	MIN			=	sys.argv[4]
+	#mrsfast max
 	MAX			=	sys.argv[5]
 	workdir		= 	sys.argv[6]
-#	if(os.path.isfile(FILE+"_filtered_recal")):
-#		os.unlink(FILE+"_filtered_recal")
+	#how many bp before the breakpoint and after the breakpoint on ref to get. (1000 for now)
+	TLEN		=	int(sys.argv[7])
 	folder  ="{0}/filtering".format(workdir)
 	os.system("mkdir -p {0}".format(folder))
 	start=1
@@ -21,8 +31,8 @@ def main():
 	passed = 0
 	a = 2
 	vcfcontent = dict()
-	fil = open (FILE + "_filtered_recal","w")
-	fil2 = open (FILE + "_filtered_recal_forSETCOVER","w")
+	fil = open (FILE + "_filtered","w")
+	fil2 = open (FILE + "_filtered_forSETCOVER","w")
 	os.system("samtools faidx {0}".format(REF))
 	with open(FILE) as insertions:
 		for line in insertions:
@@ -32,12 +42,12 @@ def main():
 				loc     = elem_ins[1]
 				length  = elem_ins[2]
 				seq     = elem_ins[3]
-				leftCl  = int(900)
-				rightCl = int(1000+int(length)+1)
-				be=int(loc)-1-1001
+				leftCl  = int(TLEN-readlength)
+				rightCl = int(TLEN+int(length)+1)
+				be=int(loc)-1-(TLEN+1)
 				if be<0:
 					be = 0
-				en=int(loc)+1000
+				en=int(loc)+TLEN
 				open("{0}/left.bed".format(folder),"w").write("{0}\t{1}\t{2}\n".format(chrN,be,int(loc)-1))
 				open("{0}/right.bed".format(folder),"w").write("{0}\t{1}\t{2}\n".format(chrN,int(loc)-1,en))
 				os.system("bedtools getfasta -bed {0}/left.bed -fi {1} -fo {0}/left.fa".format(folder, REF))
@@ -71,18 +81,18 @@ def main():
 	os.system("./mrsfast --index {0}/allinsertions.fa > {0}/mrsfast.index.log".format(folder))
 	os.system("./mrsfast --search {0}/allinsertions.fa --pe --min {1} --max {2} -o {0}/seq.mrsfast.sam -e 3 --seq {3}/all_interleaved.fastq --threads 8 --disable-sam-header --disable-nohits > {0}/.seq.mrsfast.sam.log".format(folder, MIN, MAX, workdir))
 	os.system("./recalibrate {0}/allinsertions.coor {0}/seq.mrsfast.sam {0}/seq.mrsfast.recal.sam".format(folder))
-#	os.system("../sniper sort {0}/seq.mrsfast.recal.sam {0}/seq.mrsfast.recal.sam.sorted".format(folder))
 	os.system("sort -k 3,3 -k 4,4n {0}/seq.mrsfast.recal.sam > {0}/seq.mrsfast.recal.sam.sorted".format(folder))
-	msamlist = open("{0}/seq.mrsfast.recal.sam.sorted".format(folder),"r").readlines()
+	msamlist = open("{0}/seq.mrsfast.recal.sam.sorted".format(folder),"r")
 	i=0 
 	chrName=""
 	passNum =0 
 	num =0
-	while(i < len(msamlist)):
+	line = msamlist.readline()
+	while(line!=''):
 		lsupport=0
 		rsupport=0
 		tsupport=0
-		splitmsam = msamlist[i].split()
+		splitmsam = line.split()
 		flag = int(splitmsam[1])
 		locName = splitmsam[2]
 		first_sep = locName.find("_")
@@ -93,14 +103,15 @@ def main():
 		location = locName[first_sep+1:last_sep]
 		firstloc = int(splitmsam[3])
 		tlen	 = int(splitmsam[8])
-		rightCl = int(1000+int(vcfcontent[locName][0])+1)
-		if flag & 2 ==2 and firstloc <=leftCl and firstloc + tlen >= 1001:
+		rightCl = int(TLEN+int(vcfcontent[locName][0])+1)
+		if flag & 2 ==2 and firstloc <=leftCl and firstloc + tlen >= (TLEN+1):
 			lsupport+=1
 		if flag & 2 == 2 and firstloc >=rightCl and firstloc + tlen + readlength <= rightCl:
 			rsupport+=1
 		i +=1;
-		while(i < len(msamlist)):
-			splitmsam	= msamlist[i].split()
+		line = msamlist.readline()
+		while(line !=''):
+			splitmsam	= line.split()
 			flag 		= int(splitmsam[1])
 			nextlocName = splitmsam[2]
 			tmp = int(splitmsam[3])
@@ -109,27 +120,25 @@ def main():
 				end = i
 				break;
 			lastloc = tmp
-			if flag & 2 == 2 and lastloc <= leftCl and firstloc + tlen >= 1001:
+			if flag & 2 == 2 and lastloc <= leftCl and firstloc + tlen >= (TLEN+1):
 				lsupport+=1
 			if flag & 2 == 2 and lastloc >= rightCl and firstloc + tlen + readlength <= rightCl:
 				rsupport+=1
+			line = msamlist.readline()
 			i+=1
 		tsupport=lsupport+rsupport
 		ispass 		   = 0	
-		#if(firstloc<=leftCl and lastloc >= rightCl):
 		if(lsupport > 0 and rsupport > 0):
 			ispass =1
 			passNum+=1
 		else:
 			reffastaleft=vcfcontent[locName][2][0:leftCl]
 			if(reffastaleft.count('N')>=(len(reffastaleft)/2)):
-				#if(int(firstloc)<=leftCl or int(lastloc)>=rightCl):
-				if(lsupport > 0 or rsupport > 0):
+				if(rsupport > 0):
 					ispass=1
 			reffastaright = vcfcontent[locName][2][rightCl:len(vcfcontent[locName][2])]
 			if(reffastaright.count('N')>=(len(reffastaright)/2)):
-				#if(int(firstloc)<=leftCl or int(lastloc)>=rightCl):
-				if(lsupport > 0 or rsupport > 0):
+				if(lsupport > 0):
 					ispass=1
 		num+=1
 		elem = vcfcontent[locName]
@@ -143,8 +152,8 @@ def main():
 			failed+=1
 	fil.close()
 	fil2.close()
-	os.system("grep PASS "+FILE+"_filtered_recal | awk '{print $2\"\t\"$4;}' | sort -k 1,1n > "+FILE+"_filtered_recal_PASS_loc")
-	os.system("perl sort_file.pl "+FILE+"_filtered_recal_forSETCOVER > "+FILE+"_filtered_recal_forSETCOVER.sorted")
+	os.system("grep PASS "+FILE+"_filtered | awk '{print $2\"\t\"$4;}' | sort -k 1,1n > "+FILE+"_filtered_PASS_loc")
+	os.system("perl sort_file.pl "+FILE+"_filtered_forSETCOVER > "+FILE+"_filtered_forSETCOVER.sorted")
 
 #############################################################################################
 if __name__ == "__main__":
