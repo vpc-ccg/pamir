@@ -33,6 +33,7 @@ class pipeline:
 	smoother	= os.path.dirname(os.path.realpath(__file__)) + "/smoother"
 	genotyping	= os.path.dirname(os.path.realpath(__file__)) + "/allinone_genotyping.py"
 	filterbysetcover	= os.path.dirname(os.path.realpath(__file__)) + "/filter_by_setcover.py"
+	sortfile	= os.path.dirname(os.path.realpath(__file__)) + "/sort_file.pl"
 	workdir  	= os.path.dirname(os.path.realpath(__file__))
 	# example usage for help
 	example  = "\tTo create a new project: specify (1) project name, (2) reference genomes and (3) input sequences (either --alignment, --fastq, or --mrsfast-best-search)\n"
@@ -707,6 +708,22 @@ def orphans_into_oeacluster(config):
 		clean_state( 21, workdir, config )
 	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg )
 #############################################################################################
+###### Print VCF header 
+def print_header(config):
+	msg           = "Printing VCF header"
+	project_name  = config.get("project", "name")
+	workdir		  = pipeline.workdir
+	header_file    = "{0}/vcf_header".format(workdir)
+	ref_file	  = "{0}/{1}".format(workdir,config.get("project","reference"))
+	control_file  = "{0}/log/22.printheader.log".format(workdir)
+	complete_file = "{0}/stage/22.printheader.finished".format(workdir)
+	cmd           = pipeline.sniper + ' header {0} {1}'.format( header_file, ref_file)
+	run_cmd       = not (os.path.isfile(complete_file))
+	if ( run_cmd ):
+		clean_state( 22, workdir, config )
+	freeze_arg    = ""
+	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
+######################################################################################
 ###### Assemble updated cluster 
 def updated_sniper_part(config ):
 	msg           = "Assembling updated cluster"
@@ -714,8 +731,8 @@ def updated_sniper_part(config ):
 	workdir		  = pipeline.workdir
 	input_file    = "{0}/sniper_part_updated".format(workdir)
 	ref_file	  = "{0}/{1}".format(workdir,config.get("project","reference"))
-	control_file  = "{0}/log/22.updated_sniper_assembly.log".format(workdir)
-	complete_file = "{0}/stage/22.updated_sniper_assembly.finished".format(workdir)
+	control_file  = "{0}/log/23.updated_sniper_assembly.log".format(workdir)
+	complete_file = "{0}/stage/23.updated_sniper_assembly.finished".format(workdir)
 	clusterNumFile= "{0}/clusterNum".format(workdir)
 	clusterNum=int(open(clusterNumFile).read())
 	perJob=clusterNum/int(config.get("project","num-worker"))
@@ -725,7 +742,7 @@ def updated_sniper_part(config ):
 	i=0
 	workNum=1
 	while i<clusterNum:
-		output_file   = "{0}/sniper_part_updated.vcf.{1}".format(workdir,workNum)
+		output_file   = "{0}/sniper_part_updated.vcfx{1}".format(workdir,workNum)
 		output_log	  = "{0}/sniper_part_updated.logx{1}".format(workdir,workNum)
 		cmd           = pipeline.sniper + ' assemble {0} {1} {2}-{3} {4} 30000 {5} {7} > {6}'.format( input_file, ref_file, str(i),str(i+perJob), output_file, str(config.get("project","readlength")), output_log, workdir)
 		f.write(cmd+'\n')
@@ -736,7 +753,7 @@ def updated_sniper_part(config ):
 	cmd           =  'cat {0} | xargs -I CMD --max-procs={1} bash -c CMD'.format( jobFileName, config.get("project","num-worker"))
 	run_cmd       = not (os.path.isfile(complete_file) )
 	if ( run_cmd ):
-		clean_state( 22, workdir, config )
+		clean_state( 23, workdir, config )
 	
 	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
 
@@ -747,15 +764,15 @@ def updated_sniper_part(config ):
 	cmd2="cat "
 	cmd3="cat "
 	while i< workNum:
-		cmd+="{0}/sniper_part_updated.vcf.{1} ".format(workdir,i)
+		cmd+="{0}/sniper_part_updated.vcfx{1} ".format(workdir,i)
 		cmd2+="{0}/sniper_part_updated.logx{1} ".format(workdir,i)
 		i+=1
 	cmd+="> {0}/sniper_part_updated.vcf".format(workdir)
 	cmd2+="> {0}/sniper_part_updated.log".format(workdir)
 	cmdall=cmd+";"+cmd2
 	freeze_arg=""
-	control_file  = "{0}/log/23.concatenate_vcf.log".format(workdir)
-	complete_file = "{0}/stage/23.concatenate_vcf.finished".format(workdir)
+	control_file  = "{0}/log/24.concatenate_vcf.log".format(workdir)
+	complete_file = "{0}/stage/24.concatenate_vcf.finished".format(workdir)
 	run_cmd       = not (os.path.isfile(complete_file) )
 	shell( msg, run_cmd, cmdall, control_file, complete_file, freeze_arg)
 
@@ -764,8 +781,8 @@ def updated_sniper_part(config ):
 	msg = "Indexing log file"
 	cmd = pipeline.sniper + " index_log {0}/sniper_part_updated.log".format(workdir)
 	freeze_arg=""
-	control_file  = "{0}/log/24.index_log.log".format(workdir)
-	complete_file = "{0}/stage/24.index_log.finished".format(workdir)
+	control_file  = "{0}/log/25.index_log.log".format(workdir)
+	complete_file = "{0}/stage/25.index_log.finished".format(workdir)
 	run_cmd       = not (os.path.isfile(complete_file) )
 	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
 ######################################################################################
@@ -773,28 +790,28 @@ def updated_sniper_part(config ):
 def dupremoval_cleaning(config):	
 	workdir		  = pipeline.workdir
 	freeze_arg=""
-	control_file  = "{0}/log/25.sort_vcf.log".format(workdir)
-	complete_file = "{0}/stage/25.sort_vcf.finished".format(workdir)
+	control_file  = "{0}/log/26.sort_vcf.log".format(workdir)
+	complete_file = "{0}/stage/26.sort_vcf.finished".format(workdir)
 	run_cmd		  = not (os.path.isfile(complete_file))
-	cmd="perl sort_file.pl {0}/sniper_part_updated.vcf".format(workdir)
+	cmd="perl " + pipeline.sortfile + " {0}/sniper_part_updated.vcf".format(workdir)
 	msg="Sorting vcf file"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
-	control_file  = "{0}/log/26.filter_duplicate_calls.log".format(workdir)
-	complete_file = "{0}/stage/26.filter_duplicate_calls.finished".format(workdir)
+	control_file  = "{0}/log/27.filter_duplicate_calls.log".format(workdir)
+	complete_file = "{0}/stage/27.filter_duplicate_calls.finished".format(workdir)
 	run_cmd		  = not (os.path.isfile(complete_file))
 	cmd			  = pipeline.removedup + " {0}/sniper_part_updated.vcf.sorted {0}/sniper_part_updated.vcf.sorted_wodups".format(workdir)
 	msg="Eliminating duplicated insertions"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 	msg = "You can check output file now: sniper_part_updated.vcf.sorted_wodups"
 	shell(msg,True,"")
-	control_file  = "{0}/log/27.remove_partials.log".format(workdir)
-	complete_file = "{0}/stage/27.remove_partials.finished".format(workdir)
+	control_file  = "{0}/log/28.remove_partials.log".format(workdir)
+	complete_file = "{0}/stage/28.remove_partials.finished".format(workdir)
 	run_cmd       = not (os.path.isfile(complete_file))
-	cmd="rm {0}/sniper_part_updated.vcf.* {0}/sniper_part_updated.logx*".format(workdir)
+	cmd="rm {0}/sniper_part_updated.vcfx* {0}/sniper_part_updated.logx*".format(workdir)
 	msg="Deleting partial outputs"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
-	control_file  = "{0}/log/28.generate_loclen.log".format(workdir)
-	complete_file = "{0}/stage/28.generate_loclen.finished".format(workdir)
+	control_file  = "{0}/log/29.generate_loclen.log".format(workdir)
+	complete_file = "{0}/stage/29.generate_loclen.finished".format(workdir)
 	run_cmd       = not (os.path.isfile(complete_file))
 	cmd="cut -f2,3 {0}/sniper_part_updated.vcf.sorted_wodups > {0}/sniper_part_updated.vcf.sorted_wodups_loclen".format(workdir)
 	msg="Generating _loclen"
@@ -803,46 +820,47 @@ def dupremoval_cleaning(config):
 #### filtering and genotyping.
 def post_processing(config):	
 	workdir		  = pipeline.workdir
+	TLEN = 1000
 	freeze_arg=""
-	control_file  = "{0}/log/29.filtering.log".format(workdir)
-	complete_file = "{0}/stage/29.filtering.finished".format(workdir)
+	control_file  = "{0}/log/30.filtering.log".format(workdir)
+	complete_file = "{0}/stage/30.filtering.finished".format(workdir)
 	run_cmd		  = not (os.path.isfile(complete_file))
-	cmd			  = pipeline.filtering + " {0}/sniper_part_updated.vcf.sorted_wodups {0}/{1}.masked {2} {3} {4} {0}".format(workdir, config.get("project","reference"), config.get("project","readlength"), config.get("mrsfast","min"), config.get("mrsfast","max"))
+	cmd			  = pipeline.filtering + " {0}/sniper_part_updated.vcf.sorted_wodups {0}/{1}.masked {2} {3} {4} {0} {5}".format(workdir, config.get("project","reference"), config.get("project","readlength"), config.get("mrsfast","min"), config.get("mrsfast","max"), str(TLEN))
 	msg="Filtering insertion candidates"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 	###### Prepare input file for setcover
-	control_file  = "{0}/log/30.generate_set_cover_input.log".format(workdir)
-	complete_file = "{0}/stage/30.generate_set_cover_input.finished".format(workdir)
+	control_file  = "{0}/log/31.generate_set_cover_input.log".format(workdir)
+	complete_file = "{0}/stage/31.generate_set_cover_input.finished".format(workdir)
 	run_cmd		  = not (os.path.isfile(complete_file))
 	cmd			  = pipeline.gensetcov + " {0}/sniper_part_updated.vcf.sorted_wodups_filtered_forSETCOVER.sorted {0}/filtering/seq.mrsfast.recal.sam.sorted {0}/forSETCOVER".format(workdir)
 	msg="Preparing input file for setcover"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 	###### Run setcover
-	control_file  = "{0}/log/31.setcover.log".format(workdir)
-	complete_file = "{0}/stage/31.setcover.finished".format(workdir)
+	control_file  = "{0}/log/32.setcover.log".format(workdir)
+	complete_file = "{0}/stage/32.setcover.finished".format(workdir)
 	run_cmd		  = not (os.path.isfile(complete_file))
 	cmd			  = pipeline.smoother + " {0}/forSETCOVER > {0}/fromSETCOVER".format(workdir)
 	msg="Running setcover"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 	###### Eliminate the ones removed by setcover
-	control_file  = "{0}/log/32.filter_by_setcover.log".format(workdir)
-	complete_file = "{0}/stage/32.filter_by_setcover.finished".format(workdir)
+	control_file  = "{0}/log/33.filter_by_setcover.log".format(workdir)
+	complete_file = "{0}/stage/33.filter_by_setcover.finished".format(workdir)
 	run_cmd		  = not (os.path.isfile(complete_file))
 	cmd			  = pipeline.filterbysetcover + " {0}/fromSETCOVER {0}/sniper_part_updated.vcf.sorted_wodups_filtered {0}/sniper_part_updated.vcf.sorted_wodups_filtered_aftersetcov".format(workdir)
 	msg="Filter removed calls by setcover"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 	###### Grep PASS calls
-	control_file  = "{0}/log/33.grepPASS.log".format(workdir)
-	complete_file = "{0}/stage/33.grepPASS.finished".format(workdir)
+	control_file  = "{0}/log/34.grepPASS.log".format(workdir)
+	complete_file = "{0}/stage/34.grepPASS.finished".format(workdir)
 	run_cmd		  = not (os.path.isfile(complete_file))
 	cmd			  = "grep PASS {0}/sniper_part_updated.vcf.sorted_wodups_filtered_aftersetcov > {0}/sniper_part_updated.vcf.sorted_wodups_filtered_aftersetcov_PASS".format(workdir)
 	msg="Grep PASS calls"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 	###### Sort setcover output
-	control_file  = "{0}/log/33.grepPASS.log".format(workdir)
-	complete_file = "{0}/stage/33.grepPASS.finished".format(workdir)
+	control_file  = "{0}/log/35.sortSETCover.log".format(workdir)
+	complete_file = "{0}/stage/35.sortSETCover.finished".format(workdir)
 	run_cmd		  = not (os.path.isfile(complete_file))
-	cmd			  = "perl sort_file.py {0}/sniper_part_updated.vcf.sorted_wodups_filtered_aftersetcov_PASS".format(workdir)
+	cmd			  = "perl " + pipeline.sortfile + " {0}/sniper_part_updated.vcf.sorted_wodups_filtered_aftersetcov_PASS".format(workdir)
 	msg="Sort setcover output"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 #############################################################################################
@@ -905,12 +923,11 @@ def run_command(config, force=False):
 	sniper_part(config)
 	orphan_assembly(config)
 	prepare_orphan_contig(config)
-	#orphan_to_orphan(config)
-	#orphancontig_support(config)
 	oea_to_orphan(config)
 	oea_to_orphan_split(config)
 	recalibrate_all_oea_to_orphan(config)
 	orphans_into_oeacluster(config)
+	print_header(config)
 	updated_sniper_part(config)
 	dupremoval_cleaning(config)
 	post_processing(config)

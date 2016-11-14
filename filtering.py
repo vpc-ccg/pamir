@@ -148,7 +148,7 @@ def main():
 	fil.close()
 	fil2.close()
 	os.system("grep PASS "+FILE+"_filtered | awk '{print $2\"\t\"$4;}' | sort -k 1,1n > "+FILE+"_filtered_PASS_loc")
-	os.system("perl sort_file.pl "+FILE+"_filtered_forSETCOVER > "+FILE+"_filtered_forSETCOVER.sorted")
+	os.system("sort -k 1,1d "+FILE+"_filtered_forSETCOVER > "+FILE+"_filtered_forSETCOVER.sorted")
 
 #############################################################################################
 if __name__ == "__main__":

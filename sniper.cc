@@ -380,27 +380,30 @@ void print_calls(string chrName, vector< tuple< string, int, int, string, int, f
 		}
 	}
 }
-void print_header(FILE *fo_vcf_h, const string &reference)
+/*******************************************************************/
+void print_header(const string &header_file, const string &reference)
 {
+	FILE *fo = fopen(header_file.c_str(),"w");
 	genome toread(reference.c_str());
 	toread.load_next();
-	fprintf(fo_vcf_h, "##fileformat=VCFv4.2\n");
-	fprintf(fo_vcf_h, "##FILTER=<ID=PASS,Description=\"All filters passed\">\n");
-	fprintf(fo_vcf_h, "##reference=%s\n",reference.c_str());
-	fprintf(fo_vcf_h, "##source=Pamir\n");
-	fprintf(fo_vcf_h, "##INFO=<ID=CONTIG_DEPTH,Number=1,Type=Integer,Description=\"Total depth of local assemblies\">\n");
+	fprintf(fo, "##fileformat=VCFv4.2\n");
+	fprintf(fo, "##FILTER=<ID=PASS,Description=\"All filters passed\">\n");
+	fprintf(fo, "##reference=%s\n",reference.c_str());
+	fprintf(fo, "##source=Pamir\n");
+	fprintf(fo, "##INFO=<ID=SVTYPE,Number=1,Type=String,Description=\"Type of structural variant\">\n");
 	string prevName="";
 	string name = toread.get_name();
 	int ssize = toread.get_size();
 	while (name!=prevName && ssize!=0)
 	{
-		fprintf(fo_vcf_h, "##contig=<ID=%s,length=%d>\n",name.c_str(),ssize);
+		fprintf(fo, "##contig=<ID=%s,length=%d>\n",name.c_str(),ssize);
 		prevName=name;
 		toread.load_next();
 		name=toread.get_name();
 		ssize = toread.get_size();
 	}
-	fprintf(fo_vcf_h, "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n");
+	fprintf(fo, "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n");
+	fclose(fo);
 }
 /****************************************************************/
 void assemble (const string &partition_file, const string &reference, const string &range, const string &out_vcf, int max_len, int read_length, const string &prefix)
@@ -410,7 +413,6 @@ void assemble (const string &partition_file, const string &reference, const stri
 	int LENFLAG					= 1000;
 	char *line 					= new char[MAX_CHAR];
 	FILE *fo_vcf 				= fopen(out_vcf.c_str(), "w");
-	FILE *fo_vcf_h 				= fopen((out_vcf+string(".header")).c_str(), "w");
 	
 	assembler as(max_len, 15);
 	genome ref(reference.c_str());
@@ -476,37 +478,8 @@ void assemble (const string &partition_file, const string &reference, const stri
 			}
 		}
 		print_calls(chrName, reports, fo_vcf, pt.get_cluster_id());
-	/*	if( ( reports.size() == 0 || reports.size() > 1 ) && hybrid == 1 )
-		{
-			reports.clear();
-			string outofsga 	= assemble_with_sga( prepare_sga_input( prefix, out_vcf, p, read_length ) );
-			FILE *fcontig 		= fopen(outofsga.c_str(),"r");
-			//WRONG contig_support
-			int contig_support 	= p.size();
-			while( fgets( line, MAX_CHAR, fcontig ) != NULL )
-			{
-				fgets( line, MAX_CHAR, fcontig );
-				line[ strlen(line)-1 ]		='\0';
-				string contig 				= string(line);
-				int con_len 				= contig.length();
-				fprintf(stdout, "\n\nxxxxx Length: %d Support: %d Contig: %s\n", con_len, p.size(), contig.c_str());
-				if( check_AT_GC( contig, MAX_AT_GC ) == 0 || contig_support <=1 || con_len > max_len + 400 ) continue;
-				al.align(ref_part, contig);
-				if(al.extract_calls(cluster_id, reports, contig_support, ref_start,"}}}")==0)
-				{
-					string rc_contig = reverse_complement(contig);	
-					al.align(ref_part, rc_contig);
-					al.extract_calls(cluster_id, reports, contig_support, ref_start, "{{{");
-				}
-			}
-			print_calls( chrName, reports, fo_vcf, pt.get_cluster_id());
-			reports.clear();
-		}
-		*/
 	}
 	fclose(fo_vcf);
-	print_header(fo_vcf_h,reference);
-	fclose(fo_vcf_h);
 }
 /*********************************************************************************************/
 int main(int argc, char **argv)
@@ -538,6 +511,10 @@ int main(int argc, char **argv)
 		else if (mode == "partition") {
 			if (argc != 6) throw "Usage:\tsniper partition [read-file] [mate-file] [output-file] [threshold]";
 			partify(argv[2], argv[3], argv[4], atoi(argv[5]));
+		}
+		else if (mode=="header"){
+			if (argc !=4) throw "Usage:3 parameters needed\tsniper header [output_file_name] [reference]";
+			print_header(argv[2],argv[3]);
 		}
 		else if (mode == "assemble") {
 			if (argc != 9) throw "Usage:10 parameters needed\tsniper assemble [partition-file] [reference] [range] [output-file-vcf] [max-len] [read-length] dir_prefix";
