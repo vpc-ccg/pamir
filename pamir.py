@@ -929,6 +929,7 @@ def run_command(config, force=False):
 	orphans_into_oeacluster(config)
 	print_header(config)
 	updated_sniper_part(config)
+	exit(1)
 	dupremoval_cleaning(config)
 	post_processing(config)
 	exit(0)

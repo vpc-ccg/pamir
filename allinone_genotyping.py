@@ -1,6 +1,13 @@
 #!/usr/bin/env python
 import os, sys, errno, argparse, subprocess, fnmatch, ConfigParser, shutil
+
+def usage():
+	print '\nUsage: python genotyping.py VCF REF SEQ1.fastq SEQ2.fastq readlength EXTENSION mrsFAST-min mrsFAST-max workdir TLEN'
+	sys.exit(-1)
 def main():
+	args = sys.argv[1:]
+	if len(args) !=11:
+		usage()
 	REF=sys.argv[2]
 	#FILE needs to be sorted according to 1st and 2nd columns
 	FILE=sys.argv[1]
@@ -11,8 +18,7 @@ def main():
 	MIN=sys.argv[7]
 	MAX=sys.argv[8]
 	DIR=sys.argv[9]
-#	if(os.path.isfile(FILE+"_genotype_recal")):
-#		os.unlink(FILE+"_genotype_recal")
+	TLEN = int(argv[10])
 	folder  ="{0}/genotype".format(DIR)
 	os.system("mkdir -p {0}".format(folder))
 	start=1
@@ -39,10 +45,10 @@ def main():
 				loc     = elem_ins[1]
 				length  = elem_ins[3]
 				seq     = elem_ins[2]
-				be=int(loc)-1-1000
+				be=int(loc)-1-TLEN
 				if be<0:
 					be =0
-				en=int(loc)+1000
+				en=int(loc)+TLEN
 				open("{0}/left.bed".format(folder),"w").write("{0}\t{1}\t{2}\n".format(chrN,be,int(loc)-1))
 				open("{0}/right.bed".format(folder),"w").write("{0}\t{1}\t{2}\n".format(chrN,int(loc)-1,en))
 				os.system("bedtools getfasta -bed {0}/left.bed -fi {1} -fo {0}/left.fa".format(folder, REF))
@@ -82,79 +88,91 @@ def main():
 	coor.close()
 	coor2.close()
 	os.system("./mrsfast --index {0}/allref.fa > {0}/mrsfast.index.log".format(folder))
-	os.system("./mrsfast --search {0}/allref.fa --pe --min {4} --max {5} --threads 40 -o {0}/seq.mrsfast.ref.{1}.sam -e 3 --seq1 {2} --seq2 {3} --disable-sam-header --disable-nohits > {0}/seq.mrsfast.ref.{1}.sam.log".format(folder, EXT, SEQ1, SEQ2, MIN, MAX))
+	os.system("./mrsfast --search {0}/allref.fa --pe --min {4} --max {5} -n 50 --threads 64 -o {0}/seq.mrsfast.ref.{1}.sam -e 3 --seq1 {2} --seq2 {3} --disable-sam-header --disable-nohits > {0}/seq.mrsfast.ref.{1}.sam.log".format(folder, EXT, SEQ1, SEQ2, MIN, MAX))
 	os.system("./recalibrate {0}/allref.coor {0}/seq.mrsfast.ref.{1}.sam {0}/seq.mrsfast.ref.{1}.recal.sam".format(folder,EXT))
 	os.system("sort -k 3,3 -k 4,4n {0}/seq.mrsfast.ref.{1}.recal.sam > {0}/seq.mrsfast.ref.{1}.recal.sam.sorted".format(folder,EXT))
-	msamlist = open("{0}/seq.mrsfast.ref.{1}.recal.sam.sorted".format(folder,EXT),"r").readlines()
+	msamlist = open("{0}/seq.mrsfast.ref.{1}.recal.sam.sorted".format(folder,EXT),"r")
 
 	os.system("./mrsfast --index {0}/allinsertions.fa > {0}/mrsfast.index2.log".format(folder))
-	os.system("./mrsfast --search {0}/allinsertions.fa --pe --min {4} --max {5} --threads 40 -o {0}/seq.mrsfast.ins.{1}.sam -e 3 --seq1 {2} --seq2 {3} --disable-sam-header --disable-nohits > {0}/seq.mrsfast.ins.{1}.sam.log".format(folder, EXT, SEQ1, SEQ2, MIN, MAX))
+	os.system("./mrsfast --search {0}/allinsertions.fa --pe --min {4} --max {5} -n 50 --threads 64 -o {0}/seq.mrsfast.ins.{1}.sam -e 3 --seq1 {2} --seq2 {3} --disable-sam-header --disable-nohits > {0}/seq.mrsfast.ins.{1}.sam.log".format(folder, EXT, SEQ1, SEQ2, MIN, MAX))
 	os.system("./recalibrate {0}/allinsertions.coor {0}/seq.mrsfast.ins.{1}.sam {0}/seq.mrsfast.ins.{1}.recal.sam".format(folder,EXT))
 	os.system("sort -k 3,3 -k 4,4n {0}/seq.mrsfast.ins.{1}.recal.sam > {0}/seq.mrsfast.ins.{1}.recal.sam.sorted".format(folder,EXT))
-	msamlist2 = open("{0}/seq.mrsfast.ins.{1}.recal.sam.sorted".format(folder, EXT),"r").readlines()
+	msamlist2 = open("{0}/seq.mrsfast.ins.{1}.recal.sam.sorted".format(folder, EXT),"r")
 	i=0
 	j=0
 	chrName=""
 	passNum =0 
 	num =0
-	breakpoint =1001
+	breakpoint =TLEN+1
 	last =""
 	refsupport=0
 	altsupport=0
-	while(i < len(msamlist)):
+	line = msamlist.readline()
+	while(line !=''):
 		refsupport=0
 		ispass=0
-		locName = msamlist[i].split()[2]
+		splitline = line.split()
+		flag = splitline[1]
+		locName = splitline[2]
 		first_sep = locName.find("_")
 		last_sep = locName.rfind("_")
 		chrName = locName[0:first_sep]
 		if(first_sep ==last_sep):
 			last_sep = len(locName)
-		firstloc = int(msamlist[i].split()[3])
+		firstloc = int(splitline[3])
 		location = locName[first_sep+1:last_sep]
-		if(firstloc < breakpoint-10 and firstloc + readlen >= breakpoint+10):
+		if( flag & 2 == 2 and firstloc < breakpoint-10 and firstloc + readlen >= breakpoint+10):
 			refsupport+=1
 		i +=1;
-		while(i < len(msamlist)):
-			nextlocName = msamlist[i].split()[2]
-			tmp = int(msamlist[i].split()[3])
-			if (tmp < breakpoint-10 and tmp + readlen >= breakpoint+10):
+		line = msamlist.readline()
+		while(line !=''):
+			splitline = line.split()
+			flag = splitline[1]
+			nextlocName = splitline[2]
+			tmp = int(splitline[3])
+			if (flag & 2 == 2 and tmp < breakpoint-10 and tmp + readlen >= breakpoint+10):
 				refsupport+=1
 			if(nextlocName != locName):
-				end = i
 				break;
 			lastloc = tmp
 			i+=1
+			line = msamlist.readline()
 		vcfcontent[locName][2]=refsupport
-	while (j < len(msamlist2)):
+	line2 = msamlist2.readline()
+	while (line2 !=''):
 		altsupport_left=0
 		altsupport_right=0
-		locName2 = msamlist2[j].split()[2]
+		splitline2 = line2.split()
+		flag2 = splitline[1]
+		locName2 = splitline2[2]
 		secondbreakpoint = breakpoint+int(vcfcontent[locName2][0])
 		first_sep2 = locName2.find("_")
 		last_sep2 = locName2.rfind("_")
 		chrName2 = locName2[0:first_sep2]
 		if(first_sep2 ==last_sep2):
 			last_sep2 = len(locName2)
-		firstloc2 = int(msamlist2[j].split()[3])
+		firstloc2 = int(splitline[3])
 		location2 = locName2[first_sep2+1:last_sep2]
-		if(firstloc2 < breakpoint-10 and firstloc2 + readlen >= breakpoint+10):
+		if(flag2 & 2 ==2 and firstloc2 < breakpoint-10 and firstloc2 + readlen >= breakpoint+10):
 			altsupport_left+=1
-		if(firstloc2 < secondbreakpoint-10 and firstloc2 + readlen >= secondbreakpoint+10):
+		if(flag2 & 2 == 2 and firstloc2 < secondbreakpoint-10 and firstloc2 + readlen >= secondbreakpoint+10):
 			altsupport_right+=1
 		j +=1;
-		while(j < len(msamlist2)):
-			nextlocName2 = msamlist2[j].split()[2]
-			tmp2 = int(msamlist2[j].split()[3])
-			if (tmp2 < breakpoint-10 and tmp2 + readlen >= breakpoint+10):
+		line2 = msamlist2.readline()
+		while(line2 != ''):
+			splitline2 = line2.split()
+			flag2 = splitline2[1]
+			nextlocName2 = splitline2[2]
+			tmp2 = int(splitline2[3])
+			if ( flag2 & 2 == 2 and tmp2 < breakpoint-10 and tmp2 + readlen >= breakpoint+10):
 				altsupport_left+=1
-			if (tmp2 < secondbreakpoint-10 and tmp2 + readlen >= secondbreakpoint+10):
+			if (flag2 & 2 == 2 and tmp2 < secondbreakpoint-10 and tmp2 + readlen >= secondbreakpoint+10):
 				altsupport_right+=1
 			if(nextlocName2 != locName2):
-				end2 = j
 				break;
 			lastloc2 = tmp2
 			j+=1
+			line2 = msamlist2.readline()
 		altsupport = float((altsupport_left+altsupport_right))/2
 		vcfcontent[locName2][3]= altsupport
 	for a in vcfcontent:

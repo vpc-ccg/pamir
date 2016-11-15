@@ -281,102 +281,32 @@ reset:
 	return num_cluster;
 }
 /******************************************************************/
-void assemble_orphan (const string &input_fastq, int insert_size, int max_len)
+void print_calls(string chrName, const string &reference, vector< tuple< string, int, int, string, int, float > > &reports, FILE *fo_vcf, const int &clusterId)
 {
-	vector<string> orphans;
-	FILE *fin = fopen(input_fastq.c_str(),"r");
-	FILE *fp = fopen((input_fastq + string(".sgaout.fa") ).c_str(),"w");
-	char *line = new char [100000];
-	while(fgets(line,100000,fin))
-	{
-		fgets(line, 100000, fin);
-		line[strlen(line)-1] = '\0';
-		orphans.emplace_back(string(line));
-		fgets(line, 100000, fin);
-		fgets(line, 100000, fin);
-	}
-	assembler as(max_len, 70);
-	auto contigs = as.assemble(orphans);
-	for(int i=0;i < contigs.size(); i++)
-	{
-		//if(contigs[i].data.size() > insert_size)
-		fprintf(fp, "contig-%d\n%s\n", i+1, contigs[i].data.c_str());
-	}
-	fclose(fin);
-	fclose(fp);
-}
-/********************************************************************************/
-string assemble_with_sga (const string &input_fastq)
-{
-	char *sgapython = new char[MAX_CHAR];
-	strcpy(sgapython,"/cs/compbio3/yenyil/Pinar/pinsertionForExperiments/sga.py");
-	char *sgacmd = new char[MAX_CHAR];
-	sprintf(sgacmd, "python %s %s > SGA.out",sgapython,input_fastq.c_str());
-	system(sgacmd);
-	string outofsga = input_fastq+string(".sgaout.fa");
-	return outofsga;
-}
-/********************************************************************************/
-string prepare_sga_input ( const string &prefix, const string &out_vcf, const vector<pair<pair<string, string>, pair<int, int>>> &p, const int &read_length)
-{
-	string qual(read_length,'I');
-	string inputforsga = string(out_vcf + "_fastq.fq");
-	string tmp 		   = string(out_vcf + "_tmp.fq");
-	FILE *fqtmp 	   = fopen(tmp.c_str(),"w");
-	set<string> contigNames;
-	char *line = new char[100000];
-	for(int i =0;i < p.size(); i++)
-	{
-		if (p[i].first.second.length() == read_length )
-			fprintf( fqtmp, "@%s\n%s\n+\n%s\n", p[i].first.first.c_str(), p[i].first.second.c_str(), qual.c_str() );
-		else
-		{
-			/*string conName = p[i].first.first;
-			if(conName[conName.length()-3]=='_')
-			{
-				conName.erase(conName.length()-3,3);
-			}
-			contigNames.insert(conName);*/
-			contigNames.insert(p[i].first.first);
-		}
-	}
-	fclose(fqtmp);
-	char *cmd   = new char[10000];
-	if(contigNames.size() > 0)
-	{
-		sprintf(cmd, "cat %s ", tmp.c_str());
-		set<string>::iterator it;	
-		for(it =contigNames.begin(); it != contigNames.end();it++)
-		{
-			sprintf(cmd, "%s %s/%s_reads.fq ", cmd, prefix.c_str(), (*it).c_str());
-		}	
-		sprintf(cmd, "%s > %s", cmd, inputforsga.c_str());
-		
-	}
-	else
-		sprintf(cmd, "mv %s %s", tmp.c_str(), inputforsga.c_str() );
-	system(cmd);
-
-	return inputforsga;
-}
-/*****************************************************************/
-void print_calls(string chrName, vector< tuple< string, int, int, string, int, float > > &reports, FILE *fo_vcf, const int &clusterId)
-{
+	genome toextract(reference.c_str());
+	string ref;
+	int end;
 	for(int r=0;r<reports.size();r++)
 	{
+		end = get<1>(reports[r])+1;
+		ref = toextract.extract(chrName, end, end);
 		if(get<0>(reports[r])== "INS"){
 			fprintf(fo_vcf, "%s\t",	 			chrName.c_str());
 			fprintf(fo_vcf, "%d\t", 			get<1>(reports[r]));
-			fprintf(fo_vcf, "%d\t", 			get<2>(reports[r]));
+		//	fprintf(fo_vcf, "%d\t", 			get<2>(reports[r]));
 			fprintf(fo_vcf, ".\t");
-			fprintf(fo_vcf, "%s\t",				get<3>(reports[r]).c_str());
-			fprintf(fo_vcf, "%f\t", 			-10*log(1-get<5>(reports[r])));
+			fprintf(fo_vcf, "%s\t",ref.c_str());
+			fprintf(fo_vcf, "<INS>\t");
+		//	fprintf(fo_vcf, "%s\t",				get<3>(reports[r]).c_str());
+		//	fprintf(fo_vcf, "%f\t", 			-10*log(1-get<5>(reports[r])));
+			fprintf(fo_vcf, "%f\t", 			get<5>(reports[r]));
 			fprintf(fo_vcf, "PASS\tSVTYPE=INS;");
-			fprintf(fo_vcf,	"LEN=%d;",  		get<2>(reports[r]));
+			fprintf(fo_vcf,	"SVLEN=%d;",  		get<2>(reports[r]));
 			fprintf(fo_vcf, "END=%d;",  		get<1>(reports[r]));
 			fprintf(fo_vcf, "Cluster=%d;", 		clusterId);
 			fprintf(fo_vcf, "Support=%d;", 		get<4>(reports[r]));
-			fprintf(fo_vcf, "Identity=%f\n", 	get<5>(reports[r])); 
+		//	fprintf(fo_vcf, "Identity=%f\t", 	get<5>(reports[r])); 
+			fprintf(fo_vcf, "SEQ=%s\n", 		get<3>(reports[r]).c_str()); 
 		}
 	}
 }
@@ -391,6 +321,11 @@ void print_header(const string &header_file, const string &reference)
 	fprintf(fo, "##reference=%s\n",reference.c_str());
 	fprintf(fo, "##source=Pamir\n");
 	fprintf(fo, "##INFO=<ID=SVTYPE,Number=1,Type=String,Description=\"Type of structural variant\">\n");
+	fprintf(fo, "##INFO=<ID=SVLEN,Number=.,Type=Integer,Description=\"Difference in length between REF and ALT alleles\">\n");
+	fprintf(fo, "##INFO=<ID=END,Number=1,Type=Integer,Description=\"End coordinate of this variant\">\n");
+	fprintf(fo, "##INFO=<ID=Cluster,Number=1,Type=Integer,Description=\"ID of the cluster the variant is extracted from\">\n");
+	fprintf(fo, "##INFO=<ID=Support,Number=1,Type=Integer,Description=\"Number of reads/contigs supporting the contig\">\n");
+	fprintf(fo, "##INFO=<ID=SEQ,Number=1,Type=String,Description=\"Variant sequence\">\n");
 	string prevName="";
 	string name = toread.get_name();
 	int ssize = toread.get_size();
@@ -477,7 +412,7 @@ void assemble (const string &partition_file, const string &reference, const stri
 				al.extract_calls(cluster_id, reports, contig_support, ref_start, "<<<");
 			}
 		}
-		print_calls(chrName, reports, fo_vcf, pt.get_cluster_id());
+		print_calls(chrName, reference, reports, fo_vcf, pt.get_cluster_id());
 	}
 	fclose(fo_vcf);
 }
@@ -519,10 +454,6 @@ int main(int argc, char **argv)
 		else if (mode == "assemble") {
 			if (argc != 9) throw "Usage:10 parameters needed\tsniper assemble [partition-file] [reference] [range] [output-file-vcf] [max-len] [read-length] dir_prefix";
 			assemble(argv[2], argv[3], argv[4], argv[5], atoi(argv[6]), atoi(argv[7]), argv[8]);
-		}
-		else if (mode == "assemble_orphan") {
-			if (argc != 5) throw "Usage:3 parameters needed\tsniper assemble_orphan [orphan.fq] [insert_size] [max_len]"; 
-			assemble_orphan(argv[2], atoi(argv[3]), atoi(argv[4]));
 		}
 		else if (mode == "get_cluster") {
 			if (argc != 4) throw "Usage:\tsniper get_cluster [partition-file] [range]";
