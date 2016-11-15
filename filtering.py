@@ -89,8 +89,8 @@ def main():
 				#os.system("bedtools getfasta -bed {0}/right.bed -fi {1} -fo {0}/right.fa".format(folder, REF))
 				#left=open("{0}/left.fa".format(folder),"r").readlines()[-1]
 				#right=open("{0}/right.fa".format(folder),"r").readlines()[-1]
-				left  = getBedSeq( ref_dict, chrN, be, int(loc)-1)
-				right = getBedSeq( ref_dict, chrN, int(loc)-1, en)
+				left  = get_bed_seq( ref_dict, chrN, be, int(loc)-1)
+				right = get_bed_seq( ref_dict, chrN, int(loc)-1, en)
 				seqfa = left + seq + right
 				seqfa = "{0}{1}{2}".format(left[:len(left)-1], seq, right[:len(right)-1] )
 				f.write(seqfa)
