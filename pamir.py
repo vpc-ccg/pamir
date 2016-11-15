@@ -26,7 +26,7 @@ class pipeline:
 	samtools	= os.path.dirname(os.path.realpath(__file__)) + "/samtools"
 	recalibrate = os.path.dirname(os.path.realpath(__file__)) + "/recalibrate"
 	pprocessor  = os.path.dirname(os.path.realpath(__file__)) + "/partition_processor"
-	removedup   = os.path.dirname(os.path.realpath(__file__)) + "/remove_duplicate_insertions"
+	sortvcf   = os.path.dirname(os.path.realpath(__file__)) + "/sort_vcf.py"
 	ext_sup     = os.path.dirname(os.path.realpath(__file__)) + "/extract_support"
 	filtering	= os.path.dirname(os.path.realpath(__file__)) + "/filtering.py"
 	gensetcov	= os.path.dirname(os.path.realpath(__file__)) + "/generate_setcover_input.py"
@@ -790,17 +790,11 @@ def updated_sniper_part(config ):
 def dupremoval_cleaning(config):	
 	workdir		  = pipeline.workdir
 	freeze_arg=""
-	control_file  = "{0}/log/26.sort_vcf.log".format(workdir)
-	complete_file = "{0}/stage/26.sort_vcf.finished".format(workdir)
+	control_file  = "{0}/log/27.sort_and_filter_duplicate_calls.log".format(workdir)
+	complete_file = "{0}/stage/27.sort_and_filter_duplicate_calls.finished".format(workdir)
 	run_cmd		  = not (os.path.isfile(complete_file))
-	cmd="perl " + pipeline.sortfile + " {0}/sniper_part_updated.vcf".format(workdir)
-	msg="Sorting vcf file"
-	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
-	control_file  = "{0}/log/27.filter_duplicate_calls.log".format(workdir)
-	complete_file = "{0}/stage/27.filter_duplicate_calls.finished".format(workdir)
-	run_cmd		  = not (os.path.isfile(complete_file))
-	cmd			  = pipeline.removedup + " {0}/sniper_part_updated.vcf.sorted {0}/sniper_part_updated.vcf.sorted_wodups".format(workdir)
-	msg="Eliminating duplicated insertions"
+	cmd			  = pipeline.sortvcf + " {0}/sniper_part_updated.vcf {0}/sniper_part_updated.vcf.sorted_wodups 1".format(workdir)
+	msg="Sorting VCF file and eliminating duplicated insertions"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 	msg = "You can check output file now: sniper_part_updated.vcf.sorted_wodups"
 	shell(msg,True,"")
