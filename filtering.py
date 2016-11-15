@@ -5,6 +5,34 @@ import os, sys, errno, argparse, subprocess, fnmatch, ConfigParser, shutil
 def usage():
 	print '\nUsage: python filtering.py VCF REF readlength mrsFAST-min mrsFAST-max workdir TLEN'
 	sys.exit(-1)
+
+##############################
+def load_fasta( fasta_file):
+	ref_dict = {}
+	ref_id   = ""
+	ref_seq  = ""
+	sr = open(fasta_file, "r")
+	for line in sr:
+		if ( ">" == line[0]):
+			if ( ref_id != ""):
+				ref_dict[ ref_id ] = ref_seq
+			ref_id   = line.strip().split()[0][1:]
+			ref_seq  = ""
+		else:
+			ref_seq += line.strip()
+	
+	# adding records for the last chromosome
+	if ( ref_id != "" ):
+		ref_dict[ ref_id ] = ref_seq
+
+	return ref_dict
+################################
+def get_bed_seq( ref_dict, ref, start, end):
+	if ref not in ref_dict:
+		print "Error: " +ref + " not found in reference genome"
+		exit(-1)
+	return ref_dict[ref][start:end]
+################################
 def main():
 	args = sys.argv[1:]
 	if len(args) !=7:
@@ -33,7 +61,14 @@ def main():
 	vcfcontent = dict()
 	fil = open (FILE + "_filtered","w")
 	fil2 = open (FILE + "_filtered_forSETCOVER","w")
-	os.system("samtools faidx {0}".format(REF))
+#	os.system("samtools faidx {0}".format(REF))
+
+	ref_dict = load_fasta(REF)
+	for x,y in ref_dict.iteritems():
+		print x + "\t" + str(len(y))
+
+
+
 	with open(FILE) as insertions:
 		for line in insertions:
 			elem_ins=line.split()
@@ -48,12 +83,15 @@ def main():
 				if be<0:
 					be = 0
 				en=int(loc)+TLEN
-				open("{0}/left.bed".format(folder),"w").write("{0}\t{1}\t{2}\n".format(chrN,be,int(loc)-1))
-				open("{0}/right.bed".format(folder),"w").write("{0}\t{1}\t{2}\n".format(chrN,int(loc)-1,en))
-				os.system("bedtools getfasta -bed {0}/left.bed -fi {1} -fo {0}/left.fa".format(folder, REF))
-				os.system("bedtools getfasta -bed {0}/right.bed -fi {1} -fo {0}/right.fa".format(folder, REF))
-				left=open("{0}/left.fa".format(folder),"r").readlines()[-1]
-				right=open("{0}/right.fa".format(folder),"r").readlines()[-1]
+				#open("{0}/left.bed".format(folder),"w").write("{0}\t{1}\t{2}\n".format(chrN,be,int(loc)-1))
+				#open("{0}/right.bed".format(folder),"w").write("{0}\t{1}\t{2}\n".format(chrN,int(loc)-1,en))
+				#os.system("bedtools getfasta -bed {0}/left.bed -fi {1} -fo {0}/left.fa".format(folder, REF))
+				#os.system("bedtools getfasta -bed {0}/right.bed -fi {1} -fo {0}/right.fa".format(folder, REF))
+				#left=open("{0}/left.fa".format(folder),"r").readlines()[-1]
+				#right=open("{0}/right.fa".format(folder),"r").readlines()[-1]
+				left  = getBedSeq( ref_dict, chrN, be, int(loc)-1)
+				right = getBedSeq( ref_dict, chrN, int(loc)-1, en)
+				seqfa = left + seq + right
 				seqfa = "{0}{1}{2}".format(left[:len(left)-1], seq, right[:len(right)-1] )
 				f.write(seqfa)
 				loc2 =loc
@@ -75,7 +113,8 @@ def main():
 					vcfcontent[key].append(seqfa)
 					a=2
 				coor.write("{0}_{1}\t{2}\n".format(chrN, loc2, start ))
-				start=start+len(left)-1+len(seq)+len(right)-1
+				#start=start+len(left)-1+len(seq)+len(right)-1
+				start=start+len(left)+len(seq)+len(right)
 	f.close()
 	coor.close()
 	os.system("./mrsfast --index {0}/allinsertions.fa > {0}/mrsfast.index.log".format(folder))
