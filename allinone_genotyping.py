@@ -6,7 +6,7 @@ def usage():
 	sys.exit(-1)
 def main():
 	args = sys.argv[1:]
-	if len(args) !=11:
+	if len(args) !=10:
 		usage()
 	REF=sys.argv[2]
 	#FILE needs to be sorted according to 1st and 2nd columns
@@ -18,7 +18,7 @@ def main():
 	MIN=sys.argv[7]
 	MAX=sys.argv[8]
 	DIR=sys.argv[9]
-	TLEN = int(argv[10])
+	TLEN = int(sys.argv[10])
 	folder  ="{0}/genotype".format(DIR)
 	os.system("mkdir -p {0}".format(folder))
 	start=1
@@ -35,7 +35,7 @@ def main():
 	passed = 0
 	a = 2
 	vcfcontent = dict()
-	fil = open (FILE + "_genotype_recal_"+EXT,"w")
+	fil = open (FILE + "_genotype_"+EXT,"w")
 	os.system("samtools faidx {0}".format(REF))
 	with open(FILE) as insertions:
 		for line in insertions:
@@ -88,13 +88,13 @@ def main():
 	coor.close()
 	coor2.close()
 	os.system("./mrsfast --index {0}/allref.fa > {0}/mrsfast.index.log".format(folder))
-	os.system("./mrsfast --search {0}/allref.fa --pe --min {4} --max {5} -n 50 --threads 64 -o {0}/seq.mrsfast.ref.{1}.sam -e 3 --seq1 {2} --seq2 {3} --disable-sam-header --disable-nohits > {0}/seq.mrsfast.ref.{1}.sam.log".format(folder, EXT, SEQ1, SEQ2, MIN, MAX))
+	os.system("./mrsfast --search {0}/allref.fa --pe --min {4} --max {5} -n 50 --threads 24 -o {0}/seq.mrsfast.ref.{1}.sam -e 3 --seq1 {2} --seq2 {3} --disable-sam-header --disable-nohits > {0}/seq.mrsfast.ref.{1}.sam.log".format(folder, EXT, SEQ1, SEQ2, MIN, MAX))
 	os.system("./recalibrate {0}/allref.coor {0}/seq.mrsfast.ref.{1}.sam {0}/seq.mrsfast.ref.{1}.recal.sam".format(folder,EXT))
 	os.system("sort -k 3,3 -k 4,4n {0}/seq.mrsfast.ref.{1}.recal.sam > {0}/seq.mrsfast.ref.{1}.recal.sam.sorted".format(folder,EXT))
 	msamlist = open("{0}/seq.mrsfast.ref.{1}.recal.sam.sorted".format(folder,EXT),"r")
 
 	os.system("./mrsfast --index {0}/allinsertions.fa > {0}/mrsfast.index2.log".format(folder))
-	os.system("./mrsfast --search {0}/allinsertions.fa --pe --min {4} --max {5} -n 50 --threads 64 -o {0}/seq.mrsfast.ins.{1}.sam -e 3 --seq1 {2} --seq2 {3} --disable-sam-header --disable-nohits > {0}/seq.mrsfast.ins.{1}.sam.log".format(folder, EXT, SEQ1, SEQ2, MIN, MAX))
+	os.system("./mrsfast --search {0}/allinsertions.fa --pe --min {4} --max {5} -n 50 --threads 24 -o {0}/seq.mrsfast.ins.{1}.sam -e 3 --seq1 {2} --seq2 {3} --disable-sam-header --disable-nohits > {0}/seq.mrsfast.ins.{1}.sam.log".format(folder, EXT, SEQ1, SEQ2, MIN, MAX))
 	os.system("./recalibrate {0}/allinsertions.coor {0}/seq.mrsfast.ins.{1}.sam {0}/seq.mrsfast.ins.{1}.recal.sam".format(folder,EXT))
 	os.system("sort -k 3,3 -k 4,4n {0}/seq.mrsfast.ins.{1}.recal.sam > {0}/seq.mrsfast.ins.{1}.recal.sam.sorted".format(folder,EXT))
 	msamlist2 = open("{0}/seq.mrsfast.ins.{1}.recal.sam.sorted".format(folder, EXT),"r")
@@ -112,7 +112,7 @@ def main():
 		refsupport=0
 		ispass=0
 		splitline = line.split()
-		flag = splitline[1]
+		flag = int(splitline[1])
 		locName = splitline[2]
 		first_sep = locName.find("_")
 		last_sep = locName.rfind("_")
@@ -127,7 +127,7 @@ def main():
 		line = msamlist.readline()
 		while(line !=''):
 			splitline = line.split()
-			flag = splitline[1]
+			flag = int(splitline[1])
 			nextlocName = splitline[2]
 			tmp = int(splitline[3])
 			if (flag & 2 == 2 and tmp < breakpoint-10 and tmp + readlen >= breakpoint+10):
@@ -143,7 +143,7 @@ def main():
 		altsupport_left=0
 		altsupport_right=0
 		splitline2 = line2.split()
-		flag2 = splitline[1]
+		flag2 = int(splitline[1])
 		locName2 = splitline2[2]
 		secondbreakpoint = breakpoint+int(vcfcontent[locName2][0])
 		first_sep2 = locName2.find("_")
@@ -161,7 +161,7 @@ def main():
 		line2 = msamlist2.readline()
 		while(line2 != ''):
 			splitline2 = line2.split()
-			flag2 = splitline2[1]
+			flag2 = int(splitline2[1])
 			nextlocName2 = splitline2[2]
 			tmp2 = int(splitline2[3])
 			if ( flag2 & 2 == 2 and tmp2 < breakpoint-10 and tmp2 + readlen >= breakpoint+10):

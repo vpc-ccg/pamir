@@ -285,11 +285,11 @@ void print_calls(string chrName, const string &reference, vector< tuple< string,
 {
 	genome toextract(reference.c_str());
 	string ref;
-	int end;
+	int refend;
 	for(int r=0;r<reports.size();r++)
 	{
-		end = get<1>(reports[r])+1;
-		ref = toextract.extract(chrName, end, end);
+		refend = get<1>(reports[r])+1;
+		ref = toextract.extract(chrName, refend, refend);
 		if(get<0>(reports[r])== "INS"){
 			fprintf(fo_vcf, "%s\t",	 			chrName.c_str());
 			fprintf(fo_vcf, "%d\t", 			get<1>(reports[r]));
@@ -302,7 +302,7 @@ void print_calls(string chrName, const string &reference, vector< tuple< string,
 			fprintf(fo_vcf, "%f\t", 			get<5>(reports[r]));
 			fprintf(fo_vcf, "PASS\tSVTYPE=INS;");
 			fprintf(fo_vcf,	"SVLEN=%d;",  		get<2>(reports[r]));
-			fprintf(fo_vcf, "END=%d;",  		get<1>(reports[r]));
+			fprintf(fo_vcf, "END=%d;",  		get<1>(reports[r]) + get<2>(reports[r])-1);
 			fprintf(fo_vcf, "Cluster=%d;", 		clusterId);
 			fprintf(fo_vcf, "Support=%d;", 		get<4>(reports[r]));
 		//	fprintf(fo_vcf, "Identity=%f\t", 	get<5>(reports[r])); 
