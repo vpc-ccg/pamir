@@ -4,6 +4,35 @@ import os, sys, errno, argparse, subprocess, fnmatch, ConfigParser, shutil
 def usage():
 	print '\nUsage: python genotyping.py VCF REF SEQ1.fastq SEQ2.fastq readlength EXTENSION mrsFAST-min mrsFAST-max workdir TLEN'
 	sys.exit(-1)
+################################
+def load_fasta( fasta_file):
+	ref_dict = {}
+	ref_id   = ""
+	ref_seq  = ""
+	sr = open(fasta_file, "r")
+	for line in sr:
+		if ( ">" == line[0]):
+			if ( ref_id != ""):
+				ref_dict[ ref_id ] = ref_seq
+			ref_id   = line.strip().split()[0][1:]
+			ref_seq  = ""
+		else:
+			ref_seq += line.strip()
+	
+	# adding records for the last chromosome
+	if ( ref_id != "" ):
+		ref_dict[ ref_id ] = ref_seq
+
+	return ref_dict
+
+# Get sequences from ref in a bed-fashion
+#########################
+def get_bed_seq( ref_dict, ref, start, end):
+	if ref not in ref_dict:
+		print "Error: " +ref + " not found in reference genome"
+		exit(-1)
+	return ref_dict[ref][start:end]
+#########################
 def main():
 	args = sys.argv[1:]
 	if len(args) !=10:
@@ -35,8 +64,10 @@ def main():
 	passed = 0
 	a = 2
 	vcfcontent = dict()
+	ref_dict = load_fasta(REF)
+
 	fil = open (FILE + "_genotype_"+EXT,"w")
-	os.system("samtools faidx {0}".format(REF))
+#	os.system("samtools faidx {0}".format(REF))
 	with open(FILE) as insertions:
 		for line in insertions:
 			elem_ins=line.split()
@@ -49,14 +80,19 @@ def main():
 				if be<0:
 					be =0
 				en=int(loc)+TLEN
-				open("{0}/left.bed".format(folder),"w").write("{0}\t{1}\t{2}\n".format(chrN,be,int(loc)-1))
-				open("{0}/right.bed".format(folder),"w").write("{0}\t{1}\t{2}\n".format(chrN,int(loc)-1,en))
-				os.system("bedtools getfasta -bed {0}/left.bed -fi {1} -fo {0}/left.fa".format(folder, REF))
-				os.system("bedtools getfasta -bed {0}/right.bed -fi {1} -fo {0}/right.fa".format(folder, REF))
-				left=open("{0}/left.fa".format(folder),"r").readlines()[-1]
-				right=open("{0}/right.fa".format(folder),"r").readlines()[-1]
-				seqfaref = "{0}{1}".format(left[:len(left)-1], right[:len(right)-1] )
-				seqfains = "{0}{1}{2}".format(left[:len(left)-1], seq, right[:len(right)-1] )
+				#open("{0}/left.bed".format(folder),"w").write("{0}\t{1}\t{2}\n".format(chrN,be,int(loc)-1))
+				#open("{0}/right.bed".format(folder),"w").write("{0}\t{1}\t{2}\n".format(chrN,int(loc)-1,en))
+				#os.system("bedtools getfasta -bed {0}/left.bed -fi {1} -fo {0}/left.fa".format(folder, REF))
+				#os.system("bedtools getfasta -bed {0}/right.bed -fi {1} -fo {0}/right.fa".format(folder, REF))
+				#left=open("{0}/left.fa".format(folder),"r").readlines()[-1]
+				#right=open("{0}/right.fa".format(folder),"r").readlines()[-1]
+
+				left  = get_bed_seq( ref_dict, chrN, be, int(loc)-1)
+				right = get_bed_seq( ref_dict, chrN, int(loc)-1, en)
+				#seqfaref = "{0}{1}".format(left[:len(left)-1], right[:len(right)-1] )
+				seqfaref = left + right
+				#seqfains = "{0}{1}{2}".format(left[:len(left)-1], seq, right[:len(right)-1] )
+				seqfains = left + seq + right
 				f.write(seqfains)
 				f2.write(seqfaref)
 				loc2 =loc
@@ -81,8 +117,10 @@ def main():
 					a=2
 				coor.write("{0}_{1}\t{2}\n".format(chrN, loc2, start ))
 				coor2.write("{0}_{1}\t{2}\n".format(chrN, loc2, start2 ))
-				start=start+len(left)-1+len(seq)+len(right)-1
-				start2=start2+len(left)-1+len(right)-1
+			#	start=start+len(left)-1+len(seq)+len(right)-1
+			#	start2=start2+len(left)-1+len(right)-1
+				start=start+len(left)+len(seq)+len(right)
+				start2=start2+len(left)+len(right)
 	f.close()
 	f2.close()
 	coor.close()
