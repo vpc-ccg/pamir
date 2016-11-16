@@ -15,8 +15,8 @@ class bcolors:
 	UNDERLINE = '\033[4m'
 
 class pipeline:
-	pamir 	= os.path.dirname(os.path.realpath(__file__)) + "/pamir.py"
-	sniper   	= os.path.dirname(os.path.realpath(__file__)) + "/sniper"
+	pamirpy 	= os.path.dirname(os.path.realpath(__file__)) + "/pamir.py"
+	pamir   	= os.path.dirname(os.path.realpath(__file__)) + "/pamir"
 	sga		   	= os.path.dirname(os.path.realpath(__file__)) + "/sga.py"
 	minia	   	= os.path.dirname(os.path.realpath(__file__)) + "/minia"
 	velveth		= os.path.dirname(os.path.realpath(__file__)) + "/velveth"
@@ -133,7 +133,7 @@ def command_line_process():
 	)
 	parser.add_argument('--resume',
 		nargs='?',
-		const="pamir",
+		const="pamirpy",
 		help='Restart pipeline from the stage that has not been completed yet.',
 	)
 	parser.add_argument('--cluster',
@@ -251,7 +251,7 @@ def clean_state_worker( workdir, config):
 def clean_state( mode_index, workdir, config ):
 	flag_clean = 0 # 1 only when we delete files due to changes in project.config
 	workdir = pipeline.workdir	
-	#valid_state = [ '01.verify_sam', '02.mask', '03.mrsfast-index', '04.mrsfast.best', '05.remove_concordant', '06.mrsfast', '07.sorted', '08.oeaunm', '09.sniper_part', '10.orphan_assembly', '10.orphan_assembly_2','11.index_orphan_ref','16.oea2orphan','17.split1_oea2orphan','18.split2_oea2orphan','19.concat_all_oea2orphan','20.all_oea2orphan_recal','21.insert_orphans_into_cluster','22.updated_sniper_assembly','23.concatenate_vcf','24.index_log','25.sort_vcf','26.filter_duplicate_calls','27.remove_partials','28.generate_loclen','normal']
+	#valid_state = [ '01.verify_sam', '02.mask', '03.mrsfast-index', '04.mrsfast.best', '05.remove_concordant', '06.mrsfast', '07.sorted', '08.oeaunm', '09.partition', '10.orphan_assembly', '10.orphan_assembly_2','11.index_orphan_ref','16.oea2orphan','17.split1_oea2orphan','18.split2_oea2orphan','19.concat_all_oea2orphan','20.all_oea2orphan_recal','21.insert_orphans_into_cluster','22.update_partition','23.concatenate_vcf','24.index_log','25.sort_vcf','26.filter_duplicate_calls','27.remove_partials','28.generate_loclen','normal']
 	valid_state = [ '01.verify_sam', '02.mask', '03.mrsfast-index', '04.mrsfast.best', '05.remove_concordant','normal']
 	for i in range( mode_index, len(valid_state)):
 		if ( 3==i and ""!=config.get("project","mrsfast-best-search")):
@@ -293,7 +293,7 @@ def verify_sam(config ):
 	complete_file = "{0}/stage/01.verify_sam.finished".format(workdir);
 	freeze_arg    = ""
 	cmd			  = pipeline.bedtools + "bamtofastq -i {0}.sorted.bam -fq {1}/input_1.fq -fq2 {1}/input_2.fq".format(input_file,output_file) 
-#	cmd           = pipeline.sniper + ' verify_sam {0} {1}'.format( input_file, output_file )
+#	cmd           = pipeline.pamir + ' verify_sam {0} {1}'.format( input_file, output_file )
 	run_cmd       = not (os.path.isfile(complete_file) )
 	if ( run_cmd ):
 		clean_state( 1, workdir, config )
@@ -306,16 +306,16 @@ def mask(config):
 	project_name  = config.get("project", "name")
 	workdir		  = pipeline.workdir
 	input_file    = "{0}/{1}".format(workdir, config.get("project","reference"))
-	mask_file     = "{0}/{1}".format(workdir, config.get("sniper","mask-file"))
+	mask_file     = "{0}/{1}".format(workdir, config.get("pamir","mask-file"))
 	output_file   = "{0}/{1}.masked".format(workdir, config.get("project","reference"))
-	mask_mode     = "maski" if ( "True" == config.get("sniper","invert-masker") ) else "mask"
+	mask_mode     = "maski" if ( "True" == config.get("pamir","invert-masker") ) else "mask"
 	if ("maski" == mask_mode):
 		msg += " to Keep Only Regions Specified in File"
 
 	control_file  = "{0}/log/02.mask.log".format(workdir);
 	complete_file = "{0}/stage/02.mask.finished".format(workdir);
-	freeze_arg    = "invert" if "True" == config.get("sniper","invert-masker")  else "mask"
-	cmd           = pipeline.sniper +' {0} {1} {2} {3} 0'.format( mask_mode, mask_file, input_file, output_file )
+	freeze_arg    = "invert" if "True" == config.get("pamir","invert-masker")  else "mask"
+	cmd           = pipeline.pamir +' {0} {1} {2} {3} 0'.format( mask_mode, mask_file, input_file, output_file )
 	run_cmd       = not ( os.path.isfile(complete_file) and freeze_arg in open(complete_file).read()) 
 
 	if ( run_cmd ):
@@ -371,14 +371,13 @@ def remove_concordant(config,f):
 	msg           = "Extracting OEA and Orphan reads of {0}".format(f)
 	input_file    = "{0}/mrsfast.best.sam".format(workdir)
 	config.set("project","readlength", str(len((open(input_file).readline()).split("\t")[10])))
-	print config.get("project","readlength")
 	with open ( workdir +"/project.config", "w") as configFile:
 		config.write(configFile)
 	output_file   = "{0}/".format(workdir)
 	control_file  = "{0}/log/05.remove_concordant.log".format(workdir);
 	complete_file = "{0}/stage/05.remove_concordant.finished".format(workdir);
 	freeze_arg    = ""
-	cmd           = pipeline.sniper + ' remove_concordant {0} {1} 2 1 1'.format(  input_file, output_file )
+	cmd           = pipeline.pamir + ' remove_concordant {0} {1} 2 1 1'.format(  input_file, output_file )
 	run_cmd       = not (os.path.isfile(complete_file) )
 	if ( run_cmd ):
 		clean_state( 5, workdir, config )
@@ -420,7 +419,7 @@ def sort(config ):
 	control_file  = "{0}/log/07.sort.log".format( workdir );
 	complete_file = "{0}/stage/07.sort.finished".format( workdir );
 	freeze_arg    = ""
-	cmd           = pipeline.sniper +' sort {0} {1}'.format(  input_file, output_file )
+	cmd           = pipeline.pamir +' sort {0} {1}'.format(  input_file, output_file )
 	run_cmd       = not (os.path.isfile(complete_file) )
 
 	shell( msg, run_cmd , cmd, control_file, complete_file, freeze_arg)
@@ -435,22 +434,22 @@ def modify_oea_unmap(config ):
 	control_file  = "{0}/log/08.modify_oea_unmap.log".format(workdir);
 	complete_file = "{0}/stage/08.modify_oea_unmap.finished".format(workdir);
 	freeze_arg    = ""
-	cmd           = pipeline.sniper + ' modify_oea_unmap {0} {1}'.format(  input_file, output_file )
+	cmd           = pipeline.pamir + ' modify_oea_unmap {0} {1}'.format(  input_file, output_file )
 	run_cmd       = not (os.path.isfile(complete_file) )
 	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
 #############################################################################################
 ###### Running commands for creating OEA clusters 
-def sniper_part(config ):
+def partition(config ):
 	msg           = "Creating OEA clusters"
 	project_name  = config.get("project", "name")
 	workdir		  = pipeline.workdir
 	input_file    = "{0}/sorted.sam".format(workdir)
 	unmapped_file = "{0}/unmapped".format(workdir )
-	output_file   = "{0}/sniper_part".format(workdir )
-	control_file  = "{0}/log/09.sniper_part.log".format(workdir);
-	complete_file = "{0}/stage/09.sniper_part.finished".format(workdir);
+	output_file   = "{0}/partitions".format(workdir )
+	control_file  = "{0}/log/09.partition.log".format(workdir);
+	complete_file = "{0}/stage/09.partition.finished".format(workdir);
 	freeze_arg    = "1000"
-	cmd           = pipeline.sniper + ' partition {0} {1} {2} 1000'.format(  input_file, unmapped_file, output_file )
+	cmd           = pipeline.pamir + ' partition {0} {1} {2} 1000'.format(  input_file, unmapped_file, output_file )
 	run_cmd       = not (os.path.isfile(complete_file) )
 
 	if ( run_cmd ):
@@ -591,7 +590,7 @@ def orphancontig_support(config):
 	control_file  = "{0}/log/14.sort_orphan_contig_sam.log".format(workdir);
 	complete_file = "{0}/stage/14.sort_orphan_contig_sam.finished".format(workdir);
 	freeze_arg    = ""
-	cmd           = pipeline.sniper + ' sort {0} {1}'.format(input_file, output_file)
+	cmd           = pipeline.pamir + ' sort {0} {1}'.format(input_file, output_file)
 	run_cmd       = not (os.path.isfile(complete_file) )
 	if ( run_cmd ):
 		clean_state( 14, workdir, config )
@@ -697,8 +696,8 @@ def orphans_into_oeacluster(config):
 	orphan_ref    = "{0}/orphan.contigs.ref".format(workdir)
 	orphan_to_orphan	  = "{0}/orphan2orphan.recal.sam".format(workdir)
 	oea_to_orphan   = "{0}/all_oea2orphan.recal.sam".format(workdir)
-	partition_file   = "{0}/sniper_part".format(workdir)
-	upartition_file   = "{0}/sniper_part_updated".format(workdir)
+	partition_file   = "{0}/partitions".format(workdir)
+	upartition_file   = "{0}/partitions_updated".format(workdir)
 	control_file  = "{0}/log/21.insert_orphans_into_cluster.log".format(workdir)
 	complete_file = "{0}/stage/21.insert_orphans_into_cluster.finished".format(workdir)
 	clusterNumFile = "{0}/clusterNum".format(workdir);
@@ -718,7 +717,7 @@ def print_header(config):
 	ref_file	  = "{0}/{1}".format(workdir,config.get("project","reference"))
 	control_file  = "{0}/log/22.printheader.log".format(workdir)
 	complete_file = "{0}/stage/22.printheader.finished".format(workdir)
-	cmd           = pipeline.sniper + ' header {0} {1}'.format( header_file, ref_file)
+	cmd           = pipeline.pamir + ' header {0} {1}'.format( header_file, ref_file)
 	run_cmd       = not (os.path.isfile(complete_file))
 	if ( run_cmd ):
 		clean_state( 22, workdir, config )
@@ -726,26 +725,26 @@ def print_header(config):
 	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
 ######################################################################################
 ###### Assemble updated cluster 
-def updated_sniper_part(config ):
+def update_partition(config ):
 	msg           = "Assembling updated cluster"
 	project_name  = config.get("project", "name")
 	workdir		  = pipeline.workdir
-	input_file    = "{0}/sniper_part_updated".format(workdir)
+	input_file    = "{0}/partitions_updated".format(workdir)
 	ref_file	  = "{0}/{1}".format(workdir,config.get("project","reference"))
-	control_file  = "{0}/log/23.updated_sniper_assembly.log".format(workdir)
-	complete_file = "{0}/stage/23.updated_sniper_assembly.finished".format(workdir)
+	control_file  = "{0}/log/23.update_partition.log".format(workdir)
+	complete_file = "{0}/stage/23.update_partition.finished".format(workdir)
 	clusterNumFile= "{0}/clusterNum".format(workdir)
 	clusterNum=int(open(clusterNumFile).read())
 	perJob=clusterNum/int(config.get("project","num-worker"))
-	jobFileName= "{0}/run_sniper_assemble.sh".format(workdir)
+	jobFileName= "{0}/run_pamir_assemble.sh".format(workdir)
 	f     = open("{0}".format(jobFileName),"w")
 	f.write("#!/bin/bash\n")
 	i=0
 	workNum=1
 	while i<clusterNum:
-		output_file   = "{0}/sniper_part_updated.vcfx{1}".format(workdir,workNum)
-		output_log	  = "{0}/sniper_part_updated.logx{1}".format(workdir,workNum)
-		cmd           = pipeline.sniper + ' assemble {0} {1} {2}-{3} {4} 30000 {5} {7} > {6}'.format( input_file, ref_file, str(i),str(i+perJob), output_file, str(config.get("project","readlength")), output_log, workdir)
+		output_file   = "{0}/partitions_updated.vcfx{1}".format(workdir,workNum)
+		output_log	  = "{0}/partitions_updated.logx{1}".format(workdir,workNum)
+		cmd           = pipeline.pamir + ' assemble {0} {1} {2}-{3} {4} 30000 {5} {7} > {6}'.format( input_file, ref_file, str(i),str(i+perJob), output_file, str(config.get("project","readlength")), output_log, workdir)
 		f.write(cmd+'\n')
 		i+=perJob
 		workNum+=1
@@ -765,11 +764,11 @@ def updated_sniper_part(config ):
 	cmd2="cat "
 	cmd3="cat "
 	while i< workNum:
-		cmd+="{0}/sniper_part_updated.vcfx{1} ".format(workdir,i)
-		cmd2+="{0}/sniper_part_updated.logx{1} ".format(workdir,i)
+		cmd+="{0}/partitions_updated.vcfx{1} ".format(workdir,i)
+		cmd2+="{0}/partitions_updated.logx{1} ".format(workdir,i)
 		i+=1
-	cmd+="> {0}/sniper_part_updated.vcf".format(workdir)
-	cmd2+="> {0}/sniper_part_updated.log".format(workdir)
+	cmd+="> {0}/partitions_updated.vcf".format(workdir)
+	cmd2+="> {0}/partitions_updated.log".format(workdir)
 	cmdall=cmd+";"+cmd2
 	freeze_arg=""
 	control_file  = "{0}/log/24.concatenate_vcf.log".format(workdir)
@@ -777,10 +776,10 @@ def updated_sniper_part(config ):
 	run_cmd       = not (os.path.isfile(complete_file) )
 	shell( msg, run_cmd, cmdall, control_file, complete_file, freeze_arg)
 
-### index sniper_part_updated.log
+### index partitions_updated.log
 
 	msg = "Indexing log file"
-	cmd = pipeline.sniper + " index_log {0}/sniper_part_updated.log".format(workdir)
+	cmd = pipeline.pamir + " index_log {0}/partitions_updated.log".format(workdir)
 	freeze_arg=""
 	control_file  = "{0}/log/25.index_log.log".format(workdir)
 	complete_file = "{0}/stage/25.index_log.finished".format(workdir)
@@ -794,21 +793,21 @@ def dupremoval_cleaning(config):
 	control_file  = "{0}/log/27.sort_and_filter_duplicate_calls.log".format(workdir)
 	complete_file = "{0}/stage/27.sort_and_filter_duplicate_calls.finished".format(workdir)
 	run_cmd		  = not (os.path.isfile(complete_file))
-	cmd			  = "python " + pipeline.sortvcf + " {0}/sniper_part_updated.vcf {0}/sniper_part_updated.vcf.sorted_wodups 1".format(workdir)
+	cmd			  = "python " + pipeline.sortvcf + " {0}/partitions_updated.vcf {0}/partitions_updated.vcf_wodups 1".format(workdir)
 	msg="Sorting VCF file and eliminating duplicated insertions"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
-	msg = "You can check output file now: sniper_part_updated.vcf.sorted_wodups"
+	msg = "You can check output file now: partitions_updated.vcf_wodups"
 	shell(msg,True,"")
 	control_file  = "{0}/log/28.remove_partials.log".format(workdir)
 	complete_file = "{0}/stage/28.remove_partials.finished".format(workdir)
 	run_cmd       = not (os.path.isfile(complete_file))
-	cmd="rm {0}/sniper_part_updated.vcfx* {0}/sniper_part_updated.logx*".format(workdir)
+	cmd="rm {0}/partitions_updated.vcfx* {0}/partitions_updated.logx*".format(workdir)
 	msg="Deleting partial outputs"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 	control_file  = "{0}/log/29.generate_loclen.log".format(workdir)
 	complete_file = "{0}/stage/29.generate_loclen.finished".format(workdir)
 	run_cmd       = not (os.path.isfile(complete_file))
-	cmd="cut -f2,3 {0}/sniper_part_updated.vcf.sorted_wodups > {0}/sniper_part_updated.vcf.sorted_wodups_loclen".format(workdir)
+	cmd="cut -f2,3 {0}/partitions_updated.vcf_wodups > {0}/partitions_updated.vcf_wodups_loclen".format(workdir)
 	msg="Generating _loclen"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 ######################################################################################
@@ -820,14 +819,14 @@ def post_processing(config):
 	control_file  = "{0}/log/30.filtering.log".format(workdir)
 	complete_file = "{0}/stage/30.filtering.finished".format(workdir)
 	run_cmd		  = not (os.path.isfile(complete_file))
-	cmd			  = pipeline.filtering + " {0}/sniper_part_updated.vcf.sorted_wodups {0}/{1}.masked {2} {3} {4} {0} {5}".format(workdir, config.get("project","reference"), config.get("project","readlength"), config.get("mrsfast","min"), config.get("mrsfast","max"), str(TLEN))
+	cmd			  = pipeline.filtering + " {0}/partitions_updated.vcf_wodups {0}/{1}.masked {2} {3} {4} {0} {5}".format(workdir, config.get("project","reference"), config.get("project","readlength"), config.get("mrsfast","min"), config.get("mrsfast","max"), str(TLEN))
 	msg="Filtering insertion candidates"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 	###### Prepare input file for setcover
 	control_file  = "{0}/log/31.generate_set_cover_input.log".format(workdir)
 	complete_file = "{0}/stage/31.generate_set_cover_input.finished".format(workdir)
 	run_cmd		  = not (os.path.isfile(complete_file))
-	cmd			  = pipeline.gensetcov + " {0}/sniper_part_updated.vcf.sorted_wodups_filtered_forSETCOVER.sorted {0}/filtering/seq.mrsfast.recal.sam.sorted {0}/forSETCOVER".format(workdir)
+	cmd			  = pipeline.gensetcov + " {0}/partitions_updated.vcf_wodups_filtered_forSETCOVER.sorted {0}/filtering/seq.mrsfast.recal.sam.sorted {0}/forSETCOVER".format(workdir)
 	msg="Preparing input file for setcover"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 	###### Run setcover
@@ -841,21 +840,21 @@ def post_processing(config):
 	control_file  = "{0}/log/33.filter_by_setcover.log".format(workdir)
 	complete_file = "{0}/stage/33.filter_by_setcover.finished".format(workdir)
 	run_cmd		  = not (os.path.isfile(complete_file))
-	cmd			  = pipeline.filterbysetcover + " {0}/fromSETCOVER {0}/sniper_part_updated.vcf.sorted_wodups_filtered {0}/sniper_part_updated.vcf.sorted_wodups_filtered_aftersetcov".format(workdir)
+	cmd			  = pipeline.filterbysetcover + " {0}/fromSETCOVER {0}/partitions_updated.vcf_wodups_filtered {0}/partitions_updated.vcf_wodups_filtered_setcov".format(workdir)
 	msg="Filter removed calls by setcover"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 	###### Grep PASS calls
 	control_file  = "{0}/log/34.grepPASS.log".format(workdir)
 	complete_file = "{0}/stage/34.grepPASS.finished".format(workdir)
 	run_cmd		  = not (os.path.isfile(complete_file))
-	cmd			  = "grep PASS {0}/sniper_part_updated.vcf.sorted_wodups_filtered_aftersetcov > {0}/sniper_part_updated.vcf.sorted_wodups_filtered_aftersetcov_PASS".format(workdir)
+	cmd			  = "grep PASS {0}/partitions_updated.vcf_wodups_filtered_setcov > {0}/partitions_updated.vcf_wodups_filtered_setcov_PASS".format(workdir)
 	msg="Grep PASS calls"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 	###### Sort setcover output
 	control_file  = "{0}/log/35.sortSETCover.log".format(workdir)
 	complete_file = "{0}/stage/35.sortSETCover.finished".format(workdir)
 	run_cmd		  = not (os.path.isfile(complete_file))
-	cmd			  = "perl " + pipeline.sortfile + " {0}/sniper_part_updated.vcf.sorted_wodups_filtered_aftersetcov_PASS".format(workdir)
+	cmd			  = "perl " + pipeline.sortfile + " {0}/partitions_updated.vcf_wodups_filtered_setcov_PASS".format(workdir)
 	msg="Sort setcover output"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 #############################################################################################
@@ -864,7 +863,7 @@ def output_cluster(config, c_range ):
 	msg           = "Extracting Clusters for range {0}".format(c_range)
 	workdir		  = pipeline.workdir
 	control_file  = "{0}/log/output_cluster.log".format(workdir);
-	cmd           = pipeline.sniper + " get_cluster {0}/sniper_part {1}".format(workdir, c_range)
+	cmd           = pipeline.pamir + " get_cluster {0}/partition {1}".format(workdir, c_range)
 	shell( msg, True, cmd, control_file, '', '')
 #############################################################################################
 def remove_concordant_for_each_bestsam(config):
@@ -915,7 +914,7 @@ def run_command(config, force=False):
 	mrsfast_search(config)
 	sort(config)
 	modify_oea_unmap(config)
-	sniper_part(config)
+	partition(config)
 	orphan_assembly(config)
 	prepare_orphan_contig(config)
 	oea_to_orphan(config)
@@ -923,7 +922,7 @@ def run_command(config, force=False):
 	recalibrate_all_oea_to_orphan(config)
 	orphans_into_oeacluster(config)
 	print_header(config)
-	updated_sniper_part(config)
+	update_partition(config)
 	dupremoval_cleaning(config)
 	post_processing(config)
 	exit(0)
@@ -969,7 +968,7 @@ def is_exec(f):
 	return os.path.isfile(f) and os.access(f, os.X_OK)
 #############################################################################################
 def check_binary_preq():
-	execs = ['mrsfast', 'sniper']
+	execs = ['mrsfast', 'pamir']
 	log( "Checking binary pre-requisites... ")
 	for exe in execs:
 		exe = os.path.dirname(os.path.realpath(__file__)) + "/" + exe
@@ -992,9 +991,9 @@ def resume_state_help():
 	print "\tmrsfast-search: mapping oea reads to collect anchor locations"
 	print "\tsort: sorting reads according to anchor locations"
 	print "\tmodify_oea_unmap: extract unmapped mates for predicting microSVs"
-	print "\tsniper_part: cluster unmapped reads according to anchor locations"
+	print "\tpartition: cluster unmapped reads according to anchor locations"
 	print "\tnum-worker: generate jobs for parallel processing"
-	print "\tsniper: output micorSVs"
+	print "\tpamir: output novel sequence insertions"
 	print "\nNOTE\tIf you want to automatically resume a killed job, just type --resume"
 
 #############################################################################################
@@ -1010,9 +1009,9 @@ def check_input_preq( config ):
 		logln("Reference Genome {0} does not exist. Please provide valid name or path.".format( config.get("project", "reference") ))
 		exit(1)
 	
-	if ("" !=  config.get("sniper", "mask-file") and  not os.path.isfile( config.get("sniper", "mask-file") )):
+	if ("" !=  config.get("pamir", "mask-file") and  not os.path.isfile( config.get("pamir", "mask-file") )):
 		logFAIL()
-		logln("Invalid mask file {0}. Please provide a correct path.".format( os.path.abspath( config.get("sniper", "mask-file")) ))
+		logln("Invalid mask file {0}. Please provide a correct path.".format( os.path.abspath( config.get("pamir", "mask-file")) ))
 		exit(1)
 
 	inp = False # detect any valid input file or not
@@ -1092,19 +1091,19 @@ def initialize_config_mrsfast( config, args):
 	return config
 
 #############################################################################################
-########## Initialze sniper parameters for before creating project folder
-def initialize_config_sniper( config, args):
+########## Initialze pamir parameters for before creating project folder
+def initialize_config_pamir( config, args):
 	workdir = pipeline.workdir
-	config.add_section("sniper")
-	config.set("sniper", "max-contig", str( args.max_contig ) if args.max_contig != None else  "25000")
-	config.set("sniper", "max-error", str( args.max_error ) if args.max_error != None else "1")
-	config.set("sniper", "mask-file", args.mask_file if args.mask_file != None else "" )
-	config.set("sniper","engine-mode",args.mode if args.mode != None else "normal")
-	config.set("sniper","invert-masker", str(args.invert_masker) if args.invert_masker !=None else "False")
-	config.set("sniper","range", str( args.range ) if args.range !=None else "-1" )
-	config.set("sniper","worker-id", str(args.worker_id) if args.worker_id != None else "-1")
-	config.set("sniper","job-time", args.job_max_time if args.job_max_time != None else "06:00:00")
-	config.set("sniper","job-memory",args.job_max_memory if args.job_max_memory != None else "16G")
+	config.add_section("pamir")
+	config.set("pamir", "max-contig", str( args.max_contig ) if args.max_contig != None else  "25000")
+	config.set("pamir", "max-error", str( args.max_error ) if args.max_error != None else "1")
+	config.set("pamir", "mask-file", args.mask_file if args.mask_file != None else "" )
+	config.set("pamir","engine-mode",args.mode if args.mode != None else "normal")
+	config.set("pamir","invert-masker", str(args.invert_masker) if args.invert_masker !=None else "False")
+	config.set("pamir","range", str( args.range ) if args.range !=None else "-1" )
+	config.set("pamir","worker-id", str(args.worker_id) if args.worker_id != None else "-1")
+	config.set("pamir","job-time", args.job_max_time if args.job_max_time != None else "06:00:00")
+	config.set("pamir","job-memory",args.job_max_memory if args.job_max_memory != None else "16G")
 	return config
 
 #############################################################################################
@@ -1138,8 +1137,8 @@ def check_project_preq():
 		log ("Loading the config file... ")
 		config.read(workdir + '/project.config');
 		# update range  and worker id for assemble stage in SGE and PBS
-		config.set("sniper","range", str( args.range ) if args.range !=None else "-1" )
-		config.set("sniper","worker-id", str( args.worker_id ) if args.worker_id !=None else "-1" )
+		config.set("pamir","range", str( args.range ) if args.range !=None else "-1" )
+		config.set("pamir","worker-id", str( args.worker_id ) if args.worker_id !=None else "-1" )
 		logOK()
 		# Entering cluster extraction mode
 		if ( args.cluster != None ):
@@ -1163,7 +1162,7 @@ def check_project_preq():
 
 		# Parameters for other parts in the pipeline
 		initialize_config_mrsfast(config, args)
-		initialize_config_sniper(config, args)
+		initialize_config_pamir(config, args)
 		
 		#validating required files according to mode
 		check_input_preq(config)
@@ -1179,9 +1178,9 @@ def check_project_preq():
 		symlink(config.get("project", "reference"), workdir)
 		config.set("project", "reference", os.path.basename(config.get("project", "reference")))
 
-		if ("" != config.get("sniper", "mask-file")):
-			symlink(config.get("sniper", "mask-file"),  workdir)
-			config.set("sniper", "mask-file", os.path.basename(config.get("sniper", "mask-file")))
+		if ("" != config.get("pamir", "mask-file")):
+			symlink(config.get("pamir", "mask-file"),  workdir)
+			config.set("pamir", "mask-file", os.path.basename(config.get("pamir", "mask-file")))
 
 		# Exactly one non-empty path for input sources. set up files based on input source
 		if ( "" != config.get("project", "alignment")):
@@ -1216,10 +1215,10 @@ def check_project_preq():
 		logOK()
 
 
-	if ("" == config.get("sniper", "mask-file")):
+	if ("" == config.get("pamir", "mask-file")):
 		file = open ("{0}/mask.txt".format(workdir),'w')
 		file.close()
-		config.set("sniper","mask-file", "mask.txt")
+		config.set("pamir","mask-file", "mask.txt")
 
 	# set up stage files. Note that exactly one of three files are non-empty now
 	if ("" == config.get("project", "alignment") ):
@@ -1233,12 +1232,12 @@ def main():
 	config = check_project_preq()
 	check_binary_preq()
 
-	resume_state="sniper"
+	resume_state="pamir"
 
 	try:
-		if config.get("sniper", "range") == '-1':
+		if config.get("pamir", "range") == '-1':
 			run_command(config)
-		elif resume_state == "sniper":
+		elif resume_state == "pamir":
 			assemble(config)
 		else:
 			raise Exception('Invalid mode selected: ' + mode)
