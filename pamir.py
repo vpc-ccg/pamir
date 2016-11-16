@@ -31,7 +31,7 @@ class pipeline:
 	filtering	= os.path.dirname(os.path.realpath(__file__)) + "/filtering.py"
 	gensetcov	= os.path.dirname(os.path.realpath(__file__)) + "/generate_setcover_input.py"
 	smoother	= os.path.dirname(os.path.realpath(__file__)) + "/smoother"
-	genotyping	= os.path.dirname(os.path.realpath(__file__)) + "/allinone_genotyping.py"
+	genotyping	= os.path.dirname(os.path.realpath(__file__)) + "/genotyping.py"
 	filterbysetcover	= os.path.dirname(os.path.realpath(__file__)) + "/filter_by_setcover.py"
 	sortfile	= os.path.dirname(os.path.realpath(__file__)) + "/sort_file.pl"
 	workdir  	= os.path.dirname(os.path.realpath(__file__))
@@ -371,6 +371,7 @@ def remove_concordant(config,f):
 	msg           = "Extracting OEA and Orphan reads of {0}".format(f)
 	input_file    = "{0}/mrsfast.best.sam".format(workdir)
 	config.set("project","readlength", str(len((open(input_file).readline()).split("\t")[10])))
+	print config.get("project","readlength")
 	with open ( workdir +"/project.config", "w") as configFile:
 		config.write(configFile)
 	output_file   = "{0}/".format(workdir)
@@ -793,7 +794,7 @@ def dupremoval_cleaning(config):
 	control_file  = "{0}/log/27.sort_and_filter_duplicate_calls.log".format(workdir)
 	complete_file = "{0}/stage/27.sort_and_filter_duplicate_calls.finished".format(workdir)
 	run_cmd		  = not (os.path.isfile(complete_file))
-	cmd			  = pipeline.sortvcf + " {0}/sniper_part_updated.vcf {0}/sniper_part_updated.vcf.sorted_wodups 1".format(workdir)
+	cmd			  = "python " + pipeline.sortvcf + " {0}/sniper_part_updated.vcf {0}/sniper_part_updated.vcf.sorted_wodups 1".format(workdir)
 	msg="Sorting VCF file and eliminating duplicated insertions"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 	msg = "You can check output file now: sniper_part_updated.vcf.sorted_wodups"
@@ -923,7 +924,6 @@ def run_command(config, force=False):
 	orphans_into_oeacluster(config)
 	print_header(config)
 	updated_sniper_part(config)
-	exit(1)
 	dupremoval_cleaning(config)
 	post_processing(config)
 	exit(0)

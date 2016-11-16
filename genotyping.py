@@ -67,7 +67,6 @@ def main():
 	ref_dict = load_fasta(REF)
 
 	fil = open (FILE + "_genotype_"+EXT,"w")
-#	os.system("samtools faidx {0}".format(REF))
 	with open(FILE) as insertions:
 		for line in insertions:
 			elem_ins=line.split()
@@ -80,25 +79,17 @@ def main():
 				if be<0:
 					be =0
 				en=int(loc)+TLEN
-				#open("{0}/left.bed".format(folder),"w").write("{0}\t{1}\t{2}\n".format(chrN,be,int(loc)-1))
-				#open("{0}/right.bed".format(folder),"w").write("{0}\t{1}\t{2}\n".format(chrN,int(loc)-1,en))
-				#os.system("bedtools getfasta -bed {0}/left.bed -fi {1} -fo {0}/left.fa".format(folder, REF))
-				#os.system("bedtools getfasta -bed {0}/right.bed -fi {1} -fo {0}/right.fa".format(folder, REF))
-				#left=open("{0}/left.fa".format(folder),"r").readlines()[-1]
-				#right=open("{0}/right.fa".format(folder),"r").readlines()[-1]
 
 				left  = get_bed_seq( ref_dict, chrN, be, int(loc)-1)
 				right = get_bed_seq( ref_dict, chrN, int(loc)-1, en)
-				#seqfaref = "{0}{1}".format(left[:len(left)-1], right[:len(right)-1] )
 				seqfaref = left + right
-				#seqfains = "{0}{1}{2}".format(left[:len(left)-1], seq, right[:len(right)-1] )
 				seqfains = left + seq + right
 				f.write(seqfains)
 				f2.write(seqfaref)
 				loc2 =loc
 				if(chrN==prev_chrN and loc==prev_loc):
-					loc2 = loc+"_"+str(a)
-					key = chrN + "_" + loc2
+					loc2 = loc+"-"+str(a)
+					key = chrN + "-" + loc2
 					vcfcontent[key]=[]
 					vcfcontent[key].append(length)
 					vcfcontent[key].append(seq)
@@ -108,17 +99,15 @@ def main():
 				else:
 					prev_loc =loc
 					prev_chrN =chrN
-					key = chrN + "_" + loc
+					key = chrN + "-" + loc
 					vcfcontent[key]=[]
 					vcfcontent[key].append(length)
 					vcfcontent[key].append(seq)
 					vcfcontent[key].append(0)
 					vcfcontent[key].append(0)
 					a=2
-				coor.write("{0}_{1}\t{2}\n".format(chrN, loc2, start ))
-				coor2.write("{0}_{1}\t{2}\n".format(chrN, loc2, start2 ))
-			#	start=start+len(left)-1+len(seq)+len(right)-1
-			#	start2=start2+len(left)-1+len(right)-1
+				coor.write("{0}-{1}\t{2}\n".format(chrN, loc2, start ))
+				coor2.write("{0}-{1}\t{2}\n".format(chrN, loc2, start2 ))
 				start=start+len(left)+len(seq)+len(right)
 				start2=start2+len(left)+len(right)
 	f.close()
@@ -152,8 +141,8 @@ def main():
 		splitline = line.split()
 		flag = int(splitline[1])
 		locName = splitline[2]
-		first_sep = locName.find("_")
-		last_sep = locName.rfind("_")
+		first_sep = locName.find("-")
+		last_sep = locName.rfind("-")
 		chrName = locName[0:first_sep]
 		if(first_sep ==last_sep):
 			last_sep = len(locName)
@@ -184,8 +173,8 @@ def main():
 		flag2 = int(splitline[1])
 		locName2 = splitline2[2]
 		secondbreakpoint = breakpoint+int(vcfcontent[locName2][0])
-		first_sep2 = locName2.find("_")
-		last_sep2 = locName2.rfind("_")
+		first_sep2 = locName2.find("-")
+		last_sep2 = locName2.rfind("-")
 		chrName2 = locName2[0:first_sep2]
 		if(first_sep2 ==last_sep2):
 			last_sep2 = len(locName2)

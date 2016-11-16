@@ -61,11 +61,10 @@ def main():
 	vcfcontent = dict()
 	fil = open (FILE + "_filtered","w")
 	fil2 = open (FILE + "_filtered_forSETCOVER","w")
-#	os.system("samtools faidx {0}".format(REF))
 
 	ref_dict = load_fasta(REF)
-	for x,y in ref_dict.iteritems():
-		print x + "\t" + str(len(y))
+	#for x,y in ref_dict.iteritems():
+	#	print x + "\t" + str(len(y))
 
 
 
@@ -75,45 +74,61 @@ def main():
 			if len(elem_ins) > 0:
 				chrN    = elem_ins[0]
 				loc     = elem_ins[1]
-				length  = elem_ins[2]
-				seq     = elem_ins[3]
+				r2		= elem_ins[2]
+				r3		= elem_ins[3]
+				r4 		= elem_ins[4]
+				r5 		= elem_ins[5]
+				r6 		= elem_ins[6]
+				r7 		= elem_ins[7]
+				tmplst 	= r7.split(";")
+				length 	= int(tmplst[1].split("=")[1])
+			#	length  = elem_ins[2]
+				seq		= tmplst[5].split("=")[1]
+			#	seq     = elem_ins[3]
 				leftCl  = int(TLEN-readlength)
-				rightCl = int(TLEN+int(length)+1)
+				rightCl = int(TLEN+length+1)
 				be=int(loc)-1-(TLEN+1)
 				if be<0:
 					be = 0
 				en=int(loc)+TLEN
-				#open("{0}/left.bed".format(folder),"w").write("{0}\t{1}\t{2}\n".format(chrN,be,int(loc)-1))
-				#open("{0}/right.bed".format(folder),"w").write("{0}\t{1}\t{2}\n".format(chrN,int(loc)-1,en))
-				#os.system("bedtools getfasta -bed {0}/left.bed -fi {1} -fo {0}/left.fa".format(folder, REF))
-				#os.system("bedtools getfasta -bed {0}/right.bed -fi {1} -fo {0}/right.fa".format(folder, REF))
-				#left=open("{0}/left.fa".format(folder),"r").readlines()[-1]
-				#right=open("{0}/right.fa".format(folder),"r").readlines()[-1]
 				left  = get_bed_seq( ref_dict, chrN, be, int(loc)-1)
 				right = get_bed_seq( ref_dict, chrN, int(loc)-1, en)
 				seqfa = left + seq + right
-				seqfa = "{0}{1}{2}".format(left[:len(left)-1], seq, right[:len(right)-1] )
+				#seqfa = "{0}{1}{2}".format(left[:len(left)-1], seq, right[:len(right)-1] )
 				f.write(seqfa)
 				loc2 =loc
 				if(chrN==prev_chrN and loc==prev_loc):
-					loc2 = loc+"_"+str(a)
-					key = chrN + "_" + loc2
+					loc2 = loc+"-"+str(a)
+					key = chrN + "-" + loc2
 					vcfcontent[key]=[]
 					vcfcontent[key].append(length)
 					vcfcontent[key].append(seq)
 					vcfcontent[key].append(seqfa)
+					vcfcontent[key].append(loc)
+					vcfcontent[key].append(r2)
+					vcfcontent[key].append(r3)
+					vcfcontent[key].append(r4)
+					vcfcontent[key].append(r5)
+					vcfcontent[key].append(r6)
+					vcfcontent[key].append(r7)
 					a+=1
 				else:
 					prev_loc =loc
 					prev_chrN =chrN
-					key = chrN + "_" + loc
+					key = chrN + "-" + loc
 					vcfcontent[key]=[]
 					vcfcontent[key].append(length)
 					vcfcontent[key].append(seq)
 					vcfcontent[key].append(seqfa)
+					vcfcontent[key].append(loc)
+					vcfcontent[key].append(r2)
+					vcfcontent[key].append(r3)
+					vcfcontent[key].append(r4)
+					vcfcontent[key].append(r5)
+					vcfcontent[key].append(r6)
+					vcfcontent[key].append(r7)
 					a=2
-				coor.write("{0}_{1}\t{2}\n".format(chrN, loc2, start ))
-				#start=start+len(left)-1+len(seq)+len(right)-1
+				coor.write("{0}-{1}\t{2}\n".format(chrN, loc2, start ))
 				start=start+len(left)+len(seq)+len(right)
 	f.close()
 	coor.close()
@@ -132,8 +147,8 @@ def main():
 		splitmsam = line.split()
 		flag = int(splitmsam[1])
 		locName = splitmsam[2]
-		first_sep = locName.find("_")
-		last_sep = locName.rfind("_")
+		first_sep = locName.find("-")
+		last_sep = locName.rfind("-")
 		chrName = locName[0:first_sep]
 		if(first_sep ==last_sep):
 			last_sep = len(locName)
@@ -177,18 +192,38 @@ def main():
 					ispass=1
 		elem = vcfcontent[locName]
 		if ispass ==1:
-			fil.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\tPASS\n".format(chrName, location, elem[1], elem[0], lsupport, rsupport, tsupport) )
-			fil2.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\tPASS\n".format(locName, elem[1], elem[0], lsupport, rsupport, tsupport) )
+			#fil.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\tPASS\n".format(chrName, location, elem[1], elem[0], lsupport, rsupport, tsupport) )
+			fil.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7};FLSUP={8};FRSUP={9};FSUP={10}\n".format(chrName, location, elem[4], elem[5], elem[6], elem[7], "PASS", elem[9], lsupport, rsupport, tsupport) )
+			#fil2.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\tPASS\n".format(locName, elem[1], elem[0], lsupport, rsupport, tsupport) )
+			fil2.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6};FLSUP={7};FRSUP={8};FSUP={9}\n".format(locName, elem[4], elem[5], elem[6], elem[7], "PASS", elem[9], lsupport, rsupport, tsupport) )
 			passed+=1
 		else:
-			fil.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\tFAIL\n".format(chrName, location, elem[1], elem[0], lsupport, rsupport, tsupport) )
-			fil2.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\tFAIL\n".format(locName, elem[1], elem[0], lsupport, rsupport, tsupport) )
+		#	fil.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\tFAIL\n".format(chrName, location, elem[1], elem[0], lsupport, rsupport, tsupport) )
+			fil.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7};FLSUP={8};FRSUP={9};FSUP={10}\n".format(chrName, location, elem[4], elem[5], elem[6], elem[7], "FAIL", elem[9], lsupport, rsupport, tsupport) )
+		#	fil2.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\tFAIL\n".format(locName, elem[1], elem[0], lsupport, rsupport, tsupport) )
+			fil2.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6};FLSUP={7};FRSUP={8};FSUP={9}\n".format(locName, elem[4], elem[5], elem[6], elem[7], "FAIL", elem[9], lsupport, rsupport, tsupport) )
 			failed+=1
 	fil.close()
 	fil2.close()
 	os.system("grep PASS "+FILE+"_filtered | awk '{print $2\"\t\"$4;}' | sort -k 1,1n > "+FILE+"_filtered_PASS_loc")
-	os.system("sort -k 1,1d "+FILE+"_filtered_forSETCOVER > "+FILE+"_filtered_forSETCOVER.sorted")
-
+	os.system("sort -k 1,1 "+FILE+"_filtered_forSETCOVER > "+FILE+"_filtered_forSETCOVER.sorted")
+	#Update VCF header file with new variables obtained from filtering
+	vcf_header = open("{0}/vcf_header".format(workdir),"r").readlines()
+	head = open("{0}/vcf_header_f".format(workdir),"w")
+	i=0
+	while i < len(vcf_header):
+		print vcf_header[i][2:8]
+		if vcf_header[i][2:8]=="contig":
+			break
+		head.write(vcf_header[i])
+		i+=1
+	head.write("##INFO=<ID=FLSUP,Number=1,Type=Integer,Description=\"Number of left supporting reads in filtering\">\n")
+	head.write("##INFO=<ID=FLRSUP,Number=1,Type=Integer,Description=\"Number of right supporting reads in filtering\">\n")
+	head.write("##INFO=<ID=FSUP,Number=1,Type=Integer,Description=\"Number of total supporting reads in filtering\">\n")
+	while i < len(vcf_header):
+		head.write(vcf_header[i])
+		i+=1
+	head.close()
 #############################################################################################
 if __name__ == "__main__":
     sys.exit(main())

@@ -56,12 +56,10 @@ string genome::extract(const string &rname, int &start, int &end)
 }
 int genome::get_size()
 {
-	cout<<reference.size()<<endl;
 	return (int)reference.size();
 }
 string genome::get_name()
 {
-	cout<<reference_name.c_str();
 	return reference_name;
 }
 
