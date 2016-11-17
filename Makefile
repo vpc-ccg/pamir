@@ -5,8 +5,8 @@ SOURCES=partition.cc pamir.cc assembler.cc genome.cc aligner.cc  assembler_ext.c
 LDFLAGS=-lm -lz
 OBJECTS=$(SOURCES:.cc=.o) 
 EXECUTABLE=pamir
-all: snp pp rc es sm
-basic: snp pp rc es
+all: snp pp rc es sm mf
+basic: snp pp rc es mf
 
 pp: 
 	g++ -std=gnu++0x -O3 -o partition_processor partition_processor.cc common.cc
@@ -16,6 +16,8 @@ es:
 	g++ -O3 -o extract_support extract_support.cc common.cc
 sm:
 	g++ -O3 -o smoother -Ifmt -g -std=c++1y -Wfatal-errors -I$(BOOST_INCLUDE) smoother.cc fmt/fmt/format.cc
+mf: 
+	make -C mrsfast
 
 snp: $(SOURCES) $(EXECUTABLE)
 

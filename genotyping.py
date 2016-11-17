@@ -2,7 +2,7 @@
 import os, sys, errno, argparse, subprocess, fnmatch, ConfigParser, shutil
 
 def usage():
-	print '\nUsage: python genotyping.py VCF REF SEQ1.fastq SEQ2.fastq readlength EXTENSION mrsFAST-min mrsFAST-max workdir TLEN'
+	print '\nUsage: python genotyping.py VCF REF SEQ1.fastq SEQ2.fastq readlength SAMPLENAME mrsFAST-min mrsFAST-max workdir TLEN'
 	sys.exit(-1)
 ################################
 def load_fasta( fasta_file):
@@ -46,9 +46,10 @@ def main():
 	EXT=sys.argv[6]
 	MIN=sys.argv[7]
 	MAX=sys.argv[8]
-	DIR=sys.argv[9]
+	workdir=sys.argv[9]
 	TLEN = int(sys.argv[10])
-	folder  ="{0}/genotype".format(DIR)
+	MRSFAST="mrsfast/mrsfast"
+	folder  ="{0}/genotype".format(workdir)
 	os.system("mkdir -p {0}".format(folder))
 	start=1
 	start2=1
@@ -66,15 +67,16 @@ def main():
 	vcfcontent = dict()
 	ref_dict = load_fasta(REF)
 
-	fil = open (FILE + "_genotype_"+EXT,"w")
+	fil = open ("{0}/insertions.out_wodups_filtered_setcov".format(workdir) + "_genotype_"+EXT,"w")
 	with open(FILE) as insertions:
 		for line in insertions:
 			elem_ins=line.split()
 			if len(elem_ins) > 0:
-				chrN    = elem_ins[0]
-				loc     = elem_ins[1]
-				length  = elem_ins[3]
-				seq     = elem_ins[2]
+				chrN		= elem_ins[0]
+				loc     	= elem_ins[1]
+				tmplist		= elem_ins[7].split(";")
+				length		= tmplist[1].split("=")[1]
+				seq     	= tmplist[5].split("=")[1]
 				be=int(loc)-1-TLEN
 				if be<0:
 					be =0
@@ -91,8 +93,12 @@ def main():
 					loc2 = loc+"-"+str(a)
 					key = chrN + "-" + loc2
 					vcfcontent[key]=[]
-					vcfcontent[key].append(length)
-					vcfcontent[key].append(seq)
+					vcfcontent[key].append(elem_ins[2])
+					vcfcontent[key].append(elem_ins[3])
+					vcfcontent[key].append(elem_ins[4])
+					vcfcontent[key].append(elem_ins[5])
+					vcfcontent[key].append(elem_ins[6])
+					vcfcontent[key].append(elem_ins[7])
 					vcfcontent[key].append(0)
 					vcfcontent[key].append(0)
 					a+=1
@@ -101,8 +107,12 @@ def main():
 					prev_chrN =chrN
 					key = chrN + "-" + loc
 					vcfcontent[key]=[]
-					vcfcontent[key].append(length)
-					vcfcontent[key].append(seq)
+					vcfcontent[key].append(elem_ins[2])
+					vcfcontent[key].append(elem_ins[3])
+					vcfcontent[key].append(elem_ins[4])
+					vcfcontent[key].append(elem_ins[5])
+					vcfcontent[key].append(elem_ins[6])
+					vcfcontent[key].append(elem_ins[7])
 					vcfcontent[key].append(0)
 					vcfcontent[key].append(0)
 					a=2
@@ -114,14 +124,14 @@ def main():
 	f2.close()
 	coor.close()
 	coor2.close()
-	os.system("./mrsfast --index {0}/allref.fa > {0}/mrsfast.index.log".format(folder))
-	os.system("./mrsfast --search {0}/allref.fa --pe --min {4} --max {5} -n 50 --threads 72 -o {0}/seq.mrsfast.ref.{1}.sam -e 3 --seq1 {2} --seq2 {3} --disable-sam-header --disable-nohits > {0}/seq.mrsfast.ref.{1}.sam.log".format(folder, EXT, SEQ1, SEQ2, MIN, MAX))
+	os.system(MRSFAST + " --index {0}/allref.fa > {0}/mrsfast.index.log".format(folder))
+	os.system(MRSFAST + " --search {0}/allref.fa --pe --min {4} --max {5} -n 50 --threads 72 -o {0}/seq.mrsfast.ref.{1}.sam -e 3 --seq1 {2} --seq2 {3} --disable-sam-header --disable-nohits > {0}/seq.mrsfast.ref.{1}.sam.log".format(folder, EXT, SEQ1, SEQ2, MIN, MAX))
 	os.system("./recalibrate {0}/allref.coor {0}/seq.mrsfast.ref.{1}.sam {0}/seq.mrsfast.ref.{1}.recal.sam".format(folder,EXT))
 	os.system("sort -k 3,3 -k 4,4n {0}/seq.mrsfast.ref.{1}.recal.sam > {0}/seq.mrsfast.ref.{1}.recal.sam.sorted".format(folder,EXT))
 	msamlist = open("{0}/seq.mrsfast.ref.{1}.recal.sam.sorted".format(folder,EXT),"r")
 
-	os.system("./mrsfast --index {0}/allinsertions.fa > {0}/mrsfast.index2.log".format(folder))
-	os.system("./mrsfast --search {0}/allinsertions.fa --pe --min {4} --max {5} -n 50 --threads 72 -o {0}/seq.mrsfast.ins.{1}.sam -e 3 --seq1 {2} --seq2 {3} --disable-sam-header --disable-nohits > {0}/seq.mrsfast.ins.{1}.sam.log".format(folder, EXT, SEQ1, SEQ2, MIN, MAX))
+	os.system(MRSFAST + " --index {0}/allinsertions.fa > {0}/mrsfast.index2.log".format(folder))
+	os.system(MRSFAST + " --search {0}/allinsertions.fa --pe --min {4} --max {5} -n 50 --threads 72 -o {0}/seq.mrsfast.ins.{1}.sam -e 3 --seq1 {2} --seq2 {3} --disable-sam-header --disable-nohits > {0}/seq.mrsfast.ins.{1}.sam.log".format(folder, EXT, SEQ1, SEQ2, MIN, MAX))
 	os.system("./recalibrate {0}/allinsertions.coor {0}/seq.mrsfast.ins.{1}.sam {0}/seq.mrsfast.ins.{1}.recal.sam".format(folder,EXT))
 	os.system("sort -k 3,3 -k 4,4n {0}/seq.mrsfast.ins.{1}.recal.sam > {0}/seq.mrsfast.ins.{1}.recal.sam.sorted".format(folder,EXT))
 	msamlist2 = open("{0}/seq.mrsfast.ins.{1}.recal.sam.sorted".format(folder, EXT),"r")
@@ -164,7 +174,7 @@ def main():
 			lastloc = tmp
 			i+=1
 			line = msamlist.readline()
-		vcfcontent[locName][2]=refsupport
+		vcfcontent[locName][6]=refsupport
 	line2 = msamlist2.readline()
 	while (line2 !=''):
 		altsupport_left=0
@@ -172,7 +182,10 @@ def main():
 		splitline2 = line2.split()
 		flag2 = int(splitline[1])
 		locName2 = splitline2[2]
-		secondbreakpoint = breakpoint+int(vcfcontent[locName2][0])
+		tmp = vcfcontent[locName2][5].split(";")
+		tmplist = tmp[1].split("=")
+		lenins = tmplist[1]
+		secondbreakpoint = breakpoint+int(lenins)
 		first_sep2 = locName2.find("-")
 		last_sep2 = locName2.rfind("-")
 		chrName2 = locName2[0:first_sep2]
@@ -201,23 +214,42 @@ def main():
 			j+=1
 			line2 = msamlist2.readline()
 		altsupport = float((altsupport_left+altsupport_right))/2
-		vcfcontent[locName2][3]= altsupport
+		vcfcontent[locName2][7]= altsupport
 	for a in vcfcontent:
 		elem = vcfcontent[a]
-		chrNameLoc=a.split('_')
+		chrNameLoc=a.split('-')
 		ratio=0
-		if elem[2]==0 and elem[3]==0:
-			fil.write("{0}\t{1}\t{2}\t{3}\t1/1\t{4}\t{5}\t{6}\n".format(chrNameLoc[0], chrNameLoc[1], elem[1], elem[0], elem[2], elem[3], str(ratio)) )
+		if elem[6]==0 and elem[7]==0:			
+			fil.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7};GRSUP={8};GISUP={9};GRATIO={10}\tGT\t1/1\n".format(chrNameLoc[0], chrNameLoc[1], elem[0], elem[1], elem[2], elem[3], elem[4], elem[5], elem[6], elem[7],str(ratio)) )
 		else:
-			ratio = (float(elem[3])-float(elem[2]))/(float(elem[3])+float(elem[2]))
+			ratio = (float(elem[7])-float(elem[6]))/(float(elem[7])+float(elem[6]))
 			if(ratio >= 0.3):
-				fil.write("{0}\t{1}\t{2}\t{3}\t1/1\t{4}\t{5}\t{6}\n".format(chrNameLoc[0], chrNameLoc[1], elem[1], elem[0], elem[2], elem[3], str(ratio)) )
+				fil.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7};GRSUP={8};GISUP={9};GRATIO={10}\tGT\t1/1\n".format(chrNameLoc[0], chrNameLoc[1], elem[0], elem[1], elem[2], elem[3], elem[4], elem[5], elem[6], elem[7],str(ratio)) )
 			elif(ratio <=-0.3):
-				fil.write("{0}\t{1}\t{2}\t{3}\t0/0\t{4}\t{5}\t{6}\n".format(chrNameLoc[0], chrNameLoc[1], elem[1], elem[0], elem[2], elem[3], str(ratio)) )
+				fil.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7};GRSUP={8};GISUP={9};GRATIO={10}\tGT\t0/0\n".format(chrNameLoc[0], chrNameLoc[1], elem[0], elem[1], elem[2], elem[3], elem[4], elem[5], elem[6], elem[7],str(ratio)) )
 			else:
-				fil.write("{0}\t{1}\t{2}\t{3}\t0/1\t{4}\t{5}\t{6}\n".format(chrNameLoc[0], chrNameLoc[1], elem[1], elem[0], elem[2], elem[3], str(ratio)) )
+				fil.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7};GRSUP={8};GISUP={9};GRATIO={10}\tGT\t0/1\n".format(chrNameLoc[0], chrNameLoc[1], elem[0], elem[1], elem[2], elem[3], elem[4], elem[5], elem[6], elem[7],str(ratio)) )
 	fil.close()
 
+	#Update VCF header file with new variables obtained from filtering
+	vcf_header = open("{0}/vcf_header_f".format(workdir),"r").readlines()
+	head = open("{0}/vcf_header_g".format(workdir),"w")
+	i=0
+	while i < len(vcf_header):
+		if vcf_header[i][2:8]=="contig":
+			break
+		head.write(vcf_header[i])
+		i+=1
+	head.write("##INFO=<ID=GRSUP,Number=1,Type=Float,Description=\"Number of reads passing through the breakpoint on template REF sequence\">\n")
+	head.write("##INFO=<ID=GISUP,Number=1,Type=Float,Description=\"Number of reads passing through the breakpoint on template INS sequence ((leftbreakpoint+rightbreakpoint)/2)\">\n")
+	head.write("##INFO=<ID=GRATIO,Number=1,Type=Float,Description=\"Ratio between GISUP and GRSUP (GISUP-GRSUP)/(GISUP+GRSUP)\">\n")
+	head.write("##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">\n")
+	while i < len(vcf_header)-1:
+		head.write(vcf_header[i])
+		i+=1
+	head.write(vcf_header[i][0:len(vcf_header[i])-1] + "\tFORMAT\t{0}\n".format(EXT))
+	head.close()
+	os.system("cat {0}/vcf_header_g {0}/insertions.out_wodups_filtered_setcov_genotype_{1} > {0}insertions_genotype_{1}.vcf".format(workdir, EXT))
 #############################################################################################
 if __name__ == "__main__":
     sys.exit(main())

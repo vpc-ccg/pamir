@@ -315,13 +315,24 @@ void print_header(const string &header_file, const string &reference)
 {
 	FILE *fo = fopen(header_file.c_str(),"w");
 	genome toread(reference.c_str());
+	char *absref = new char[1000];
+	char *baseref = new char[1000]; 
+	strcpy(absref,reference.c_str());
+	baseref = strtok(absref,"/");
+	char *prevref = new char[500];
+	while(baseref!=NULL)
+	{
+		strcpy(prevref,baseref);
+		baseref=strtok(NULL,"/");
+	}
 	toread.load_next();
 	fprintf(fo, "##fileformat=VCFv4.2\n");
 	fprintf(fo, "##FILTER=<ID=PASS,Description=\"All filters passed\">\n");
-	fprintf(fo, "##reference=%s\n",reference.c_str());
+	fprintf(fo, "##reference=%s\n",prevref);
 	fprintf(fo, "##source=Pamir\n");
+	fprintf(fo, "##ALT=<ID=<INS>,Type=String,Description=\"Insertion of novel sequence\">\n");
 	fprintf(fo, "##INFO=<ID=SVTYPE,Number=1,Type=String,Description=\"Type of structural variant\">\n");
-	fprintf(fo, "##INFO=<ID=SVLEN,Number=.,Type=Integer,Description=\"Difference in length between REF and ALT alleles\">\n");
+	fprintf(fo, "##INFO=<ID=SVLEN,Number=1,Type=Integer,Description=\"Difference in length between REF and ALT alleles\">\n");
 	fprintf(fo, "##INFO=<ID=END,Number=1,Type=Integer,Description=\"End coordinate of this variant\">\n");
 	fprintf(fo, "##INFO=<ID=Cluster,Number=1,Type=Integer,Description=\"ID of the cluster the variant is extracted from\">\n");
 	fprintf(fo, "##INFO=<ID=Support,Number=1,Type=Integer,Description=\"Number of reads/contigs supporting the contig\">\n");

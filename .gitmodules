@@ -1,0 +1,3 @@
+[submodule "mrsfast"]
+	path = mrsfast
+	url = https://github.com/sfu-compbio/mrsfast

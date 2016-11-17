@@ -37,6 +37,7 @@ def main():
 	args = sys.argv[1:]
 	if len(args) !=7:
 		usage()
+	MRSFAST= "mrsfast/mrsfast"
 	REF			=	sys.argv[2]
 	FILE		=	sys.argv[1]
 	readlength  =	int(sys.argv[3])
@@ -60,11 +61,9 @@ def main():
 	a = 2
 	vcfcontent = dict()
 	fil = open (FILE + "_filtered","w")
-	fil2 = open (FILE + "_filtered_forSETCOVER","w")
+	fil2 = open (FILE + "_filtered_for_setcov","w")
 
 	ref_dict = load_fasta(REF)
-	#for x,y in ref_dict.iteritems():
-	#	print x + "\t" + str(len(y))
 
 
 
@@ -82,9 +81,7 @@ def main():
 				r7 		= elem_ins[7]
 				tmplst 	= r7.split(";")
 				length 	= int(tmplst[1].split("=")[1])
-			#	length  = elem_ins[2]
 				seq		= tmplst[5].split("=")[1]
-			#	seq     = elem_ins[3]
 				leftCl  = int(TLEN-readlength)
 				rightCl = int(TLEN+length+1)
 				be=int(loc)-1-(TLEN+1)
@@ -94,7 +91,6 @@ def main():
 				left  = get_bed_seq( ref_dict, chrN, be, int(loc)-1)
 				right = get_bed_seq( ref_dict, chrN, int(loc)-1, en)
 				seqfa = left + seq + right
-				#seqfa = "{0}{1}{2}".format(left[:len(left)-1], seq, right[:len(right)-1] )
 				f.write(seqfa)
 				loc2 =loc
 				if(chrN==prev_chrN and loc==prev_loc):
@@ -132,8 +128,8 @@ def main():
 				start=start+len(left)+len(seq)+len(right)
 	f.close()
 	coor.close()
-	os.system("./mrsfast --index {0}/allinsertions.fa > {0}/mrsfast.index.log".format(folder))
-	os.system("./mrsfast --search {0}/allinsertions.fa --pe --min {1} --max {2} -o {0}/seq.mrsfast.sam -e 3 --seq {3}/all_interleaved.fastq --threads 24 --disable-sam-header --disable-nohits > {0}/.seq.mrsfast.sam.log".format(folder, MIN, MAX, workdir))
+	os.system(MRSFAST + " --index {0}/allinsertions.fa > {0}/mrsfast.index.log".format(folder))
+	os.system(MRSFAST + " --search {0}/allinsertions.fa --pe --min {1} --max {2} -o {0}/seq.mrsfast.sam -e 3 --seq {3}/all_interleaved.fastq --threads 24 --disable-sam-header --disable-nohits > {0}/.seq.mrsfast.sam.log".format(folder, MIN, MAX, workdir))
 	os.system("./recalibrate {0}/allinsertions.coor {0}/seq.mrsfast.sam {0}/seq.mrsfast.recal.sam".format(folder))
 	os.system("sort -k 3,3 -k 4,4n {0}/seq.mrsfast.recal.sam > {0}/seq.mrsfast.recal.sam.sorted".format(folder))
 	msamlist = open("{0}/seq.mrsfast.recal.sam.sorted".format(folder),"r")
@@ -192,27 +188,22 @@ def main():
 					ispass=1
 		elem = vcfcontent[locName]
 		if ispass ==1:
-			#fil.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\tPASS\n".format(chrName, location, elem[1], elem[0], lsupport, rsupport, tsupport) )
 			fil.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7};FLSUP={8};FRSUP={9};FSUP={10}\n".format(chrName, location, elem[4], elem[5], elem[6], elem[7], "PASS", elem[9], lsupport, rsupport, tsupport) )
-			#fil2.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\tPASS\n".format(locName, elem[1], elem[0], lsupport, rsupport, tsupport) )
 			fil2.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6};FLSUP={7};FRSUP={8};FSUP={9}\n".format(locName, elem[4], elem[5], elem[6], elem[7], "PASS", elem[9], lsupport, rsupport, tsupport) )
 			passed+=1
 		else:
-		#	fil.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\tFAIL\n".format(chrName, location, elem[1], elem[0], lsupport, rsupport, tsupport) )
 			fil.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7};FLSUP={8};FRSUP={9};FSUP={10}\n".format(chrName, location, elem[4], elem[5], elem[6], elem[7], "FAIL", elem[9], lsupport, rsupport, tsupport) )
-		#	fil2.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\tFAIL\n".format(locName, elem[1], elem[0], lsupport, rsupport, tsupport) )
 			fil2.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6};FLSUP={7};FRSUP={8};FSUP={9}\n".format(locName, elem[4], elem[5], elem[6], elem[7], "FAIL", elem[9], lsupport, rsupport, tsupport) )
 			failed+=1
 	fil.close()
 	fil2.close()
 	os.system("grep PASS "+FILE+"_filtered | awk '{print $2\"\t\"$4;}' | sort -k 1,1n > "+FILE+"_filtered_PASS_loc")
-	os.system("sort -k 1,1 "+FILE+"_filtered_forSETCOVER > "+FILE+"_filtered_forSETCOVER.sorted")
+	os.system("sort -k 1,1 "+FILE+"_filtered_for_setcov > "+FILE+"_filtered_for_setcov.sorted")
 	#Update VCF header file with new variables obtained from filtering
 	vcf_header = open("{0}/vcf_header".format(workdir),"r").readlines()
 	head = open("{0}/vcf_header_f".format(workdir),"w")
 	i=0
 	while i < len(vcf_header):
-		print vcf_header[i][2:8]
 		if vcf_header[i][2:8]=="contig":
 			break
 		head.write(vcf_header[i])

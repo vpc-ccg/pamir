@@ -21,7 +21,7 @@ class pipeline:
 	minia	   	= os.path.dirname(os.path.realpath(__file__)) + "/minia"
 	velveth		= os.path.dirname(os.path.realpath(__file__)) + "/velveth"
 	velvetg		= os.path.dirname(os.path.realpath(__file__)) + "/velvetg"
-	mrsfast  	= os.path.dirname(os.path.realpath(__file__)) + "/mrsfast"
+	mrsfast  	= os.path.dirname(os.path.realpath(__file__)) + "/mrsfast/mrsfast"
 	bedtools  	= os.path.dirname(os.path.realpath(__file__)) + "/bedtools"
 	samtools	= os.path.dirname(os.path.realpath(__file__)) + "/samtools"
 	recalibrate = os.path.dirname(os.path.realpath(__file__)) + "/recalibrate"
@@ -742,8 +742,8 @@ def update_partition(config ):
 	i=0
 	workNum=1
 	while i<clusterNum:
-		output_file   = "{0}/partitions_updated.vcfx{1}".format(workdir,workNum)
-		output_log	  = "{0}/partitions_updated.logx{1}".format(workdir,workNum)
+		output_file   = "{0}/insertions.outx{1}".format(workdir,workNum)
+		output_log	  = "{0}/insertions.logx{1}".format(workdir,workNum)
 		cmd           = pipeline.pamir + ' assemble {0} {1} {2}-{3} {4} 30000 {5} {7} > {6}'.format( input_file, ref_file, str(i),str(i+perJob), output_file, str(config.get("project","readlength")), output_log, workdir)
 		f.write(cmd+'\n')
 		i+=perJob
@@ -764,11 +764,11 @@ def update_partition(config ):
 	cmd2="cat "
 	cmd3="cat "
 	while i< workNum:
-		cmd+="{0}/partitions_updated.vcfx{1} ".format(workdir,i)
-		cmd2+="{0}/partitions_updated.logx{1} ".format(workdir,i)
+		cmd+="{0}/insertions.outx{1} ".format(workdir,i)
+		cmd2+="{0}/insertions.logx{1} ".format(workdir,i)
 		i+=1
-	cmd+="> {0}/partitions_updated.vcf".format(workdir)
-	cmd2+="> {0}/partitions_updated.log".format(workdir)
+	cmd+="> {0}/insertions.out".format(workdir)
+	cmd2+="> {0}/insertions.log".format(workdir)
 	cmdall=cmd+";"+cmd2
 	freeze_arg=""
 	control_file  = "{0}/log/24.concatenate_vcf.log".format(workdir)
@@ -779,7 +779,7 @@ def update_partition(config ):
 ### index partitions_updated.log
 
 	msg = "Indexing log file"
-	cmd = pipeline.pamir + " index_log {0}/partitions_updated.log".format(workdir)
+	cmd = pipeline.pamir + " index_log {0}/insertions.log".format(workdir)
 	freeze_arg=""
 	control_file  = "{0}/log/25.index_log.log".format(workdir)
 	complete_file = "{0}/stage/25.index_log.finished".format(workdir)
@@ -790,25 +790,25 @@ def update_partition(config ):
 def dupremoval_cleaning(config):	
 	workdir		  = pipeline.workdir
 	freeze_arg=""
-	control_file  = "{0}/log/27.sort_and_filter_duplicate_calls.log".format(workdir)
-	complete_file = "{0}/stage/27.sort_and_filter_duplicate_calls.finished".format(workdir)
+	control_file  = "{0}/log/26.sort_and_filter_duplicate_calls.log".format(workdir)
+	complete_file = "{0}/stage/26.sort_and_filter_duplicate_calls.finished".format(workdir)
 	run_cmd		  = not (os.path.isfile(complete_file))
-	cmd			  = "python " + pipeline.sortvcf + " {0}/partitions_updated.vcf {0}/partitions_updated.vcf_wodups 1".format(workdir)
+	cmd			  = "python " + pipeline.sortvcf + " {0}/insertions.out {0}/insertions.out_wodups 1".format(workdir)
 	msg="Sorting VCF file and eliminating duplicated insertions"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
-	msg = "You can check output file now: partitions_updated.vcf_wodups"
+	msg = "You can check output file now: insertions.out_wodups"
 	shell(msg,True,"")
-	control_file  = "{0}/log/28.remove_partials.log".format(workdir)
-	complete_file = "{0}/stage/28.remove_partials.finished".format(workdir)
+	control_file  = "{0}/log/27.remove_partials.log".format(workdir)
+	complete_file = "{0}/stage/27.remove_partials.finished".format(workdir)
 	run_cmd       = not (os.path.isfile(complete_file))
-	cmd="rm {0}/partitions_updated.vcfx* {0}/partitions_updated.logx*".format(workdir)
+	cmd="rm {0}/insertions.outx* {0}/insertions.logx*".format(workdir)
 	msg="Deleting partial outputs"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
-	control_file  = "{0}/log/29.generate_loclen.log".format(workdir)
-	complete_file = "{0}/stage/29.generate_loclen.finished".format(workdir)
+	control_file  = "{0}/log/28.vcf_insertions.log".format(workdir)
+	complete_file = "{0}/stage/28.vcf_insertions.finished".format(workdir)
 	run_cmd       = not (os.path.isfile(complete_file))
-	cmd="cut -f2,3 {0}/partitions_updated.vcf_wodups > {0}/partitions_updated.vcf_wodups_loclen".format(workdir)
-	msg="Generating _loclen"
+	cmd="cat {0}/vcf_header {0}/insertions.out_wodups > {0}/insertions.vcf".format(workdir)
+	msg="Adding header to insertions"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 ######################################################################################
 #### filtering and genotyping.
@@ -816,46 +816,60 @@ def post_processing(config):
 	workdir		  = pipeline.workdir
 	TLEN = 1000
 	freeze_arg=""
-	control_file  = "{0}/log/30.filtering.log".format(workdir)
-	complete_file = "{0}/stage/30.filtering.finished".format(workdir)
+	control_file  = "{0}/log/29.filtering.log".format(workdir)
+	complete_file = "{0}/stage/29.filtering.finished".format(workdir)
 	run_cmd		  = not (os.path.isfile(complete_file))
-	cmd			  = pipeline.filtering + " {0}/partitions_updated.vcf_wodups {0}/{1}.masked {2} {3} {4} {0} {5}".format(workdir, config.get("project","reference"), config.get("project","readlength"), config.get("mrsfast","min"), config.get("mrsfast","max"), str(TLEN))
+	cmd			  = pipeline.filtering + " {0}/insertions.out_wodups {0}/{1}.masked {2} {3} {4} {0} {5}".format(workdir, config.get("project","reference"), config.get("project","readlength"), config.get("mrsfast","min"), config.get("mrsfast","max"), str(TLEN))
 	msg="Filtering insertion candidates"
+	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
+	###### Make filtering output VCF
+	control_file  = "{0}/log/30.vcf_filtering_output.log".format(workdir)
+	complete_file = "{0}/stage/30.vcf_filtering_output.finished".format(workdir)
+	run_cmd		  = not (os.path.isfile(complete_file))
+	cmd			  = "cat {0}/vcf_header_f {0}/insertions.out_wodups_filtered > {0}/insertions_filtered.vcf".format(workdir)
+	msg="Making filtering output a VCF file"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 	###### Prepare input file for setcover
 	control_file  = "{0}/log/31.generate_set_cover_input.log".format(workdir)
 	complete_file = "{0}/stage/31.generate_set_cover_input.finished".format(workdir)
 	run_cmd		  = not (os.path.isfile(complete_file))
-	cmd			  = pipeline.gensetcov + " {0}/partitions_updated.vcf_wodups_filtered_forSETCOVER.sorted {0}/filtering/seq.mrsfast.recal.sam.sorted {0}/forSETCOVER".format(workdir)
+	cmd			  = pipeline.gensetcov + " {0}/insertions.out_wodups_filtered_for_setcov.sorted {0}/filtering/seq.mrsfast.recal.sam.sorted {0}/for_setcov".format(workdir)
 	msg="Preparing input file for setcover"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 	###### Run setcover
 	control_file  = "{0}/log/32.setcover.log".format(workdir)
 	complete_file = "{0}/stage/32.setcover.finished".format(workdir)
 	run_cmd		  = not (os.path.isfile(complete_file))
-	cmd			  = pipeline.smoother + " {0}/forSETCOVER > {0}/fromSETCOVER".format(workdir)
+	cmd			  = pipeline.smoother + " {0}/for_setcov > {0}/from_setcov".format(workdir)
 	msg="Running setcover"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 	###### Eliminate the ones removed by setcover
 	control_file  = "{0}/log/33.filter_by_setcover.log".format(workdir)
 	complete_file = "{0}/stage/33.filter_by_setcover.finished".format(workdir)
 	run_cmd		  = not (os.path.isfile(complete_file))
-	cmd			  = pipeline.filterbysetcover + " {0}/fromSETCOVER {0}/partitions_updated.vcf_wodups_filtered {0}/partitions_updated.vcf_wodups_filtered_setcov".format(workdir)
+	cmd			  = pipeline.filterbysetcover + " {0}/from_setcov {0}/insertions.out_wodups_filtered {0}/insertions.out_wodups_filtered_setcov".format(workdir)
 	msg="Filter removed calls by setcover"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 	###### Grep PASS calls
 	control_file  = "{0}/log/34.grepPASS.log".format(workdir)
 	complete_file = "{0}/stage/34.grepPASS.finished".format(workdir)
 	run_cmd		  = not (os.path.isfile(complete_file))
-	cmd			  = "grep PASS {0}/partitions_updated.vcf_wodups_filtered_setcov > {0}/partitions_updated.vcf_wodups_filtered_setcov_PASS".format(workdir)
+	cmd			  = "grep PASS {0}/insertions.out_wodups_filtered_setcov > {0}/insertions.out_wodups_filtered_setcov_PASS".format(workdir)
 	msg="Grep PASS calls"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 	###### Sort setcover output
-	control_file  = "{0}/log/35.sortSETCover.log".format(workdir)
-	complete_file = "{0}/stage/35.sortSETCover.finished".format(workdir)
+	control_file  = "{0}/log/35.sort_setcover.log".format(workdir)
+	complete_file = "{0}/stage/35.sort_setcover.finished".format(workdir)
 	run_cmd		  = not (os.path.isfile(complete_file))
-	cmd			  = "perl " + pipeline.sortfile + " {0}/partitions_updated.vcf_wodups_filtered_setcov_PASS".format(workdir)
+	cmd			  = "perl " + pipeline.sortfile + " {0}/insertions.out_wodups_filtered_setcov_PASS".format(workdir)
 	msg="Sort setcover output"
+	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
+	###### VCF setcover output
+	control_file  = "{0}/log/36.vcf_setcover.log".format(workdir)
+	complete_file = "{0}/stage/36.vcf_setcover.finished".format(workdir)
+	run_cmd		  = not (os.path.isfile(complete_file))
+	cmd			  = "cat {0}/vcf_header_f {0}/insertions.out_wodups_filtered_setcov_PASS > {0}/insertions_setcover.vcf".format(workdir)
+	msg="Make setcover output a VCF file"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 #############################################################################################
 ###### Running commands for extracting clusters 
@@ -968,7 +982,7 @@ def is_exec(f):
 	return os.path.isfile(f) and os.access(f, os.X_OK)
 #############################################################################################
 def check_binary_preq():
-	execs = ['mrsfast', 'pamir']
+	execs = ['mrsfast/mrsfast', 'pamir']
 	log( "Checking binary pre-requisites... ")
 	for exe in execs:
 		exe = os.path.dirname(os.path.realpath(__file__)) + "/" + exe
