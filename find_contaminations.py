@@ -21,8 +21,7 @@ def main():
 	fout = open(sys.argv[2], 'w')
 	contiglist=[]
 	contiginfo=[]
-	#notcontaminant = ['Human','Homo', 'sapiens', 'H.sapiens', 'troglodytes', 'Gorilla', 'pygmaeus', 'mulatta', 'Rhinopithecus', 'Papio', 'Macaque', 'musculus', 'Callithrix', 'Colobus', 'fascicularis', 'Ailuropoda', 'Aotus', 'abelii', 'Pongo', 'Microcebus', 'Chinchilla', 'Macaca', 'macaque', 'aethiops', 'Mouse', 'Bovine', 'taurus', 'Pig', 'Canadensis', 'Ovis', 'gallus', 'Gallus']
-	notcontaminant = ['Human', 'H.sapiens', 'Homo', 'sapiens', 'troglodytes', 'Gorilla', 'pygmaeus', 'mulatta', 'Rhinopithecus', 'Papio', 'Macaque', 'musculus', 'Callithrix', 'Colobus', 'fascicularis', 'Ailuropoda', 'Aotus', 'abelii', 'Pongo', 'Microcebus', 'Chinchilla', 'Macaca', 'macaque', 'aethiops', 'Mouse', 'canadensis','monkey','squirrel','Chlorocebus','Myotis','gallus','Gallus','citb_109_p_11,']
+	notcontaminant = ['Human', 'H.sapiens', 'Homo', 'sapiens', 'troglodytes', 'Gorilla', 'pygmaeus', 'mulatta', 'Rhinopithecus', 'Papio', 'Macaque', 'musculus', 'Callithrix', 'Colobus', 'fascicularis', 'Ailuropoda', 'Aotus', 'abelii', 'Pongo', 'Microcebus', 'Chinchilla', 'Macaca', 'macaque', 'aethiops', 'Mouse', 'canadensis','monkey','squirrel', 'Pig', 'Canadensis', 'Ovis', 'Chlorocebus','Myotis','gallus','Gallus','citb_109_p_11,', 'Methylobacterium']
 	i=0
 	line = fin.readline()
 	while(line!=''):
@@ -30,7 +29,7 @@ def main():
 		contiginfo=[]
 		contiginfo.append(elems[1]);
 		line = fin.readline()
-		elems = elems.strip().split("=");
+		elems = line.strip().split("=");
 		contiginfo.append(elems[1]);
 		line = fin.readline()
 		if line!='':

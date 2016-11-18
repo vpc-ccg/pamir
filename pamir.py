@@ -49,9 +49,9 @@ class pipeline:
 	example += "\t$ ./pamir.py -p my_project -r ref.fa --files mrsfast-best-search=my.best.sam\n"
 	example += "\n\t--starting with a masked file\n"
 	example += "\t$ ./pamir.py -p my_project -r ref.fa -m my-mask.txt  --files alignment=my.sam\n"	
-	example += "\n\n\tTo resume a project, just type project folder and pamir.py will automatically resume from the previous stages:\n"
-	example += "\t$ ./pamir.py -p my_project\n"
-	example += "\t$ ./pamir.py -p /home/this/is/my/folder/project\n"
+	example += "\n\n\tTo resume a project, just type project folder and \'--resume\'. pamir.py will automatically resume from the previous stages:\n"
+	example += "\t$ ./pamir.py -p my_project --resume\n"
+	example += "\t$ ./pamir.py -p /home/this/is/my/folder/project --resume\n"
 
 
 #############################################################################################
@@ -82,7 +82,7 @@ def command_line_process():
 	parser.add_argument('--max-contig','-c',
 		type=int,
 		metavar='max_contig',
-		help="Maximum size of assembled contigs. (default: 400)",
+		help="Maximum size of assembled contigs. (default: 25000)",
 	)
 	parser.add_argument('--donot-remove-contaminant',
 		action='store_true',
@@ -505,8 +505,8 @@ def remove_contamination_orphan_contig(config):
 	workdir		  = pipeline.workdir
 	if config.get("project", "donot-remove-contaminant") == "True":
 		cmd = "cp {0}/orphan.fq.contigs.fa {0}/orphan.fq.contigs.wocontaminations.fa".format(workdir)
-		shell("", True, cmd, "", "", ""
-	else:)
+		shell("", True, cmd, "", "", "")
+	else:
 		msg			  = "Mapping orphan contigs onto BLAST NT database"
 		input_file    = "{0}/orphan.fq.contigs.fa".format(workdir)
 		control_file  = "{0}/log/11.blast_nt_orphan_contig.log".format(workdir);
@@ -550,6 +550,15 @@ def remove_contamination_orphan_contig(config):
 	#	if ( run_cmd ):
 	#		clean_state( 16, workdir, config )
 		shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg )
+		msg = "Warning: Please check your orphan.fq.contigs.contaminations file if it includes anything other than a contamination. You can update the file and re-run the command with --resume"
+		cmd = "echo \"\""
+		control_file  = "{0}/log/15.print_contamination_message.log".format(workdir);
+		complete_file = "{0}/stage/14.print_contamination_message.finished".format(workdir);
+		freeze_arg    = ""
+		run_cmd		  = not(os.path.isfile(complete_file))
+		if run_cmd:
+			shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg )
+			exit(1)
 #############################################################################################
 ###### Preparing necessary file for orphan.contigs.fa to make it a single line ref: Easier to map.
 def prepare_orphan_contig(config):
@@ -903,26 +912,26 @@ def remove_concordant_for_each_bestsam(config):
 #############################################################################################
 ###### Running commands for each mode 
 def run_command(config, force=False):
-#	verify_sam(config)
-#	mask(config)
-#	index(config)
-#	mrsfast_best_search(config)
-#	remove_concordant_for_each_bestsam(config)
-#	mrsfast_search(config)
-#	sort(config)
-#	modify_oea_unmap(config)
-#	partition(config)
-#	orphan_assembly(config)
-#	prepare_orphan_contig(config)
-#	oea_to_orphan(config)
-#	oea_to_orphan_split(config)
-#	recalibrate_all_oea_to_orphan(config)
-#	orphans_into_oeacluster(config)
-#	print_header(config)
-#	update_partition(config)
-#	dupremoval_cleaning(config)
-#	post_processing(config)
+	verify_sam(config)
+	mask(config)
+	index(config)
+	mrsfast_best_search(config)
+	remove_concordant_for_each_bestsam(config)
+	mrsfast_search(config)
+	sort(config)
+	modify_oea_unmap(config)
+	partition(config)
+	orphan_assembly(config)
 	remove_contamination_orphan_contig(config)
+	prepare_orphan_contig(config)
+	oea_to_orphan(config)
+	oea_to_orphan_split(config)
+	recalibrate_all_oea_to_orphan(config)
+	orphans_into_oeacluster(config)
+	print_header(config)
+	update_partition(config)
+	dupremoval_cleaning(config)
+	post_processing(config)
 	exit(0)
 
 #############################################################################################
@@ -1086,7 +1095,7 @@ def initialize_config_pamir( config, args):
 	workdir = pipeline.workdir
 	config.add_section("pamir")
 	config.set("pamir", "max-contig", str( args.max_contig ) if args.max_contig != None else  "25000")
-	config.set("pamir", "max-error", str( args.max_error ) if args.max_error != None else "1")
+	#config.set("pamir", "max-error", str( args.max_error ) if args.max_error != None else "1")
 	config.set("pamir", "mask-file", args.mask_file if args.mask_file != None else "" )
 	config.set("pamir", "engine-mode",args.mode if args.mode != None else "normal")
 	config.set("pamir", "invert-masker", str(args.invert_masker) if args.invert_masker !=None else "False")
@@ -1148,7 +1157,7 @@ def check_project_preq():
 		config.set("project", "fastq",'')
 		config.set("project", "mrsfast-best-search",'')
 		config.set("project", "assembler",str(args.assembler) if args.assembler!=None else "velvet")
-		config.set("project", "donot-remove-contaminant", str( args.remove_contaminant ) if args.remove_contaminant ==True else False)
+		config.set("project", "donot-remove-contaminant", str( args.donot_remove_contaminant ) if args.donot_remove_contaminant ==True else False)
 		config = get_input_file( config, args.files)
 
 		# Parameters for other parts in the pipeline

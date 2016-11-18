@@ -5,13 +5,15 @@ SOURCES=partition.cc pamir.cc assembler.cc genome.cc aligner.cc  assembler_ext.c
 LDFLAGS=-lm -lz
 OBJECTS=$(SOURCES:.cc=.o) 
 EXECUTABLE=pamir
-all: snp pp rc es sm mf
-basic: snp pp rc es mf
+all: snp pp rc es sm mf cm
+basic: snp pp rc es mf cm
 
 pp: 
 	g++ -std=gnu++0x -O3 -o partition_processor partition_processor.cc common.cc
 rc: 
 	g++ -O3 -o recalibrate recalibrate.cc
+cm: 
+	g++ -O3 -o clean clean_megablast.cc
 es: 
 	g++ -O3 -o extract_support extract_support.cc common.cc
 sm:
@@ -34,3 +36,4 @@ clean:
 	rm -f recalibrate
 	rm -f extract_support
 	rm -f smoother
+	rm -f clean
