@@ -34,7 +34,7 @@ class pipeline:
 	genotyping			= os.path.dirname(os.path.realpath(__file__)) + "/genotyping.py"
 	filterbysetcover	= os.path.dirname(os.path.realpath(__file__)) + "/filter_by_setcover.py"
 	sortfile			= os.path.dirname(os.path.realpath(__file__)) + "/sort_file.pl"
-	blastn				= "/cs/compbio3/yenyil/Pinar/LIB/ncbi-blast-2.3.0+/bin/blastn"
+	blast				= os.path.dirname(os.path.realpath(__file__)) + "/blast"
 	clean				= os.path.dirname(os.path.realpath(__file__)) + "/clean"
 	contaminantFinder	= os.path.dirname(os.path.realpath(__file__)) + "/find_contaminations.py"
 	contaminantRemover	= os.path.dirname(os.path.realpath(__file__)) + "/remove_contaminations.py"
@@ -512,8 +512,8 @@ def remove_contamination_orphan_contig(config):
 		control_file  = "{0}/log/11.blast_nt_orphan_contig.log".format(workdir);
 		complete_file = "{0}/stage/11.blast_nt_orphan_contig.finished".format(workdir);
 		freeze_arg    = ""
-		NT			  = "/cs/compbio3/yenyil/Pinar/LIB/ncbi-blast-2.3.0+/db/nt"
-		cmd           =  pipeline.blastn + ' -task megablast -query {0} -db {1} -num_threads 24 > {2}/orphan.fq.contigs.fa_2_NT.megablast'.format(input_file, NT, workdir)
+		NT			  = pipeline.blast + "/db/nt"
+		cmd           = pipeline.blast + '/bin/blastn -task megablast -query {0} -db {1} -num_threads 24 > {2}/orphan.fq.contigs.fa_2_NT.megablast'.format(input_file, NT, workdir)
 		run_cmd       = not (os.path.isfile(complete_file) )
 	#	if ( run_cmd ):
 	#		clean_state( 11, workdir, config )
@@ -553,7 +553,7 @@ def remove_contamination_orphan_contig(config):
 		msg = "Warning: Please check your orphan.fq.contigs.contaminations file if it includes anything other than a contamination. You can update the file and re-run the command with --resume"
 		cmd = "echo \"\""
 		control_file  = "{0}/log/15.print_contamination_message.log".format(workdir);
-		complete_file = "{0}/stage/14.print_contamination_message.finished".format(workdir);
+		complete_file = "{0}/stage/15.print_contamination_message.finished".format(workdir);
 		freeze_arg    = ""
 		run_cmd		  = not(os.path.isfile(complete_file))
 		if run_cmd:
@@ -592,8 +592,8 @@ def prepare_orphan_contig(config):
 	fcoor.close()
 	msg			  = "Indexing orphan.contigs.single.ref"
 	cmd			  = pipeline.mrsfast + " --index {0}".format(output_file2)
-	control_file  = "{0}/log/11.index_orphan_ref.log".format(workdir);
-	complete_file = "{0}/stage/11.index_orphan_ref.finished".format(workdir);
+	control_file  = "{0}/log/16.index_orphan_ref.log".format(workdir);
+	complete_file = "{0}/stage/16.index_orphan_ref.finished".format(workdir);
 	freeze_arg    = ""
 	run_cmd       = not (os.path.isfile(complete_file) )
 #	if ( run_cmd ):
@@ -607,8 +607,8 @@ def oea_to_orphan(config):
 	orphan_ref    = "{0}/orphan.contigs.single.ref".format(workdir)
 	seq_fastq	  = "{0}/oea.unmapped.fq".format(workdir)
 	output_file   = "{0}/oea2orphan.sam".format(workdir)
-	control_file  = "{0}/log/16.oea2orphan.log".format(workdir);
-	complete_file = "{0}/stage/16.oea2orphan.finished".format(workdir);
+	control_file  = "{0}/log/17.oea2orphan.log".format(workdir);
+	complete_file = "{0}/stage/17.oea2orphan.finished".format(workdir);
 	freeze_arg    = ""
 	cmd           = pipeline.mrsfast + ' --search {0} --seq {1} -o {3} -e 0 --disable-sam-header'.format(orphan_ref, seq_fastq, config.get("project","readlength"),output_file)
 	run_cmd       = not (os.path.isfile(complete_file) )
@@ -624,8 +624,8 @@ def oea_to_orphan_split(config):
 	orphan_ref    = "{0}/orphan.contigs.single.ref".format(workdir)
 	input_fastq	  = "{0}/oea2orphan.sam.nohit".format(workdir)
 	output_file   = "{0}/split1_oea2orphan.sam".format(workdir)
-	control_file  = "{0}/log/17.split1_oea2orphan.log".format(workdir);
-	complete_file = "{0}/stage/17.split1_oea2orphan.finished".format(workdir);
+	control_file  = "{0}/log/18.split1_oea2orphan.log".format(workdir);
+	complete_file = "{0}/stage/18.split1_oea2orphan.finished".format(workdir);
 	freeze_arg    = ""
 	half 		  = (int(config.get("project","readlength"))/2)
 	cmd           = pipeline.mrsfast + ' --search {0} --seq {1} -o {2} --crop {3} -e 0 --disable-sam-header'.format(orphan_ref, input_fastq, output_file, str(half))
@@ -640,8 +640,8 @@ def oea_to_orphan_split(config):
 	orphan_ref    = "{0}/orphan.contigs.single.ref".format(workdir)
 	input_fastq	  = "{0}/oea2orphan.sam.nohit".format(workdir)
 	output_file   = "{0}/split2_oea2orphan.sam".format(workdir)
-	control_file  = "{0}/log/18.split2_oea2orphan.log".format(workdir);
-	complete_file = "{0}/stage/18.split2_oea2orphan.finished".format(workdir);
+	control_file  = "{0}/log/19.split2_oea2orphan.log".format(workdir);
+	complete_file = "{0}/stage/19.split2_oea2orphan.finished".format(workdir);
 	freeze_arg    = ""
 	cmd           = pipeline.mrsfast + ' --search {0} --seq {1} -o {2} --tail-crop {3} -e 0 --disable-sam-header'.format(orphan_ref, input_fastq, output_file, str(half))
 	run_cmd       = not (os.path.isfile(complete_file) )
@@ -654,8 +654,8 @@ def oea_to_orphan_split(config):
 	input_file2    = "{0}/split2_oea2orphan.sam".format(workdir)
 	input_file3    = "{0}/oea2orphan.sam".format(workdir)
 	output_file    = "{0}/all_oea2orphan.sam".format(workdir)
-	control_file   = "{0}/log/19.concat_all_oea2orphan.log".format(workdir);
-	complete_file  = "{0}/stage/19.concat_all_oea2orphan.finished".format(workdir);
+	control_file   = "{0}/log/20.concat_all_oea2orphan.log".format(workdir);
+	complete_file  = "{0}/stage/20.concat_all_oea2orphan.finished".format(workdir);
 	freeze_arg     = ""
 	cmd            = "cat {0} {1} {2} > {3}".format(input_file1, input_file2, input_file3, output_file)
 	freeze_arg=""
@@ -671,8 +671,8 @@ def recalibrate_all_oea_to_orphan(config):
 	input_file    = "{0}/all_oea2orphan.sam".format(workdir)
 	output_file   = "{0}/all_oea2orphan.recal.sam".format(workdir)
 	coor_file     = "{0}/orphan.contigs.single.coor".format(workdir)
-	control_file  = "{0}/log/20.all_oea2orphan_recal.log".format(workdir);
-	complete_file = "{0}/stage/20.all_oea2orphan_recal.finished".format(workdir);
+	control_file  = "{0}/log/21.all_oea2orphan_recal.log".format(workdir);
+	complete_file = "{0}/stage/21.all_oea2orphan_recal.finished".format(workdir);
 	freeze_arg    = ""
 	cmd           = "{0} {1} {2} {3}".format(pipeline.recalibrate, coor_file, input_file, output_file)
 	freeze_arg=""
@@ -690,8 +690,8 @@ def orphans_into_oeacluster(config):
 	oea_to_orphan   = "{0}/all_oea2orphan.recal.sam".format(workdir)
 	partition_file   = "{0}/partitions".format(workdir)
 	upartition_file   = "{0}/partitions_updated".format(workdir)
-	control_file  = "{0}/log/21.insert_orphans_into_cluster.log".format(workdir)
-	complete_file = "{0}/stage/21.insert_orphans_into_cluster.finished".format(workdir)
+	control_file  = "{0}/log/22.insert_orphans_into_cluster.log".format(workdir)
+	complete_file = "{0}/stage/22.insert_orphans_into_cluster.finished".format(workdir)
 	clusterNumFile = "{0}/clusterNum".format(workdir);
 	freeze_arg    = ""
 	cmd           = pipeline.pprocessor + ' {0} {1} {2} {3} {4} > {5}'.format(orphan_ref, orphan_to_orphan, oea_to_orphan, partition_file, upartition_file, clusterNumFile)
@@ -707,8 +707,8 @@ def print_header(config):
 	workdir		  = pipeline.workdir
 	header_file    = "{0}/vcf_header".format(workdir)
 	ref_file	  = "{0}/{1}".format(workdir,config.get("project","reference"))
-	control_file  = "{0}/log/22.printheader.log".format(workdir)
-	complete_file = "{0}/stage/22.printheader.finished".format(workdir)
+	control_file  = "{0}/log/23.printheader.log".format(workdir)
+	complete_file = "{0}/stage/23.printheader.finished".format(workdir)
 	cmd           = pipeline.pamir + ' header {0} {1}'.format( header_file, ref_file)
 	run_cmd       = not (os.path.isfile(complete_file))
 	if ( run_cmd ):
@@ -723,8 +723,8 @@ def update_partition(config ):
 	workdir		  = pipeline.workdir
 	input_file    = "{0}/partitions_updated".format(workdir)
 	ref_file	  = "{0}/{1}".format(workdir,config.get("project","reference"))
-	control_file  = "{0}/log/23.update_partition.log".format(workdir)
-	complete_file = "{0}/stage/23.update_partition.finished".format(workdir)
+	control_file  = "{0}/log/24.update_partition.log".format(workdir)
+	complete_file = "{0}/stage/24.update_partition.finished".format(workdir)
 	clusterNumFile= "{0}/clusterNum".format(workdir)
 	clusterNum=int(open(clusterNumFile).read())
 	perJob=clusterNum/int(config.get("project","num-worker"))
@@ -763,8 +763,8 @@ def update_partition(config ):
 	cmd2+="> {0}/insertions.log".format(workdir)
 	cmdall=cmd+";"+cmd2
 	freeze_arg=""
-	control_file  = "{0}/log/24.concatenate_vcf.log".format(workdir)
-	complete_file = "{0}/stage/24.concatenate_vcf.finished".format(workdir)
+	control_file  = "{0}/log/25.concatenate_vcf.log".format(workdir)
+	complete_file = "{0}/stage/25.concatenate_vcf.finished".format(workdir)
 	run_cmd       = not (os.path.isfile(complete_file) )
 	shell( msg, run_cmd, cmdall, control_file, complete_file, freeze_arg)
 
@@ -773,8 +773,8 @@ def update_partition(config ):
 	msg = "Indexing log file"
 	cmd = pipeline.pamir + " index_log {0}/insertions.log".format(workdir)
 	freeze_arg=""
-	control_file  = "{0}/log/25.index_log.log".format(workdir)
-	complete_file = "{0}/stage/25.index_log.finished".format(workdir)
+	control_file  = "{0}/log/26.index_log.log".format(workdir)
+	complete_file = "{0}/stage/26.index_log.finished".format(workdir)
 	run_cmd       = not (os.path.isfile(complete_file) )
 	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
 ######################################################################################
@@ -782,22 +782,22 @@ def update_partition(config ):
 def dupremoval_cleaning(config):	
 	workdir		  = pipeline.workdir
 	freeze_arg=""
-	control_file  = "{0}/log/26.sort_and_filter_duplicate_calls.log".format(workdir)
-	complete_file = "{0}/stage/26.sort_and_filter_duplicate_calls.finished".format(workdir)
+	control_file  = "{0}/log/27.sort_and_filter_duplicate_calls.log".format(workdir)
+	complete_file = "{0}/stage/27.sort_and_filter_duplicate_calls.finished".format(workdir)
 	run_cmd		  = not (os.path.isfile(complete_file))
 	cmd			  = "python " + pipeline.sortvcf + " {0}/insertions.out {0}/insertions.out_wodups 1".format(workdir)
 	msg="Sorting VCF file and eliminating duplicated insertions"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 	msg = "You can check output file now: insertions.out_wodups"
 	shell(msg,True,"")
-	control_file  = "{0}/log/27.remove_partials.log".format(workdir)
-	complete_file = "{0}/stage/27.remove_partials.finished".format(workdir)
+	control_file  = "{0}/log/28.remove_partials.log".format(workdir)
+	complete_file = "{0}/stage/28.remove_partials.finished".format(workdir)
 	run_cmd       = not (os.path.isfile(complete_file))
 	cmd="rm {0}/insertions.outx* {0}/insertions.logx*".format(workdir)
 	msg="Deleting partial outputs"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
-	control_file  = "{0}/log/28.vcf_insertions.log".format(workdir)
-	complete_file = "{0}/stage/28.vcf_insertions.finished".format(workdir)
+	control_file  = "{0}/log/29.vcf_insertions.log".format(workdir)
+	complete_file = "{0}/stage/29.vcf_insertions.finished".format(workdir)
 	run_cmd       = not (os.path.isfile(complete_file))
 	cmd="cat {0}/vcf_header {0}/insertions.out_wodups > {0}/insertions.vcf".format(workdir)
 	msg="Adding header to insertions"
@@ -808,57 +808,57 @@ def post_processing(config):
 	workdir		  = pipeline.workdir
 	TLEN = 1000
 	freeze_arg=""
-	control_file  = "{0}/log/29.filtering.log".format(workdir)
-	complete_file = "{0}/stage/29.filtering.finished".format(workdir)
+	control_file  = "{0}/log/30.filtering.log".format(workdir)
+	complete_file = "{0}/stage/30.filtering.finished".format(workdir)
 	run_cmd		  = not (os.path.isfile(complete_file))
 	cmd			  = pipeline.filtering + " {0}/insertions.out_wodups {0}/{1}.masked {2} {3} {4} {0} {5}".format(workdir, config.get("project","reference"), config.get("project","readlength"), config.get("mrsfast","min"), config.get("mrsfast","max"), str(TLEN))
 	msg="Filtering insertion candidates"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 	###### Make filtering output VCF
-	control_file  = "{0}/log/30.vcf_filtering_output.log".format(workdir)
-	complete_file = "{0}/stage/30.vcf_filtering_output.finished".format(workdir)
+	control_file  = "{0}/log/31.vcf_filtering_output.log".format(workdir)
+	complete_file = "{0}/stage/31.vcf_filtering_output.finished".format(workdir)
 	run_cmd		  = not (os.path.isfile(complete_file))
 	cmd			  = "cat {0}/vcf_header_f {0}/insertions.out_wodups_filtered > {0}/insertions_filtered.vcf".format(workdir)
 	msg="Making filtering output a VCF file"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 	###### Prepare input file for setcover
-	control_file  = "{0}/log/31.generate_set_cover_input.log".format(workdir)
-	complete_file = "{0}/stage/31.generate_set_cover_input.finished".format(workdir)
+	control_file  = "{0}/log/32.generate_set_cover_input.log".format(workdir)
+	complete_file = "{0}/stage/32.generate_set_cover_input.finished".format(workdir)
 	run_cmd		  = not (os.path.isfile(complete_file))
 	cmd			  = pipeline.gensetcov + " {0}/insertions.out_wodups_filtered_for_setcov.sorted {0}/filtering/seq.mrsfast.recal.sam.sorted {0}/for_setcov".format(workdir)
 	msg="Preparing input file for setcover"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 	###### Run setcover
-	control_file  = "{0}/log/32.setcover.log".format(workdir)
-	complete_file = "{0}/stage/32.setcover.finished".format(workdir)
+	control_file  = "{0}/log/33.setcover.log".format(workdir)
+	complete_file = "{0}/stage/33.setcover.finished".format(workdir)
 	run_cmd		  = not (os.path.isfile(complete_file))
 	cmd			  = pipeline.smoother + " {0}/for_setcov > {0}/from_setcov".format(workdir)
 	msg="Running setcover"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 	###### Eliminate the ones removed by setcover
-	control_file  = "{0}/log/33.filter_by_setcover.log".format(workdir)
-	complete_file = "{0}/stage/33.filter_by_setcover.finished".format(workdir)
+	control_file  = "{0}/log/34.filter_by_setcover.log".format(workdir)
+	complete_file = "{0}/stage/34.filter_by_setcover.finished".format(workdir)
 	run_cmd		  = not (os.path.isfile(complete_file))
 	cmd			  = pipeline.filterbysetcover + " {0}/from_setcov {0}/insertions.out_wodups_filtered {0}/insertions.out_wodups_filtered_setcov".format(workdir)
 	msg="Filter removed calls by setcover"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 	###### Grep PASS calls
-	control_file  = "{0}/log/34.grepPASS.log".format(workdir)
-	complete_file = "{0}/stage/34.grepPASS.finished".format(workdir)
+	control_file  = "{0}/log/35.grepPASS.log".format(workdir)
+	complete_file = "{0}/stage/35.grepPASS.finished".format(workdir)
 	run_cmd		  = not (os.path.isfile(complete_file))
 	cmd			  = "grep PASS {0}/insertions.out_wodups_filtered_setcov > {0}/insertions.out_wodups_filtered_setcov_PASS".format(workdir)
 	msg="Grep PASS calls"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 	###### Sort setcover output
-	control_file  = "{0}/log/35.sort_setcover.log".format(workdir)
-	complete_file = "{0}/stage/35.sort_setcover.finished".format(workdir)
+	control_file  = "{0}/log/36.sort_setcover.log".format(workdir)
+	complete_file = "{0}/stage/36.sort_setcover.finished".format(workdir)
 	run_cmd		  = not (os.path.isfile(complete_file))
 	cmd			  = "perl " + pipeline.sortfile + " {0}/insertions.out_wodups_filtered_setcov_PASS".format(workdir)
 	msg="Sort setcover output"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 	###### VCF setcover output
-	control_file  = "{0}/log/36.vcf_setcover.log".format(workdir)
-	complete_file = "{0}/stage/36.vcf_setcover.finished".format(workdir)
+	control_file  = "{0}/log/37.vcf_setcover.log".format(workdir)
+	complete_file = "{0}/stage/37.vcf_setcover.finished".format(workdir)
 	run_cmd		  = not (os.path.isfile(complete_file))
 	cmd			  = "cat {0}/vcf_header_f {0}/insertions.out_wodups_filtered_setcov_PASS > {0}/insertions_setcover.vcf".format(workdir)
 	msg="Make setcover output a VCF file"

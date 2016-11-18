@@ -35,19 +35,23 @@ def get_bed_seq( ref_dict, ref, start, end):
 #########################
 def main():
 	args = sys.argv[1:]
-	if len(args) !=10:
+	if len(args) !=9:
 		usage()
 	REF=sys.argv[2]
 	#FILE needs to be sorted according to 1st and 2nd columns
 	FILE=sys.argv[1]
 	SEQ1=sys.argv[3]
 	SEQ2=sys.argv[4]
-	readlen=int(sys.argv[5])
-	EXT=sys.argv[6]
-	MIN=sys.argv[7]
-	MAX=sys.argv[8]
-	workdir=sys.argv[9]
-	TLEN = int(sys.argv[10])
+	tmpf = open(SEQ1,"r")
+	tmp = tmpf.readline()
+	tmp = tmpf.readline().strip()
+	readlen=int(len(tmp))
+	tmpf.close()
+	EXT=sys.argv[5]
+	MIN=sys.argv[6]
+	MAX=sys.argv[7]
+	workdir=sys.argv[8]
+	TLEN = int(sys.argv[9])
 	MRSFAST="mrsfast/mrsfast"
 	folder  ="{0}/genotype".format(workdir)
 	os.system("mkdir -p {0}".format(folder))
