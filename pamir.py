@@ -15,26 +15,30 @@ class bcolors:
 	UNDERLINE = '\033[4m'
 
 class pipeline:
-	pamirpy 	= os.path.dirname(os.path.realpath(__file__)) + "/pamir.py"
-	pamir   	= os.path.dirname(os.path.realpath(__file__)) + "/pamir"
-	sga		   	= os.path.dirname(os.path.realpath(__file__)) + "/sga.py"
-	minia	   	= os.path.dirname(os.path.realpath(__file__)) + "/minia"
-	velveth		= os.path.dirname(os.path.realpath(__file__)) + "/velveth"
-	velvetg		= os.path.dirname(os.path.realpath(__file__)) + "/velvetg"
-	mrsfast  	= os.path.dirname(os.path.realpath(__file__)) + "/mrsfast/mrsfast"
-	bedtools  	= os.path.dirname(os.path.realpath(__file__)) + "/bedtools"
-	samtools	= os.path.dirname(os.path.realpath(__file__)) + "/samtools"
-	recalibrate = os.path.dirname(os.path.realpath(__file__)) + "/recalibrate"
-	pprocessor  = os.path.dirname(os.path.realpath(__file__)) + "/partition_processor"
-	sortvcf   = os.path.dirname(os.path.realpath(__file__)) + "/sort_vcf.py"
-	ext_sup     = os.path.dirname(os.path.realpath(__file__)) + "/extract_support"
-	filtering	= os.path.dirname(os.path.realpath(__file__)) + "/filtering.py"
-	gensetcov	= os.path.dirname(os.path.realpath(__file__)) + "/generate_setcover_input.py"
-	smoother	= os.path.dirname(os.path.realpath(__file__)) + "/smoother"
-	genotyping	= os.path.dirname(os.path.realpath(__file__)) + "/genotyping.py"
+	pamirpy 			= os.path.dirname(os.path.realpath(__file__)) + "/pamir.py"
+	pamir   			= os.path.dirname(os.path.realpath(__file__)) + "/pamir"
+	sga		   			= os.path.dirname(os.path.realpath(__file__)) + "/sga.py"
+	minia	   			= os.path.dirname(os.path.realpath(__file__)) + "/minia"
+	velveth				= os.path.dirname(os.path.realpath(__file__)) + "/velveth"
+	velvetg				= os.path.dirname(os.path.realpath(__file__)) + "/velvetg"
+	mrsfast  			= os.path.dirname(os.path.realpath(__file__)) + "/mrsfast/mrsfast"
+	bedtools  			= os.path.dirname(os.path.realpath(__file__)) + "/bedtools"
+	samtools			= os.path.dirname(os.path.realpath(__file__)) + "/samtools"
+	recalibrate 		= os.path.dirname(os.path.realpath(__file__)) + "/recalibrate"
+	pprocessor 		 	= os.path.dirname(os.path.realpath(__file__)) + "/partition_processor"
+	sortvcf   			= os.path.dirname(os.path.realpath(__file__)) + "/sort_vcf.py"
+	ext_sup     		= os.path.dirname(os.path.realpath(__file__)) + "/extract_support"
+	filtering			= os.path.dirname(os.path.realpath(__file__)) + "/filtering.py"
+	gensetcov			= os.path.dirname(os.path.realpath(__file__)) + "/generate_setcover_input.py"
+	smoother			= os.path.dirname(os.path.realpath(__file__)) + "/smoother"
+	genotyping			= os.path.dirname(os.path.realpath(__file__)) + "/genotyping.py"
 	filterbysetcover	= os.path.dirname(os.path.realpath(__file__)) + "/filter_by_setcover.py"
-	sortfile	= os.path.dirname(os.path.realpath(__file__)) + "/sort_file.pl"
-	workdir  	= os.path.dirname(os.path.realpath(__file__))
+	sortfile			= os.path.dirname(os.path.realpath(__file__)) + "/sort_file.pl"
+	blastn				= "/cs/compbio3/yenyil/Pinar/LIB/ncbi-blast-2.3.0+/bin/blastn"
+	clean				= os.path.dirname(os.path.realpath(__file__)) + "/clean"
+	contaminantFinder	= os.path.dirname(os.path.realpath(__file__)) + "/find_contaminations.py"
+	contaminantRemover	= os.path.dirname(os.path.realpath(__file__)) + "/remove_contaminations.py"
+	workdir 		 	= os.path.dirname(os.path.realpath(__file__))
 	# example usage for help
 	example  = "\tTo create a new project: specify (1) project name, (2) reference genomes and (3) input sequences (either --alignment, --fastq, or --mrsfast-best-search)\n"
 	example += "\n\t--starting from a sam or bam file\n"
@@ -80,26 +84,10 @@ def command_line_process():
 		metavar='max_contig',
 		help="Maximum size of assembled contigs. (default: 400)",
 	)
-	parser.add_argument('--max-error','-e',
-		type=int,
-		metavar='max_error',
-		help="Maximum number of mismatches within the structural variant. (default: 0)",
+	parser.add_argument('--donot-remove-contaminant',
+		action='store_true',
+		help='Remove contaminants by mapping them to BLAST NT library',
 	)
-	parser.add_argument('--min-support','-s',
-		type=int,
-		metavar='min_support',
-		help="Support threshold (number of reads per base) for the predicted structural variants. (default: 5)",
-	)
-	parser.add_argument('--contig-identity','-i',
-		type=int,
-		metavar='contig_identity',
-		help='Identity threshold (1..100) for an assembled contig to be considered for further analysis. (default: 85)',
-	)
-	parser.add_argument('--final-identity','-g',
-		type=int,
-		metavar='final_identity',
-		help="Identity threshold (1..100) for the final alignment allowing for structural variants. (default: 95)",
-	)	
 	parser.add_argument('--mask-file', '-m',
 		help='The coordinates provided in this file will be masked from the reference genome.'
 	)
@@ -510,12 +498,64 @@ def orphan_assembly(config):
 			i+=2
 		fin.close()
 		fout.close()
+
+#############################################################################################
+###### Contamination removal orphan.contigs.fa.
+def remove_contamination_orphan_contig(config):
+	workdir		  = pipeline.workdir
+	if config.get("project", "donot-remove-contaminant") == "True":
+		cmd = "cp {0}/orphan.fq.contigs.fa {0}/orphan.fq.contigs.wocontaminations.fa".format(workdir)
+		shell("", True, cmd, "", "", ""
+	else:)
+		msg			  = "Mapping orphan contigs onto BLAST NT database"
+		input_file    = "{0}/orphan.fq.contigs.fa".format(workdir)
+		control_file  = "{0}/log/11.blast_nt_orphan_contig.log".format(workdir);
+		complete_file = "{0}/stage/11.blast_nt_orphan_contig.finished".format(workdir);
+		freeze_arg    = ""
+		NT			  = "/cs/compbio3/yenyil/Pinar/LIB/ncbi-blast-2.3.0+/db/nt"
+		cmd           =  pipeline.blastn + ' -task megablast -query {0} -db {1} -num_threads 24 > {2}/orphan.fq.contigs.fa_2_NT.megablast'.format(input_file, NT, workdir)
+		run_cmd       = not (os.path.isfile(complete_file) )
+	#	if ( run_cmd ):
+	#		clean_state( 11, workdir, config )
+		shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg )
+		msg			  = "Cleaning megablast output"
+		input_file    = "{0}/orphan.fq.contigs.fa_2_NT.megablast".format(workdir)
+		control_file  = "{0}/log/12.clean_orphancontig_megablast.log".format(workdir);
+		complete_file = "{0}/stage/12.clean_orphancontig_megablast.finished".format(workdir);
+		freeze_arg    = ""
+		cmd           =  pipeline.clean + ' {0}/orphan.fq.contigs.fa_2_NT.megablast {0}/orphan.fq.contigs.fa_2_NT.clean'.format(workdir)
+		run_cmd       = not (os.path.isfile(complete_file) )
+	#	if ( run_cmd ):
+	#		clean_state( 16, workdir, config )
+		shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg )
+		msg			  = "Finding contaminated contigs"
+		input_file    = "{0}/orphan.fq.contigs.fa_2_NT.clean".format(workdir)
+		control_file  = "{0}/log/13.find_contaminated_contigs.log".format(workdir);
+		complete_file = "{0}/stage/13.find_contaminated_contigs.finished".format(workdir);
+		freeze_arg    = ""
+		cmd           =  "python " + pipeline.contaminantFinder + ' {0}/orphan.fq.contigs.fa_2_NT.clean {0}/orphan.fq.contigs.contaminations'.format(workdir)
+		run_cmd       = not (os.path.isfile(complete_file) )
+	#	if ( run_cmd ):
+	#		clean_state( 16, workdir, config )
+		shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg )
+		msg			  = "Excluding contaminated contigs"
+		contig_file    = "{0}/orphan.fq.contigs.fa".format(workdir)
+		contamination_file    = "{0}/orphan.fq.contigs.contaminations".format(workdir)
+		output_file    = "{0}/orphan.fq.contigs.wocontamination.fa".format(workdir)
+		control_file  = "{0}/log/14.remove_contaminations.log".format(workdir);
+		complete_file = "{0}/stage/14.remove_contaminations.finished".format(workdir);
+		freeze_arg    = ""
+		cmd           =  "python " + pipeline.contaminantRemover + ' {0}/orphan.fq.contigs.contaminations {0}/orphan.fq.contigs.fa {0}/orphan.fq.contigs.wocontaminations.fa'.format(workdir)
+		run_cmd       = not (os.path.isfile(complete_file) )
+	#	if ( run_cmd ):
+	#		clean_state( 16, workdir, config )
+		shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg )
 #############################################################################################
 ###### Preparing necessary file for orphan.contigs.fa to make it a single line ref: Easier to map.
 def prepare_orphan_contig(config):
 	msg			  = "Preparing orphan contigs for mapping"
 	workdir		  = pipeline.workdir
-	input_file    = "{0}/orphan.fq.contigs.fa".format(workdir)
+	input_file    = "{0}/orphan.fq.contigs.wocontaminations.fa".format(workdir)
 	output_file   = "{0}/orphan.contigs.ref".format(workdir)
 	output_file2  = "{0}/orphan.contigs.single.ref".format(workdir)
 	coor_file     = "{0}/orphan.contigs.single.coor".format(workdir)
@@ -550,63 +590,6 @@ def prepare_orphan_contig(config):
 #	if ( run_cmd ):
 #		clean_state( 11, workdir, config )
 	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
-#############################################################################################
-###### Map orphan reads onto orphan contigs to find the support value of each contig (If they come from an assembler).
-def orphan_to_orphan(config):
-	msg			  = "Mapping orphan reads onto orphan contigs"
-	workdir		  = pipeline.workdir
-	orphan_ref    = "{0}/orphan.contigs.single.ref".format(workdir)
-	orphan_fastq	  = "{0}/orphan.fq".format(workdir)
-	output_file   = "{0}/orphan2orphan.sam".format(workdir)
-	control_file  = "{0}/log/12.orphan2orphan.log".format(workdir);
-	complete_file = "{0}/stage/12.orphan2orphan.finished".format(workdir);
-	freeze_arg    = ""
-	cmd           = pipeline.mrsfast + ' --search {0} --seq {1} --crop {2} -o {3} -e 1 --disable-sam-header'.format(orphan_ref, orphan_fastq, config.get("project","readlength"),output_file)
-	run_cmd       = not (os.path.isfile(complete_file) )
-	if ( run_cmd ):
-		clean_state( 12, workdir, config )
-	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg )
-	
-	msg			  = "Recalibrating orphan_to_orphan.sam"
-	input_file   = "{0}/orphan2orphan.sam".format(workdir)
-	output_file   = "{0}/orphan2orphan.recal.sam".format(workdir)
-	coor_file     = "{0}/orphan.contigs.single.coor".format(workdir)
-	control_file  = "{0}/log/13.orphan2orphan.recal.log".format(workdir);
-	complete_file = "{0}/stage/13.orphan2orphan.recal.finished".format(workdir);
-	freeze_arg    = ""
-	cmd           = pipeline.recalibrate + " {0} {1} {2}".format(coor_file, input_file, output_file)
-	freeze_arg=""
-	run_cmd       = not (os.path.isfile(complete_file) )
-	if ( run_cmd ):
-		clean_state( 13, workdir, config )
-	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg )
-#############################################################################################
-###### Map orphan reads onto orphan contigs to find the support value of each contig (If they come from an assembler).
-def orphancontig_support(config):
-	msg			  = "Sort orphan2orphan.recal.sam"
-	workdir		  = pipeline.workdir
-	input_file    = "{0}/orphan2orphan.recal.sam".format(workdir)
-	output_file   = "{0}/orphan2orphan.recal.sorted.sam".format(workdir)
-	control_file  = "{0}/log/14.sort_orphan_contig_sam.log".format(workdir);
-	complete_file = "{0}/stage/14.sort_orphan_contig_sam.finished".format(workdir);
-	freeze_arg    = ""
-	cmd           = pipeline.pamir + ' sort {0} {1}'.format(input_file, output_file)
-	run_cmd       = not (os.path.isfile(complete_file) )
-	if ( run_cmd ):
-		clean_state( 14, workdir, config )
-	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg )
-	
-	msg			  = "Printing contig-N_reads.fq for each orphan contig"
-	input_file    = "{0}/orphan2orphan.recal.sorted.sam".format(workdir)
-	control_file  = "{0}/log/15.orphan_contig_support.log".format(workdir);
-	complete_file = "{0}/stage/15.orphan_contig_support.finished".format(workdir);
-	freeze_arg    = ""
-	cmd           = pipeline.ext_sup + " {0} {1}".format(input_file, pipeline.workdir)
-	freeze_arg=""
-	run_cmd       = not (os.path.isfile(complete_file) )
-	if ( run_cmd ):
-		clean_state( 15, workdir, config )
-	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg )
 #############################################################################################
 ###### Map oea reads onto orphan contigs.
 def oea_to_orphan(config):
@@ -920,25 +903,26 @@ def remove_concordant_for_each_bestsam(config):
 #############################################################################################
 ###### Running commands for each mode 
 def run_command(config, force=False):
-	verify_sam(config)
-	mask(config)
-	index(config)
-	mrsfast_best_search(config)
-	remove_concordant_for_each_bestsam(config)
-	mrsfast_search(config)
-	sort(config)
-	modify_oea_unmap(config)
-	partition(config)
-	orphan_assembly(config)
-	prepare_orphan_contig(config)
-	oea_to_orphan(config)
-	oea_to_orphan_split(config)
-	recalibrate_all_oea_to_orphan(config)
-	orphans_into_oeacluster(config)
-	print_header(config)
-	update_partition(config)
-	dupremoval_cleaning(config)
-	post_processing(config)
+#	verify_sam(config)
+#	mask(config)
+#	index(config)
+#	mrsfast_best_search(config)
+#	remove_concordant_for_each_bestsam(config)
+#	mrsfast_search(config)
+#	sort(config)
+#	modify_oea_unmap(config)
+#	partition(config)
+#	orphan_assembly(config)
+#	prepare_orphan_contig(config)
+#	oea_to_orphan(config)
+#	oea_to_orphan_split(config)
+#	recalibrate_all_oea_to_orphan(config)
+#	orphans_into_oeacluster(config)
+#	print_header(config)
+#	update_partition(config)
+#	dupremoval_cleaning(config)
+#	post_processing(config)
+	remove_contamination_orphan_contig(config)
 	exit(0)
 
 #############################################################################################
@@ -1076,20 +1060,12 @@ def get_input_file(config, args_files):
 			#start_from_fastq = 1 # start from fastq
 		elif i[0]=='mask':
 			config.set("project",'mask',i[1])
-			#start_from_fastq = 1 # start from fastq
+			#start_from_fastq = 1 # start from indexing the reference file
 		elif i[0]=='mrsfast-index':
 			config.set("project",'mrsfast-index',i[1])
-			#start_from_fastq = 1 # start from fastq
+			#start_from_mrsfast-best-search = 1 # start from mrsfast-best-search
 		elif i[0]=='mrsfast-best-search':
 			config.set("project",'mrsfast-best-search',i[1])
-		#elif i[0]=='oea':
-		#	config.set("project",'oea',i[1])
-		#elif i[0]=='mrsfast-search':
-		#	config.set("project",'mrsfast-search',i[1])
-		#elif i[0]=='sort':
-		#	config.set("project",'sort',i[1])
-		#elif i[0]=='oeanum':
-		#	config.set("project",'oeanum',i[1])
 	return config
 
 #############################################################################################
@@ -1112,12 +1088,12 @@ def initialize_config_pamir( config, args):
 	config.set("pamir", "max-contig", str( args.max_contig ) if args.max_contig != None else  "25000")
 	config.set("pamir", "max-error", str( args.max_error ) if args.max_error != None else "1")
 	config.set("pamir", "mask-file", args.mask_file if args.mask_file != None else "" )
-	config.set("pamir","engine-mode",args.mode if args.mode != None else "normal")
-	config.set("pamir","invert-masker", str(args.invert_masker) if args.invert_masker !=None else "False")
-	config.set("pamir","range", str( args.range ) if args.range !=None else "-1" )
-	config.set("pamir","worker-id", str(args.worker_id) if args.worker_id != None else "-1")
-	config.set("pamir","job-time", args.job_max_time if args.job_max_time != None else "06:00:00")
-	config.set("pamir","job-memory",args.job_max_memory if args.job_max_memory != None else "16G")
+	config.set("pamir", "engine-mode",args.mode if args.mode != None else "normal")
+	config.set("pamir", "invert-masker", str(args.invert_masker) if args.invert_masker !=None else "False")
+	config.set("pamir", "range", str( args.range ) if args.range !=None else "-1" )
+	config.set("pamir", "worker-id", str(args.worker_id) if args.worker_id != None else "-1")
+	config.set("pamir", "job-time", args.job_max_time if args.job_max_time != None else "06:00:00")
+	config.set("pamir", "job-memory",args.job_max_memory if args.job_max_memory != None else "16G")
 	return config
 
 #############################################################################################
@@ -1172,6 +1148,7 @@ def check_project_preq():
 		config.set("project", "fastq",'')
 		config.set("project", "mrsfast-best-search",'')
 		config.set("project", "assembler",str(args.assembler) if args.assembler!=None else "velvet")
+		config.set("project", "donot-remove-contaminant", str( args.remove_contaminant ) if args.remove_contaminant ==True else False)
 		config = get_input_file( config, args.files)
 
 		# Parameters for other parts in the pipeline
