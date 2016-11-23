@@ -7,25 +7,30 @@ def usage():
 	sys.exit(-1)
 
 ##############################
-def load_fasta( fasta_file):
+def load_fasta( fasta_file ):
+	ref_list = [] # keep order of reference in original input file
 	ref_dict = {}
+	tmp_list = []
 	ref_id   = ""
-	ref_seq  = ""
 	sr = open(fasta_file, "r")
 	for line in sr:
 		if ( ">" == line[0]):
-			if ( ref_id != ""):
-				ref_dict[ ref_id ] = ref_seq
+			if ( ref_id != "" ):
+				ref_dict[ ref_id] ="".join(tmp_list)
 			ref_id   = line.strip().split()[0][1:]
-			ref_seq  = ""
+			if ref_id not in ref_dict:
+				ref_list.append( ref_id )
+			del tmp_list[:]
 		else:
-			ref_seq += line.strip()
+			tmp_list.append( line.strip() )
 	
 	# adding records for the last chromosome
 	if ( ref_id != "" ):
-		ref_dict[ ref_id ] = ref_seq
+		ref_dict[ ref_id ] = "".join(tmp_list)
 
-	return ref_dict
+	sr.close()
+
+	return ref_dict, ref_list
 ################################
 def get_bed_seq( ref_dict, ref, start, end):
 	if ref not in ref_dict:
@@ -63,7 +68,7 @@ def main():
 	fil = open (FILE + "_filtered","w")
 	fil2 = open (FILE + "_filtered_for_setcov","w")
 
-	ref_dict = load_fasta(REF)
+	ref_dict, ref_list = load_fasta(REF)
 
 
 

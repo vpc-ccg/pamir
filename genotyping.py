@@ -5,26 +5,27 @@ def usage():
 	print '\nUsage: python genotyping.py VCF REF SEQ1.fastq SEQ2.fastq readlength SAMPLENAME mrsFAST-min mrsFAST-max workdir TLEN'
 	sys.exit(-1)
 ################################
-def load_fasta( fasta_file):
+def load_fasta( fasta_file ):
+	ref_list = [] # keep order of reference in original input file
 	ref_dict = {}
+	tmp_list = []
 	ref_id   = ""
-	ref_seq  = ""
 	sr = open(fasta_file, "r")
 	for line in sr:
 		if ( ">" == line[0]):
-			if ( ref_id != ""):
-				ref_dict[ ref_id ] = ref_seq
+			if ( ref_id != "" ):
+				ref_dict[ ref_id] ="".join(tmp_list)
 			ref_id   = line.strip().split()[0][1:]
-			ref_seq  = ""
+			if ref_id not in ref_dict:
+				ref_list.append( ref_id )
+			del tmp_list[:]
 		else:
-			ref_seq += line.strip()
-	
+			tmp_list.append( line.strip() )
 	# adding records for the last chromosome
 	if ( ref_id != "" ):
-		ref_dict[ ref_id ] = ref_seq
-
-	return ref_dict
-
+		ref_dict[ ref_id ] = "".join(tmp_list)
+	sr.close()
+	return ref_dict, ref_list
 # Get sequences from ref in a bed-fashion
 #########################
 def get_bed_seq( ref_dict, ref, start, end):
@@ -69,7 +70,7 @@ def main():
 	passed = 0
 	a = 2
 	vcfcontent = dict()
-	ref_dict = load_fasta(REF)
+	ref_dict, ref_list = load_fasta(REF)
 
 	fil = open ("{0}/insertions.out_wodups_filtered_setcov".format(workdir) + "_genotype_"+EXT,"w")
 	with open(FILE) as insertions:

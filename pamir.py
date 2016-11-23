@@ -95,6 +95,11 @@ def command_line_process():
 		action='store_true',
 		help='The provided coordinates will be masked in the reference genome and ignored in mapping step. (dafault: False)',
 	)
+	parser.add_argument('--external-config', '-ec',
+		type='string',
+		metavar='external_config'
+		help='The config file including external tools directories (default: config.pamir)',
+	)
 	parser.add_argument('--mrsfast-index-ws',
 		metavar='window_size',
 		help='Window size used by mrsFAST-Ultra for indexing the reference genome. (default: 12)',
@@ -984,6 +989,40 @@ def check_binary_preq():
 			logFAIL()
 			logln ("File {0} cannot be executed. Please use 'make' to build the required binaries.".format(exe) )
 			exit(1)
+	
+	config.set("project", "external_config", str( args.external_config ) if args.external_config != None else  "{0}/config.pamir".format(os.path.dirname(os.path.realpath(__file__))))
+	extFile = open(config.get("project","external_config"),"r")
+	listExternals = extFile.readlines()
+	for i in listExternals:
+		if i.split("=")[0]=="VELVETH":
+			VELVETH = i[1].strip()
+			if not is_exec(VELVETH):
+				print "[ERROR] File {0} cannot be executed. ".format(VELVETH)
+				logFAIL()
+				logln ("File {0} cannot be executed. ".format(VELVETH) )
+				exit(1)
+			pipeline.velveth = VELVETH
+		elif i.split("=")[0]=="VELVETG":
+			VELVETG = i[1].strip()
+			if not is_exec(VELVETG):
+				print "[ERROR] File {0} cannot be executed. ".format(VELVETG)
+				logFAIL()
+				logln ("File {0} cannot be executed. ".format(VELVETG) )
+				exit(1)
+			pipeline.velvetg = VELVETG
+		elif i.split("=")[0]=="BLAST":
+			BLASTDIR= i[1].strip()
+			if not is_exec(BLASTDIR+"/bin/blastn"):
+				print "[ERROR] File {0} cannot be executed. ".format(BLASTDIR+"/bin/blastn")
+				logFAIL()
+				logln ("File {0} cannot be executed. ".format(BLASTDIR+"/bin/blastn") )
+				exit(1)
+			if not os.path.exists(BLASTDIR+"/db"):
+				print "[ERROR] No such path {0}. Please make sure you downloaded the nt database in db folder".format(BLASTDIR+"/db")
+				logFAIL()
+				logln ("No such path {0}. Please make sure that you downloaded the nt database in db folder".format(BLASTDIR+"/db") )
+				exit(1)
+			pipeline.blast = BLASTDIR
 		
 	logOK()
 
@@ -1078,7 +1117,7 @@ def get_input_file(config, args_files):
 	return config
 
 #############################################################################################
-########## Initialze mrsfast parameters for before creating project folder
+########## Initialize mrsfast parameters for before creating project folder
 def initialize_config_mrsfast( config, args):
 	config.add_section("mrsfast")
 	config.set("mrsfast", "window_size", str( args.mrsfast_index_ws ) if args.mrsfast_index_ws != None else  "12")
@@ -1090,7 +1129,13 @@ def initialize_config_mrsfast( config, args):
 	return config
 
 #############################################################################################
-########## Initialze pamir parameters for before creating project folder
+########## Initialize pamir parameters for before creating project folder
+def initialize_external_tools( config, args):
+	config.set("project", "external_config", str( args.external_config ) if args.external_config != None else  "{0}/config.pamir".format(os.path.dirname(os.path.realpath(__file__))))
+	return config
+
+#############################################################################################
+########## Initialize pamir parameters for before creating project folder
 def initialize_config_pamir( config, args):
 	workdir = pipeline.workdir
 	config.add_section("pamir")
