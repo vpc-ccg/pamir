@@ -96,8 +96,7 @@ def command_line_process():
 		help='The provided coordinates will be masked in the reference genome and ignored in mapping step. (dafault: False)',
 	)
 	parser.add_argument('--external-config', '-ec',
-		type='string',
-		metavar='external_config'
+		metavar='external_config',
 		help='The config file including external tools directories (default: config.pamir)',
 	)
 	parser.add_argument('--mrsfast-index-ws',
@@ -510,7 +509,7 @@ def remove_contamination_orphan_contig(config):
 	workdir		  = pipeline.workdir
 	if config.get("project", "donot-remove-contaminant") == "True":
 		cmd = "cp {0}/orphan.fq.contigs.fa {0}/orphan.fq.contigs.wocontaminations.fa".format(workdir)
-		shell("", True, cmd, "", "", "")
+		shell("Contaminations are not removed", True, cmd, "", "", "")
 	else:
 		msg			  = "Mapping orphan contigs onto BLAST NT database"
 		input_file    = "{0}/orphan.fq.contigs.fa".format(workdir)
@@ -979,7 +978,8 @@ def symlink_name(src, dest, filename ):
 def is_exec(f):
 	return os.path.isfile(f) and os.access(f, os.X_OK)
 #############################################################################################
-def check_binary_preq():
+def check_binary_preq(config):
+	args = command_line_process().parse_args()
 	execs = ['mrsfast/mrsfast', 'pamir']
 	log( "Checking binary pre-requisites... ")
 	for exe in execs:
@@ -994,24 +994,25 @@ def check_binary_preq():
 	extFile = open(config.get("project","external_config"),"r")
 	listExternals = extFile.readlines()
 	for i in listExternals:
-		if i.split("=")[0]=="VELVETH":
-			VELVETH = i[1].strip()
+		spliti = i.split("=")
+		if spliti[0]=="VELVETH":
+			VELVETH = spliti[1].strip()
 			if not is_exec(VELVETH):
 				print "[ERROR] File {0} cannot be executed. ".format(VELVETH)
 				logFAIL()
 				logln ("File {0} cannot be executed. ".format(VELVETH) )
 				exit(1)
 			pipeline.velveth = VELVETH
-		elif i.split("=")[0]=="VELVETG":
-			VELVETG = i[1].strip()
+		elif spliti[0]=="VELVETG":
+			VELVETG = spliti[1].strip()
 			if not is_exec(VELVETG):
 				print "[ERROR] File {0} cannot be executed. ".format(VELVETG)
 				logFAIL()
 				logln ("File {0} cannot be executed. ".format(VELVETG) )
 				exit(1)
 			pipeline.velvetg = VELVETG
-		elif i.split("=")[0]=="BLAST":
-			BLASTDIR= i[1].strip()
+		elif spliti[0]=="BLAST":
+			BLASTDIR= spliti[1].strip()
 			if not is_exec(BLASTDIR+"/bin/blastn"):
 				print "[ERROR] File {0} cannot be executed. ".format(BLASTDIR+"/bin/blastn")
 				logFAIL()
@@ -1023,7 +1024,6 @@ def check_binary_preq():
 				logln ("No such path {0}. Please make sure that you downloaded the nt database in db folder".format(BLASTDIR+"/db") )
 				exit(1)
 			pipeline.blast = BLASTDIR
-		
 	logOK()
 
 #############################################################################################
@@ -1126,12 +1126,6 @@ def initialize_config_mrsfast( config, args):
 	config.set("mrsfast", "min", str( args.mrsfast_min ) if args.mrsfast_min != None else  "-1")
 	config.set("mrsfast", "max", str( args.mrsfast_max ) if args.mrsfast_max != None else  "-1")
 	config.set("mrsfast", "n", str( args.mrsfast_n ) if args.mrsfast_n != None else  "50")
-	return config
-
-#############################################################################################
-########## Initialize pamir parameters for before creating project folder
-def initialize_external_tools( config, args):
-	config.set("project", "external_config", str( args.external_config ) if args.external_config != None else  "{0}/config.pamir".format(os.path.dirname(os.path.realpath(__file__))))
 	return config
 
 #############################################################################################
@@ -1275,7 +1269,7 @@ def check_project_preq():
 #############################################################################################
 def main():
 	config = check_project_preq()
-	check_binary_preq()
+	check_binary_preq(config)
 
 	resume_state="pamir"
 
