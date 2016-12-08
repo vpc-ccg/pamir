@@ -11,7 +11,7 @@ cd pamir && make
 ```
 > **Note**: You will need at least g++ 4.8.2 and Python 2.7 to compile the source code.
 
-### How do I run MiStrVar?
+### How do I run Pamir?
 You can use 
 ```
 pamir/pamir.py -h

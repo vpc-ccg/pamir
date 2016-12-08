@@ -373,7 +373,7 @@ void assemble (const string &partition_file, const string &reference, const stri
 			break;
 		
 		// cluster has too many or too few reads
-		if ( p.size() > 10000 || p.size() <= 2 ) 
+		if ( p.size() > 7000 || p.size() <= 2 ) 
 			continue;
 		string chrName  = pt.get_reference();
 		int cluster_id  = pt.get_cluster_id();

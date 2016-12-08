@@ -390,7 +390,7 @@ def mrsfast_search(config ):
 	control_file  = "{0}/log/06.mrsfast.log".format(workdir);
 	complete_file = "{0}/stage/06.mrsfast.finished".format(workdir);
 	freeze_arg    = "ws={0}.error={1}.cutoff={2}".format(config.get("mrsfast", "window_size"), config.get("mrsfast", "errors"), cutoff)
-	cmd           = pipeline.mrsfast +' --search  {0} --threads {1} --seq {2} -o {3} -u {4}'.format(ref_file, threads, input_file, output_file, unmapped_file )
+	cmd           = pipeline.mrsfast +' --search  {0} --crop {5}  --threads {1} --seq {2} -o {3} -u {4}'.format(ref_file, threads, input_file, output_file, unmapped_file,config.get("project", "readlength") )
 	if(config.get("mrsfast","errors")!="-1"):
 		cmd+=" -e {0}".format(config.get("mrsfast","errors"))
 	if ("0"!= cutoff):
@@ -542,27 +542,27 @@ def remove_contamination_orphan_contig(config):
 	#	if ( run_cmd ):
 	#		clean_state( 16, workdir, config )
 		shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg )
+		msg = "Warning: Please check your orphan.fq.contigs.contaminations file if it includes anything other than a contamination. You can update the file and re-run the command with --resume"
+		cmd = "echo \"\""
+		control_file  = "{0}/log/14.print_contamination_message.log".format(workdir);
+		complete_file = "{0}/stage/14.print_contamination_message.finished".format(workdir);
+		freeze_arg    = ""
+		run_cmd		  = not(os.path.isfile(complete_file))
+		if run_cmd:
+			shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg )
+			exit(1)
 		msg			  = "Excluding contaminated contigs"
 		contig_file    = "{0}/orphan.fq.contigs.fa".format(workdir)
 		contamination_file    = "{0}/orphan.fq.contigs.contaminations".format(workdir)
 		output_file    = "{0}/orphan.fq.contigs.wocontamination.fa".format(workdir)
-		control_file  = "{0}/log/14.remove_contaminations.log".format(workdir);
-		complete_file = "{0}/stage/14.remove_contaminations.finished".format(workdir);
+		control_file  = "{0}/log/15.remove_contaminations.log".format(workdir);
+		complete_file = "{0}/stage/15.remove_contaminations.finished".format(workdir);
 		freeze_arg    = ""
 		cmd           =  "python " + pipeline.contaminantRemover + ' {0}/orphan.fq.contigs.contaminations {0}/orphan.fq.contigs.fa {0}/orphan.fq.contigs.wocontaminations.fa'.format(workdir)
 		run_cmd       = not (os.path.isfile(complete_file) )
 	#	if ( run_cmd ):
 	#		clean_state( 16, workdir, config )
 		shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg )
-		msg = "Warning: Please check your orphan.fq.contigs.contaminations file if it includes anything other than a contamination. You can update the file and re-run the command with --resume"
-		cmd = "echo \"\""
-		control_file  = "{0}/log/15.print_contamination_message.log".format(workdir);
-		complete_file = "{0}/stage/15.print_contamination_message.finished".format(workdir);
-		freeze_arg    = ""
-		run_cmd		  = not(os.path.isfile(complete_file))
-		if run_cmd:
-			shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg )
-			exit(1)
 #############################################################################################
 ###### Preparing necessary file for orphan.contigs.fa to make it a single line ref: Easier to map.
 def prepare_orphan_contig(config):
@@ -614,7 +614,7 @@ def oea_to_orphan(config):
 	control_file  = "{0}/log/17.oea2orphan.log".format(workdir);
 	complete_file = "{0}/stage/17.oea2orphan.finished".format(workdir);
 	freeze_arg    = ""
-	cmd           = pipeline.mrsfast + ' --search {0} --seq {1} -o {3} -e 0 --disable-sam-header'.format(orphan_ref, seq_fastq, config.get("project","readlength"),output_file)
+	cmd           = pipeline.mrsfast + ' --search {0} --seq {1} --crop {2} -o {3} -e 0 --disable-sam-header --threads {4}'.format(orphan_ref, seq_fastq, config.get("project","readlength"),output_file, config.get("mrsfast", "threads")) 
 	run_cmd       = not (os.path.isfile(complete_file) )
 #	if ( run_cmd ):
 #		clean_state( 16, workdir, config )
@@ -632,7 +632,7 @@ def oea_to_orphan_split(config):
 	complete_file = "{0}/stage/18.split1_oea2orphan.finished".format(workdir);
 	freeze_arg    = ""
 	half 		  = (int(config.get("project","readlength"))/2)
-	cmd           = pipeline.mrsfast + ' --search {0} --seq {1} -o {2} --crop {3} -e 0 --disable-sam-header'.format(orphan_ref, input_fastq, output_file, str(half))
+	cmd           = pipeline.mrsfast + ' --search {0} --seq {1} -o {2} --crop {3} -e 0 --disable-sam-header --threads {4}'.format(orphan_ref, input_fastq, output_file, str(half), config.get("mrsfast", "threads"))
 	run_cmd       = not (os.path.isfile(complete_file) )
 #	if ( run_cmd ):
 #		clean_state( 17, workdir, config )
@@ -647,7 +647,7 @@ def oea_to_orphan_split(config):
 	control_file  = "{0}/log/19.split2_oea2orphan.log".format(workdir);
 	complete_file = "{0}/stage/19.split2_oea2orphan.finished".format(workdir);
 	freeze_arg    = ""
-	cmd           = pipeline.mrsfast + ' --search {0} --seq {1} -o {2} --tail-crop {3} -e 0 --disable-sam-header'.format(orphan_ref, input_fastq, output_file, str(half))
+	cmd           = pipeline.mrsfast + ' --search {0} --seq {1} -o {2} --tail-crop {3} -e 0 --disable-sam-header --threads {4}'.format(orphan_ref, input_fastq, output_file, str(half), config.get("mrsfast","threads"))
 	run_cmd       = not (os.path.isfile(complete_file) )
 #	if ( run_cmd ):
 #		clean_state( 18, workdir, config )
@@ -815,7 +815,7 @@ def post_processing(config):
 	control_file  = "{0}/log/30.filtering.log".format(workdir)
 	complete_file = "{0}/stage/30.filtering.finished".format(workdir)
 	run_cmd		  = not (os.path.isfile(complete_file))
-	cmd			  = pipeline.filtering + " {0}/insertions.out_wodups {0}/{1}.masked {2} {3} {4} {0} {5}".format(workdir, config.get("project","reference"), config.get("project","readlength"), config.get("mrsfast","min"), config.get("mrsfast","max"), str(TLEN))
+	cmd			  = pipeline.filtering + " {0}/insertions.out_wodups {0}/{1}.masked {2} {3} {0} {4}".format(workdir, config.get("project","reference"), config.get("mrsfast","min"), config.get("mrsfast","max"), str(TLEN))
 	msg="Filtering insertion candidates"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 	###### Make filtering output VCF
@@ -867,6 +867,22 @@ def post_processing(config):
 	cmd			  = "cat {0}/vcf_header_f {0}/insertions.out_wodups_filtered_setcov_PASS > {0}/insertions_setcover.vcf".format(workdir)
 	msg="Make setcover output a VCF file"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
+	###### For evaluation purposes
+	fin = open("{0}/insertions.out_wodups_filtered_setcov_PASS.sorted".format(workdir),"r")
+	fout = open("{0}/insertions.out_wodups_filtered_setcov_PASS.sorted_loclen".format(workdir),"w")
+	for line in fin:
+		splittedline = line.split()
+		tmp = splittedline[7].split(";")
+		fout.write(splittedline[1]+"\t"+tmp[1].split("=")[1]+"\n")
+	fout.close()
+	###### Evaluate
+	control_file  = "{0}/log/38.evaluate.log".format(workdir)
+	complete_file = "{0}/stage/38.evaluate.finished".format(workdir)
+	run_cmd		  = not (os.path.isfile(complete_file))
+	cmd			  = "z_py/eva2.py z_py/bp_solution.txt {0}/insertions.out_wodups_filtered_setcov_PASS.sorted_loclen".format(workdir)
+	msg="Evaluating"
+	#shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
+		
 #############################################################################################
 ###### Running commands for extracting clusters 
 def output_cluster(config, c_range ):
@@ -919,8 +935,8 @@ def run_command(config, force=False):
 	verify_sam(config)
 	mask(config)
 	index(config)
-	mrsfast_best_search(config)
-	remove_concordant_for_each_bestsam(config)
+#	mrsfast_best_search(config)
+#	remove_concordant_for_each_bestsam(config)
 	mrsfast_search(config)
 	sort(config)
 	modify_oea_unmap(config)
@@ -1063,7 +1079,7 @@ def check_input_preq( config ):
 	inp = False # detect any valid input file or not
 	if "" != config.get("project", "mrsfast-best-search"):
 		inp = True
-		if not (os.path.isfile(config.get("project", "mrsfast-best-search")) or os.path.isdir(config.get("project","mrsfast-best-search")) or config.get("project","mrsfast-best-search").find(",")==-1) :
+		if not (os.path.isfile(config.get("project", "mrsfast-best-search")) or os.path.isdir(config.get("project","mrsfast-best-search")) or config.get("project","mrsfast-best-search").find(",")!=-1) :
 			logFAIL()
 			logln("mrsFAST remapping file {0} does not exist. Please provide a correct path.".format( config.get("project", "mrsfast-best-search")))
 			exit(1)
