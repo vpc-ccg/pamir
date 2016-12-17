@@ -14,7 +14,8 @@ g++ 4.9.0 or higher
 Python 2.7 or higher (needed for the package argparse )  
 
 boost library 1.62 or higher  
-(https://sourceforge.net/projects/boost/?source=directory)  
+(https://sourceforge.net/projects/boost/?source=directory) 
+
 You also need to define the boost library by typing on your shell  
 export BOOST INCLUDE= the/BOOST/version/include/ (directory of BOOST in your machine).
 
@@ -34,10 +35,12 @@ git clone --recursive git@bitbucket.org:compbio/pamir.git
 cd pamir
 ```
 
-You need to link the velvet executables and blast directory inside pamir folder:  
-ln -s /dir/to/velvet/velveth /dir/to/pamir/velveth  
-ln -s /dir/to/velvet/velvetg /dir/to/pamir/velvetg  
-ln -s /dir/to/blast folder /dir/to/pamir/blast  
+You need to link the velvet executables and blast directory inside pamir folder: 
+```
+pamir # ln -s /dir/to/velvet/velveth /dir/to/pamir/velveth  
+pamir # ln -s /dir/to/velvet/velvetg /dir/to/pamir/velvetg  
+pamir # ln -s /dir/to/blast folder /dir/to/pamir/blast  
+```
 
 Then make
 ```
