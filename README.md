@@ -48,7 +48,7 @@ pamir$ make
 ```
 
 ### How do I run Pamir?
-You can use 
+You can use either of these commands:
 ```
 pamir$ ./pamir.py -h
 pamir$ python pamir.py -h
