@@ -1,4 +1,4 @@
-# _Pamir_: Insertion Discovery Tool for Whole Genome Sequencing Data
+# **Pamir**: Insertion Discovery Tool for Whole Genome Sequencing Data
 
 ---
 
