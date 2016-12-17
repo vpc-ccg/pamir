@@ -1,11 +1,16 @@
 #Pamir#: Insertion Discovery Tool for Whole Genome Sequencing Data
-===================
+
+---
+
 Pamir is a computational tool for detecting novel sequence insertions in single or multiple paired-end WGS(Whole Genome Sequencing) Illumina reads based on orphans and one-end anchors (OEA).
 
 ### Prerequisities, Download and Compilation
-Pamir relies on specific version of the following tools:
+
+Pamir relies on specific version of the following tools:<br />
 g++ 4.9.0 or higher
+
 (https://gcc.gnu.org/releases.html)
+
 Python 2.7 or higher (needed for the package argparse )
 boost library 1.62 or higher
 (https://sourceforge.net/projects/boost/?source=directory)
@@ -22,6 +27,7 @@ Then, just clone our repository:
 ```
 git clone --recursive git@bitbucket.org:compbio/pamir.git
 cd pamir
+```
 You need to link the velvet executables and blast directory inside pamir folder:
 ln -s /dir/to/velvet/velveth /dir/to/pamir/velveth
 ln -s /dir/to/velvet/velvetg /dir/to/pamir/velvetg
