@@ -3,7 +3,7 @@ import os, sys, errno, argparse, subprocess, fnmatch, ConfigParser, shutil
 
 
 def usage():
-	print '\nUsage: python filtering.py VCF REF readlength mrsFAST-min mrsFAST-max workdir TLEN'
+	print '\nUsage: python filtering.py VCF REF mrsFAST-min mrsFAST-max workdir TLEN'
 	sys.exit(-1)
 
 ##############################
@@ -40,19 +40,23 @@ def get_bed_seq( ref_dict, ref, start, end):
 ################################
 def main():
 	args = sys.argv[1:]
-	if len(args) !=7:
+	if len(args) !=6:
 		usage()
 	MRSFAST= "mrsfast/mrsfast"
 	REF			=	sys.argv[2]
 	FILE		=	sys.argv[1]
-	readlength  =	int(sys.argv[3])
 	#mrsfast min
-	MIN			=	sys.argv[4]
+	MIN			=	sys.argv[3]
 	#mrsfast max
-	MAX			=	sys.argv[5]
-	workdir		= 	sys.argv[6]
+	MAX			=	sys.argv[4]
+	workdir		= 	sys.argv[5]
 	#how many bp before the breakpoint and after the breakpoint on ref to get. (1000 for now)
-	TLEN		=	int(sys.argv[7])
+	TLEN		=	int(sys.argv[6])
+	tmpf = open("{0}/all_interleaved.fastq".format(workdir),"r")
+	tmp = tmpf.readline()
+	tmp = tmpf.readline().strip()
+	readlength=int(len(tmp))
+	tmpf.close()
 	folder  ="{0}/filtering".format(workdir)
 	os.system("mkdir -p {0}".format(folder))
 	start=1

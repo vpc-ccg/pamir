@@ -2,7 +2,7 @@
 import os, sys, errno, argparse, subprocess, fnmatch, ConfigParser, shutil
 
 def usage():
-	print '\nUsage: python genotyping.py VCF REF SEQ1.fastq SEQ2.fastq readlength SAMPLENAME mrsFAST-min mrsFAST-max workdir TLEN'
+	print '\nUsage: python genotyping.py VCF REF SEQ1.fastq SEQ2.fastq SAMPLENAME mrsFAST-min mrsFAST-max workdir TLEN'
 	sys.exit(-1)
 ################################
 def load_fasta( fasta_file ):
@@ -132,7 +132,7 @@ def main():
 	os.system(MRSFAST + " --index {0}/allref.fa > {0}/mrsfast.index.log".format(folder))
 	os.system(MRSFAST + " --search {0}/allref.fa --pe --min {4} --max {5} -n 50 --threads 72 -o {0}/seq.mrsfast.ref.{1}.sam -e 3 --seq1 {2} --seq2 {3} --disable-sam-header --disable-nohits > {0}/seq.mrsfast.ref.{1}.sam.log".format(folder, EXT, SEQ1, SEQ2, MIN, MAX))
 	os.system("./recalibrate {0}/allref.coor {0}/seq.mrsfast.ref.{1}.sam {0}/seq.mrsfast.ref.{1}.recal.sam".format(folder,EXT))
-	os.system("sort -k 3,3 -k 4,4n {0}/seq.mrsfast.ref.{1}.recal.sam > {0}/seq.mrsfast.ref.{1}.recal.sam.sorted".format(folder,EXT))
+	os.system("sort -S 500G -T /cs/compbio2/ -k 3,3 -k 4,4n {0}/seq.mrsfast.ref.{1}.recal.sam > {0}/seq.mrsfast.ref.{1}.recal.sam.sorted".format(folder,EXT))
 	msamlist = open("{0}/seq.mrsfast.ref.{1}.recal.sam.sorted".format(folder,EXT),"r")
 
 	os.system(MRSFAST + " --index {0}/allinsertions.fa > {0}/mrsfast.index2.log".format(folder))
