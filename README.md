@@ -1,10 +1,11 @@
-# Pamir: Insertion Discovery Tool for Whole Genome Sequencing Data
+# *Pamir*: Insertion Discovery Tool for Whole Genome Sequencing Data
 
 ---
 
 Pamir is a computational tool for detecting novel sequence insertions in single or multiple paired-end WGS(Whole Genome Sequencing) Illumina reads based on orphans and one-end anchors (OEA).
 
-### Prerequisities and Compilation
+## Prerequisities and Compilation
+---
 
 Pamir relies on specific version of the following tools:  
 
@@ -47,7 +48,9 @@ Then make
 pamir$ make
 ```
 
-### How do I run Pamir?
+## How do I run Pamir?
+---
+
 You can use either of these commands:
 ```
 pamir$ ./pamir.py -h
@@ -59,6 +62,7 @@ to get a description of each parameter. For more details, please check doc/pamir
 ---
 
 
-### Contact & Support
+## Contact & Support
+---
 
 Feel free to drop any inquiry to [pinarkavak at gmail dot com](mailto:).
