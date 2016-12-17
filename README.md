@@ -37,20 +37,21 @@ cd pamir
 
 You need to link the velvet executables and blast directory inside pamir folder: 
 ```
-pamir # ln -s /dir/to/velvet/velveth /dir/to/pamir/velveth  
-pamir # ln -s /dir/to/velvet/velvetg /dir/to/pamir/velvetg  
-pamir # ln -s /dir/to/blast folder /dir/to/pamir/blast  
+pamir$ ln -s /dir/to/velvet/velveth /dir/to/pamir/velveth  
+pamir$ ln -s /dir/to/velvet/velvetg /dir/to/pamir/velvetg  
+pamir$ ln -s /dir/to/blast folder /dir/to/pamir/blast  
 ```
 
 Then make
 ```
-pamir # make
+pamir$ make
 ```
 
 ### How do I run Pamir?
 You can use 
 ```
-pamir/pamir.py -h
+pamir$ ./pamir.py -h
+pamir$ python pamir.py -h
 ```
 to get a description of each parameter. For more details, please check doc/pamir_manual.pdf.
 
