@@ -1,4 +1,4 @@
-#Pamir#: Insertion Discovery Tool for Whole Genome Sequencing Data
+#Pamir: Insertion Discovery Tool for Whole Genome Sequencing Data
 
 ---
 
@@ -6,22 +6,25 @@ Pamir is a computational tool for detecting novel sequence insertions in single 
 
 ### Prerequisities, Download and Compilation
 
-Pamir relies on specific version of the following tools:<br />
-g++ 4.9.0 or higher
+Pamir relies on specific version of the following tools:  
 
-(https://gcc.gnu.org/releases.html)
+g++ 4.9.0 or higher  
+(https://gcc.gnu.org/releases.html)  
+Python 2.7 or higher (needed for the package argparse )  
 
-Python 2.7 or higher (needed for the package argparse )
-boost library 1.62 or higher
-(https://sourceforge.net/projects/boost/?source=directory)
-You also need to define the boost library by typing on your shell
+boost library 1.62 or higher  
+(https://sourceforge.net/projects/boost/?source=directory)  
+You also need to define the boost library by typing on your shell  
 export BOOST INCLUDE= the/BOOST/version/include/ (directory of BOOST in your machine).
+
 velvet 1.2.10 or higher
+
 BLAST 2.3.0+ or higher
-Latest BLAST nt database is also needed to be downloaded in dir/to/blast/db (needed for contamination detection).
-mkdir dir/to/blast/db
-cd dir/to/blast/db
-../bin/update blastdb.pl nt
+
+Latest BLAST nt database is also needed to be downloaded in dir/to/blast/db (needed for contamination detection).  
+mkdir dir/to/blast/db  
+cd dir/to/blast/db  
+../bin/update blastdb.pl nt  
 
 Then, just clone our repository:
 ```
