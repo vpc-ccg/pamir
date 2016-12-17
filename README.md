@@ -4,12 +4,13 @@
 
 Pamir is a computational tool for detecting novel sequence insertions in single or multiple paired-end WGS(Whole Genome Sequencing) Illumina reads based on orphans and one-end anchors (OEA).
 
-### Prerequisities, Download and Compilation
+### Prerequisities and Compilation
 
 Pamir relies on specific version of the following tools:  
 
 g++ 4.9.0 or higher  
 (https://gcc.gnu.org/releases.html)  
+
 Python 2.7 or higher (needed for the package argparse )  
 
 boost library 1.62 or higher  
@@ -27,15 +28,21 @@ cd dir/to/blast/db
 ../bin/update blastdb.pl nt  
 
 Then, just clone our repository:
+
 ```
 git clone --recursive git@bitbucket.org:compbio/pamir.git
 cd pamir
 ```
-You need to link the velvet executables and blast directory inside pamir folder:
-ln -s /dir/to/velvet/velveth /dir/to/pamir/velveth
-ln -s /dir/to/velvet/velvetg /dir/to/pamir/velvetg
-ln -s /dir/to/blast folder /dir/to/pamir/blast
-Then just type make
+
+You need to link the velvet executables and blast directory inside pamir folder:  
+ln -s /dir/to/velvet/velveth /dir/to/pamir/velveth  
+ln -s /dir/to/velvet/velvetg /dir/to/pamir/velvetg  
+ln -s /dir/to/blast folder /dir/to/pamir/blast  
+
+Then make
+```
+pamir # make
+```
 
 ### How do I run Pamir?
 You can use 
