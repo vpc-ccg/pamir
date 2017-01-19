@@ -33,9 +33,9 @@ aligner::aligner(int reflen)
 	}
 	for (int i=1; i<=MAX_SIDE; i++)
 		score[0][i] = GAP_OPENING_SCORE + (i-1)*GAP_EXTENSION_SCORE;
-	a.reserve(reflen);
-	b.reserve(reflen);
-	c.reserve(reflen);
+	a.reserve(MAX_SIDE);
+	b.reserve(MAX_SIDE);
+	c.reserve(MAX_SIDE);
 }
 /**********************************************************/
 aligner::~aligner()
