@@ -44,7 +44,6 @@ private:
 	int ref_abs_start;
 private:
 	void clear(int, int);
-	int max3(int, int, int);
 	void print_matrix(string, const string &, const string &, int **);	
 
 public:

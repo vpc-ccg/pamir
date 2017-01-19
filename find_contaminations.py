@@ -21,7 +21,7 @@ def main():
 	fout = open(sys.argv[2], 'w')
 	contiglist=[]
 	contiginfo=[]
-	notcontaminant = ['Human', 'H.sapiens', 'Homo', 'sapiens', 'troglodytes', 'Gorilla', 'pygmaeus', 'mulatta', 'Rhinopithecus', 'Papio', 'Macaque', 'musculus', 'Callithrix', 'Colobus', 'fascicularis', 'Ailuropoda', 'Aotus', 'abelii', 'Pongo', 'Microcebus', 'Chinchilla', 'Macaca', 'macaque', 'aethiops', 'Mouse', 'canadensis','monkey','squirrel', 'Pig', 'Canadensis', 'Ovis', 'Chlorocebus','Myotis','gallus','Gallus','citb_109_p_11,', 'Methylobacterium']
+	notcontaminant = ['Human', 'H.sapiens', 'Homo', 'sapiens', 'troglodytes', 'Gorilla', 'pygmaeus', 'mulatta', 'Rhinopithecus', 'Papio', 'Macaque', 'musculus', 'Callithrix', 'Colobus', 'fascicularis', 'Ailuropoda', 'Aotus', 'abelii', 'Pongo', 'Microcebus', 'Chinchilla', 'Macaca', 'macaque', 'aethiops', 'Mouse', 'canadensis','monkey','squirrel', 'Pig', 'Canadensis', 'Ovis', 'Chlorocebus','Myotis','gallus','Gallus','citb_109_p_11,', 'Methylobacterium','Bos taurus', 'Figure 4.','Cyprinus carpio','Pan','Agkistrodon contortrix','Apteryx australis','']
 	i=0
 	line = fin.readline()
 	while(line!=''):

@@ -283,19 +283,14 @@ reset:
 /******************************************************************/
 void print_calls(string chrName, const string &reference, vector< tuple< string, int, int, string, int, float > > &reports, FILE *fo_vcf, const int &clusterId)
 {
-	genome toextract(reference.c_str());
-	string ref;
-	int refend;
 	for(int r=0;r<reports.size();r++)
 	{
-		refend = get<1>(reports[r])+1;
-		ref = toextract.extract(chrName, refend, refend);
 		if(get<0>(reports[r])== "INS"){
 			fprintf(fo_vcf, "%s\t",	 			chrName.c_str());
 			fprintf(fo_vcf, "%d\t", 			get<1>(reports[r]));
 		//	fprintf(fo_vcf, "%d\t", 			get<2>(reports[r]));
 			fprintf(fo_vcf, ".\t");
-			fprintf(fo_vcf, "%s\t",ref.c_str());
+			fprintf(fo_vcf, "%c\t",reference.at(r));
 			fprintf(fo_vcf, "<INS>\t");
 		//	fprintf(fo_vcf, "%s\t",				get<3>(reports[r]).c_str());
 		//	fprintf(fo_vcf, "%f\t", 			-10*log(1-get<5>(reports[r])));
@@ -362,8 +357,8 @@ void assemble (const string &partition_file, const string &reference, const stri
 	
 	assembler as(max_len, 15);
 	genome ref(reference.c_str());
+	map<string,string> chroms;
 	genome_partition pt;
-	
 	aligner al(max_len + 2010 );
 	while (1) 
 	{
@@ -408,13 +403,12 @@ void assemble (const string &partition_file, const string &reference, const stri
 			if( check_AT_GC(contig.data, MAX_AT_GC) == 0 || (con_len <= read_length && contig_support <= 1) || con_len > max_len + 400 ) continue;
 		
 			fprintf(stdout, "\n\n>>>>> Length: %d Support: %d Contig: %s\n", con_len, contig_support, contig.data.c_str());
-		for(int z=0;z<contig.read_information.size();z++)
+			for(int z=0;z<contig.read_information.size();z++)
 				fprintf(stdout,"%s %s %d %d\n", 
 					contig.read_information[z].name.c_str(),
 					contig.read_information[z].seq.c_str(),
 					contig.read_information[z].location, 
 					contig.read_information[z].location_in_contig);
-			
 			al.align(ref_part, contig.data);
 			if(al.extract_calls(cluster_id, reports, contig_support, ref_start,">>>")==0)
 			{
@@ -423,7 +417,17 @@ void assemble (const string &partition_file, const string &reference, const stri
 				al.extract_calls(cluster_id, reports, contig_support, ref_start, "<<<");
 			}
 		}
-		print_calls(chrName, reference, reports, fo_vcf, pt.get_cluster_id());
+		//print_calls new version
+		string tmp_ref="";
+		tmp_ref.reserve( 8 );
+		for (int j =0; j <reports.size();j++)
+		{
+			int tmp_end = get<1>(reports[j])+1;
+			tmp_ref += ref.getchar(chrName, tmp_end);
+			//tmp_ref += ref.extract(chrName, tmp_end, tmp_end);
+		}
+		print_calls(chrName, tmp_ref, reports, fo_vcf, pt.get_cluster_id());
+		//print_calls(chrName, reference, reports, fo_vcf, pt.get_cluster_id());
 	}
 	fclose(fo_vcf);
 }

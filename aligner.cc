@@ -5,7 +5,8 @@
 #include<vector>
 #include "aligner.h"
 #include <tuple>
-
+#include <time.h>
+#include "common.h"
 using namespace std;
 
 aligner::aligner(int reflen)
@@ -32,9 +33,11 @@ aligner::aligner(int reflen)
 	}
 	for (int i=1; i<=MAX_SIDE; i++)
 		score[0][i] = GAP_OPENING_SCORE + (i-1)*GAP_EXTENSION_SCORE;
-
+	a.reserve(reflen);
+	b.reserve(reflen);
+	c.reserve(reflen);
 }
-
+/**********************************************************/
 aligner::~aligner()
 {
 	for (int i=0; i<= MAX_SIDE; i++)
@@ -45,7 +48,7 @@ aligner::~aligner()
 	}	
 	delete score;
 }
-
+/*********************************************************/
 void aligner::print_matrix(string name, const string &a, const string &b, int **matrix)
 {
 	fprintf(stdout, "=================================\n");
@@ -70,7 +73,7 @@ void aligner::print_matrix(string name, const string &a, const string &b, int **
 	}
 	fprintf(stdout, "=================================\n");
 }
-
+/**************************************************/
 void aligner::clear(int a, int b)
 {
 	identity = 0;
@@ -92,12 +95,7 @@ void aligner::clear(int a, int b)
 			gapb[j][i]=0;
 	}
 }
-
-int aligner::max3(int a, int b, int c)
-{
-	return max (max(a,b), c);
-}
-
+/*************************************************/
 void aligner::align(const string &ref, const string &ass)
 {
 	int len = ass.length();
@@ -107,8 +105,8 @@ void aligner::align(const string &ref, const string &ass)
 	{
 		for (int j=1; j<= len;j++)
 		{
-			gapa[i][j] = max( gapa[i-1][j] + GAP_EXTENSION_SCORE, score[i-1][j]+GAP_OPENING_SCORE+GAP_EXTENSION_SCORE);
-			gapb[i][j] = max( gapb[i][j-1] + GAP_EXTENSION_SCORE, score[i][j-1]+GAP_OPENING_SCORE+GAP_EXTENSION_SCORE);
+			gapa[i][j] = max2( gapa[i-1][j] + GAP_EXTENSION_SCORE, score[i-1][j]+GAP_OPENING_SCORE+GAP_EXTENSION_SCORE);
+			gapb[i][j] = max2( gapb[i][j-1] + GAP_EXTENSION_SCORE, score[i][j-1]+GAP_OPENING_SCORE+GAP_EXTENSION_SCORE);
 			tmp = ((ref[i-1]==ass[j-1])?MATCH_SCORE:MISMATCH_SCORE);
 			score[i][j] = max3(score[i-1][j-1]+tmp, gapa[i-1][j-1]+tmp, gapb[i-1][j-1]+tmp);
 		}
@@ -132,7 +130,9 @@ void aligner::align(const string &ref, const string &ass)
 	a_start = 0;
 	a_end = pj-1;
 
-	a = b = c  = "";
+	a.clear();
+	b.clear();
+	c.clear();
 
 	int cur = 0;
 
@@ -243,7 +243,7 @@ void aligner::align(const string &ref, const string &ass)
 int aligner::extract_calls( const int &cluster_id, vector<tuple<string, int, int, string, int, float > > &reports, const int &contig_support, const int &ref_start, string direction)
 {
 	ref_abs_start = ref_start + p_start;
-	dump(stdout, direction);
+	//dump(stdout, direction);
 
 	int mapped					= 0;
 	int insertion_start_loc 	= -1;

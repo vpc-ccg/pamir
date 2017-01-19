@@ -7,6 +7,29 @@
 
 using namespace std;
 
+int max3(int a, int b, int c)
+{
+//	return max (max(a,b), c);
+	int z = a;
+	if (z < b) z=b;
+	if (z < c) z=c;
+	return z;
+}
+/*************************************************/
+int max2(int a, int b)
+{
+	int z = a;
+	if (z < b) z=b;
+	return z;
+}
+/**************************************************/
+int min2(int a, int b)
+{
+	int z = a;
+	if (z > b) z=b;
+	return z;
+}
+/**************************************************/
 void wo (FILE *f, char *n, char *s, char *q) {
 	int m = min(strlen(q), strlen(s));
 	s[m] = q[m] = 0;

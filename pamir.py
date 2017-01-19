@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #786 
 
-import os, sys, errno, argparse, subprocess, fnmatch, ConfigParser
+import os, sys, errno, argparse, subprocess, fnmatch, ConfigParser,time
 #############################################################################################
 # Class for colored texts and binary path
 class bcolors:
@@ -934,24 +934,58 @@ def remove_concordant_for_each_bestsam(config):
 def run_command(config, force=False):
 	verify_sam(config)
 	mask(config)
+	a0=time.time()
 	index(config)
-#	mrsfast_best_search(config)
-#	remove_concordant_for_each_bestsam(config)
+	a1=time.time()
+	print "index ref",a1-a0
+	mrsfast_best_search(config)
+	remove_concordant_for_each_bestsam(config)
+	t0= time.time()
 	mrsfast_search(config)
+	t1=time.time()
+	print "mrsfast-search",t1-t0
 	sort(config)
+	t2=time.time()
+	print "sort",t2-t1
 	modify_oea_unmap(config)
+	t3=time.time()
+	print "modify_oea_unmap",t3-t2
 	partition(config)
+	t4=time.time()
+	print "parition generation",t4-t3
 	orphan_assembly(config)
+	t5=time.time()
+	print "orphan assembly",t5-t4
 	remove_contamination_orphan_contig(config)
+	t6=time.time()
+	print "remove contamination",t6-t5
 	prepare_orphan_contig(config)
+	t7=time.time()
+	print "prepare orphan contig",t7-t6
 	oea_to_orphan(config)
+	t8=time.time()
+	print "oea to orphan",t8-t7
 	oea_to_orphan_split(config)
+	t9=time.time()
+	print "oea to orphan split map",t9-t8
 	recalibrate_all_oea_to_orphan(config)
+	t10=time.time()
+	print "recalibrate all oea to orphan",t10-t9
 	orphans_into_oeacluster(config)
+	t11=time.time()
+	print "orphans into oea cluster",t11-t10
 	print_header(config)
+	t12=time.time()
+	print "print header",t12-t11
 	update_partition(config)
+	t13=time.time()
+	print "update partition",t13-t12
 	dupremoval_cleaning(config)
+	t14=time.time()
+	print "dupremoval cleaning",t14-t13
 	post_processing(config)
+	t15=time.time()
+	print "postprocessing (filtering + sertcover)",t15-t14
 	exit(0)
 
 #############################################################################################
