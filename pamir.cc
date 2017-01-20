@@ -24,6 +24,7 @@
 #include "bam_parser.h"
 #include "sort.h"
 
+
 using namespace std;
 
 inline string space (int i) 
@@ -448,14 +449,15 @@ void assemble (const string &partition_file, const string &reference, const stri
 	map<string,string> chroms;
 	genome_partition pt;
 	aligner al(max_len + 2010 );
-
+	
+	string tmp_ref; tmp_ref.reserve(8);
 	string vcf_info=""; vcf_info.reserve(10000000);
 	const int MAX_BUFFER = 500;
 	int n_buffer         =   0;
 
 	while (1) 
 	{
-		auto p 			= pt.read_partition(partition_file, range);
+		auto p 			= pt.read_partition(partition_file, range); 
 		// end of the partition file
 		if ( !p.size() ) 
 			break;
@@ -479,9 +481,9 @@ void assemble (const string &partition_file, const string &reference, const stri
 		// if the genomic region is too big
 		if (ref_end - ref_start > MAX_REF_LEN) 
 			continue;
-
+		
 		// holding the calls info, can be used to detect the repeated calls, etc.
-		vector< tuple< string, int, int, string, int, float > > reports;
+		vector< tuple< string, int, int, string, int, float > > reports;//reports.clear();
 		
 		vector<string> reads;
 		for (int i =0;i<p.size();i++)
@@ -511,8 +513,7 @@ void assemble (const string &partition_file, const string &reference, const stri
 			}
 		}
 		//print_calls new version
-		string tmp_ref="";
-		tmp_ref.reserve( 8 );
+		tmp_ref.clear();
 		for (int j =0; j <reports.size();j++)
 		{
 			int tmp_end = get<1>(reports[j])+1;

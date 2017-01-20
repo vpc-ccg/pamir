@@ -100,15 +100,15 @@ void aligner::align(const string &ref, const string &ass)
 {
 	int len = ass.length();
 
-	int tmp;	
+	int tmp;		
 	for (int i=1; i<=ref.length();i++)
 	{
 		for (int j=1; j<= len;j++)
 		{
-			gapa[i][j] = max2( gapa[i-1][j] + GAP_EXTENSION_SCORE, score[i-1][j]+GAP_OPENING_SCORE+GAP_EXTENSION_SCORE);
-			gapb[i][j] = max2( gapb[i][j-1] + GAP_EXTENSION_SCORE, score[i][j-1]+GAP_OPENING_SCORE+GAP_EXTENSION_SCORE);
+			gapa[i][j] = max2( gapa[i-1][j], score[i-1][j]+GAP_OPENING_SCORE ) + GAP_EXTENSION_SCORE;
+			gapb[i][j] = max2( gapb[i][j-1], score[i][j-1]+GAP_OPENING_SCORE ) + GAP_EXTENSION_SCORE;
 			tmp = ((ref[i-1]==ass[j-1])?MATCH_SCORE:MISMATCH_SCORE);
-			score[i][j] = max3(score[i-1][j-1]+tmp, gapa[i-1][j-1]+tmp, gapb[i-1][j-1]+tmp);
+			score[i][j] = max3(score[i-1][j-1], gapa[i-1][j-1], gapb[i-1][j-1]) + tmp;
 		}
 	}
 	
@@ -143,9 +143,12 @@ void aligner::align(const string &ref, const string &ass)
 		if ( cur == 0 )
 		{
 			tmp = ((ref[pi-1] == ass[pj-1])?MATCH_SCORE:MISMATCH_SCORE);
-			a = ref[pi-1] + a;
-			b = ass[pj-1] + b;
-			c = ((tmp>0)?'|':' ')+c;
+			//a = ref[pi-1] + a;
+			//b = ass[pj-1] + b;
+			//c = ((tmp>0)?'|':' ')+c;
+			a += ref[pi-1];
+			b += ass[pj-1];
+			c += ((tmp>0)?'|':' ');
 
 			if (gapa[pi-1][pj-1] + tmp == score[pi][pj]) 
 			{
@@ -169,23 +172,30 @@ void aligner::align(const string &ref, const string &ass)
 		}
 		else if (cur == 1)
 		{
-			a = ref[pi-1] + a;
-			b = '-' + b;
-			c = ' '+c;
+			//a = ref[pi-1] + a;
+			//b = '-' + b;
+			//c = ' '+c;
+			a += ref[pi-1];
+			b += '-';
+			c += ' ';
 			if (score[pi-1][pj]+GAP_EXTENSION_SCORE+GAP_OPENING_SCORE == gapa[pi][pj])
 				cur = 0;
 			pi--;
 		}
 		else 
 		{
-			a = '-' + a;
-			b = ass[pj-1] + b;
-			c = ' '+c;
+			//a = '-' + a;
+			//b = ass[pj-1] + b;
+			//c = ' '+c;
+			a += '-';
+			b += ass[pj-1];
+			c += ' ';
 			if (score[pi][pj-1]+GAP_EXTENSION_SCORE+GAP_OPENING_SCORE == gapb[pi][pj])
 				cur = 0;
 			pj--;
 		}
 	}
+	a = reverse(a); b = reverse(b); c = reverse(c);
 //anchor calculation
 	left_anchor = 0;
 	right_anchor = 0;
@@ -243,7 +253,7 @@ void aligner::align(const string &ref, const string &ass)
 int aligner::extract_calls( const int &cluster_id, vector<tuple<string, int, int, string, int, float > > &reports, const int &contig_support, const int &ref_start, string direction)
 {
 	ref_abs_start = ref_start + p_start;
-	//dump(stdout, direction);
+	dump(stdout, direction);
 
 	int mapped					= 0;
 	int insertion_start_loc 	= -1;
