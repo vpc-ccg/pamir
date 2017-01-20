@@ -1,6 +1,7 @@
 #ifndef __COMMON__
 #define __COMMON__
 #include <string>
+#include "logger.h"
 
 #define KB  1024LL
 #define MB  KB * 1024LL
@@ -14,6 +15,10 @@
 #define LOG(c,...)\
 	fprintf(stderr, c"\n", ##__VA_ARGS__)
 #define MAX_CHAR 1000000
+#define max2(a,b) (((a)>(b))?(a):(b)) 
+//#define max3(a,b,c) max2(a, max2(b,c))
+#define max3(a,b,c) ( (a>b)?( ( a>c)?a:c ):((b>c)?b:c) )
+//#define min2(a,b) (((a)<(b))?(a):(b)) 
 
 using namespace std;
 
@@ -24,7 +29,7 @@ string reverse ( const string & );
 string S (const char* fmt, ...);
 int check_AT_GC(const string &, const double &);
 /*************************************************/
-inline int max2(int a, int b)
+inline int max22(int a, int b)
 {
 	return (a>b)?a:b;
 }
@@ -34,7 +39,7 @@ inline int min2(int a, int b)
 	return (b>a)?a:b;
 }
 /*************************************************/
-inline int max3(int a, int b, int c)
+inline int max33(int a, int b, int c)
 {
 	int z = a;
 	if (z < b) z=b;

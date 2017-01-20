@@ -450,7 +450,7 @@ void assemble (const string &partition_file, const string &reference, const stri
 	genome_partition pt;
 	aligner al(max_len + 2010 );
 	
-	string tmp_ref; tmp_ref.reserve(8);
+	string tmp_ref; tmp_ref.reserve(4);
 	string vcf_info=""; vcf_info.reserve(10000000);
 	const int MAX_BUFFER = 500;
 	int n_buffer         =   0;
@@ -472,12 +472,18 @@ void assemble (const string &partition_file, const string &reference, const stri
 		int ref_start   = pt_start - LENFLAG;
 		int ref_end     = pt_end   + LENFLAG;
 		string ref_part = ref.extract(chrName, ref_start, ref_end);
-		fprintf(stdout,"-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");
-		fprintf(stdout," + Cluster ID      : %d\n", cluster_id);
-		fprintf(stdout," + Reads Count     : %lu\n", p.size());
-		fprintf(stdout," + Spanning Range  : %s:%d-%d\n", chrName.c_str(), pt_start, pt_end);
-		fprintf(stdout," + Discovery Range : %s:%d-%d\n", chrName.c_str(), ref_start, ref_end);
-		fprintf(stdout," + Reference       : %s\n\n", ref_part.c_str());
+		log("-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");
+		log(" + Cluster ID      : %d\n", cluster_id);
+		log(" + Reads Count     : %lu\n", p.size());
+		log(" + Spanning Range  : %s:%d-%d\n", chrName.c_str(), pt_start, pt_end);
+		log(" + Discovery Range : %s:%d-%d\n", chrName.c_str(), ref_start, ref_end);
+		log(" + Reference       : %s\n\n", ref_part.c_str());
+		//fprintf(stdout,"-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");
+		//fprintf(stdout," + Cluster ID      : %d\n", cluster_id);
+		//fprintf(stdout," + Reads Count     : %lu\n", p.size());
+		//fprintf(stdout," + Spanning Range  : %s:%d-%d\n", chrName.c_str(), pt_start, pt_end);
+		//fprintf(stdout," + Discovery Range : %s:%d-%d\n", chrName.c_str(), ref_start, ref_end);
+		//fprintf(stdout," + Reference       : %s\n\n", ref_part.c_str());
 		// if the genomic region is too big
 		if (ref_end - ref_start > MAX_REF_LEN) 
 			continue;
@@ -497,9 +503,10 @@ void assemble (const string &partition_file, const string &reference, const stri
 			int con_len 			= contig.data.length();
 			if( check_AT_GC(contig.data, MAX_AT_GC) == 0 || (con_len <= read_length && contig_support <= 1) || con_len > max_len + 400 ) continue;
 		
-			fprintf(stdout, "\n\n>>>>> Length: %d Support: %d Contig: %s\n", con_len, contig_support, contig.data.c_str());
+			log("\n\n>>>>> Length: %d Support: %d Contig: %s\n", con_len, contig_support, contig.data.c_str());
+			//fprintf(stdout, "\n\n>>>>> Length: %d Support: %d Contig: %s\n", con_len, contig_support, contig.data.c_str());
 			for(int z=0;z<contig.read_information.size();z++)
-				fprintf(stdout,"%s %s %d %d\n", 
+				log("%s %s %d %d\n", 
 					contig.read_information[z].name.c_str(),
 					contig.read_information[z].seq.c_str(),
 					contig.read_information[z].location, 
@@ -513,7 +520,7 @@ void assemble (const string &partition_file, const string &reference, const stri
 			}
 		}
 		//print_calls new version
-		tmp_ref.clear();
+		tmp_ref.clear();//string tmp_ref = ""; 
 		for (int j =0; j <reports.size();j++)
 		{
 			int tmp_end = get<1>(reports[j])+1;
@@ -538,7 +545,11 @@ void assemble (const string &partition_file, const string &reference, const stri
 /*********************************************************************************************/
 int main(int argc, char **argv)
 {
+	string log_path = "";
+
+
 	try {
+
 		if (argc < 2) throw "Usage:\tsniper [mode=(?)]";
 
 		string mode = argv[1];
@@ -572,7 +583,10 @@ int main(int argc, char **argv)
 		}
 		else if (mode == "assemble") {
 			if (argc != 9) throw "Usage:10 parameters needed\tsniper assemble [partition-file] [reference] [range] [output-file-vcf] [max-len] [read-length] dir_prefix";
+			log_path = argv[5]; log_path += ".log";
+			log_init( "" );	//log_init( log_path );
 			assemble(argv[2], argv[3], argv[4], argv[5], atoi(argv[6]), atoi(argv[7]), argv[8]);
+			log_close();
 		}
 		else if (mode == "get_cluster") {
 			if (argc != 4) throw "Usage:\tsniper get_cluster [partition-file] [range]";
@@ -595,6 +609,7 @@ int main(int argc, char **argv)
 		ERROR("Error: %s\n", e);
 		exit(1);
 	}
+
 		
 	return 0;
 }
