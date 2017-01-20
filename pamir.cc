@@ -305,10 +305,76 @@ void print_calls(string chrName, const string &reference, vector< tuple< string,
 		}
 	}
 }
+/******************************************************************/
+void append_vcf(const string &chrName, const string &reference, const vector< tuple< string, int, int, string, int, float > > &reports, const int &clusterId, string &vcf_str )
+{
+	for(int r=0;r<reports.size();r++)
+	{
+		if(get<0>(reports[r])== "INS")
+		{
+			vcf_str += 	chrName;	vcf_str += 	"\t";
+			vcf_str +=	std::to_string(get<1>(reports[r]));	vcf_str += "\t.\t";
+			vcf_str +=  reference.at(r);
+			vcf_str +=  "\t<INS>\t";
+			vcf_str +=  std::to_string( get<5>(reports[r]));
+			vcf_str +=  "\tPASS\tSVTYPE=INS;SVLEN=";
+			vcf_str +=  std::to_string( get<2>(reports[r])) ;
+			vcf_str += 	";END=";	vcf_str +=	std::to_string( get<1>(reports[r]) + get<2>(reports[r])-1 );
+			vcf_str += ";Cluster=";	vcf_str +=	std::to_string( clusterId ) ;
+			vcf_str += ";Support=";	vcf_str	+=	std::to_string( get<4>(reports[r])) ;
+			vcf_str += ";SEQ=";		vcf_str	+=	get<3>(reports[r]);
+			vcf_str += "\n";
+		}
+	}
+}
+///*******************************************************************/
+//void print_header(const string &header_file, const string &reference)
+//{
+//	FILE *fo = fopen(header_file.c_str(),"w");
+//	genome toread(reference.c_str());
+//	char *absref = new char[1000];
+//	char *baseref = new char[1000]; 
+//	strcpy(absref,reference.c_str());
+//	baseref = strtok(absref,"/");
+//	char *prevref = new char[500];
+//	while(baseref!=NULL)
+//	{
+//		strcpy(prevref,baseref);
+//		baseref=strtok(NULL,"/");
+//	}
+//	toread.load_next();
+//	fprintf(fo, "##fileformat=VCFv4.2\n");
+//	fprintf(fo, "##FILTER=<ID=PASS,Description=\"All filters passed\">\n");
+//	fprintf(fo, "##reference=%s\n",prevref);
+//	fprintf(fo, "##source=Pamir\n");
+//	fprintf(fo, "##ALT=<ID=<INS>,Type=String,Description=\"Insertion of novel sequence\">\n");
+//	fprintf(fo, "##INFO=<ID=SVTYPE,Number=1,Type=String,Description=\"Type of structural variant\">\n");
+//	fprintf(fo, "##INFO=<ID=SVLEN,Number=1,Type=Integer,Description=\"Difference in length between REF and ALT alleles\">\n");
+//	fprintf(fo, "##INFO=<ID=END,Number=1,Type=Integer,Description=\"End coordinate of this variant\">\n");
+//	fprintf(fo, "##INFO=<ID=Cluster,Number=1,Type=Integer,Description=\"ID of the cluster the variant is extracted from\">\n");
+//	fprintf(fo, "##INFO=<ID=Support,Number=1,Type=Integer,Description=\"Number of reads/contigs supporting the contig\">\n");
+//	fprintf(fo, "##INFO=<ID=SEQ,Number=1,Type=String,Description=\"Variant sequence\">\n");
+//	string prevName="";
+//	string name = toread.get_name();
+//	int ssize = toread.get_size();
+//	while (name!=prevName && ssize!=0)
+//	{
+//		fprintf(fo, "##contig=<ID=%s,length=%d>\n",name.c_str(),ssize);
+//		prevName=name;
+//		toread.load_next();
+//		name=toread.get_name();
+//		ssize = toread.get_size();
+//	}
+//	fprintf(fo, "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n");
+//	fclose(fo);
+//}
 /*******************************************************************/
 void print_header(const string &header_file, const string &reference)
 {
-	FILE *fo = fopen(header_file.c_str(),"w");
+	string header_info;
+	header_info.reserve(16384);
+
+	// access genome information
 	genome toread(reference.c_str());
 	char *absref = new char[1000];
 	char *baseref = new char[1000]; 
@@ -321,29 +387,51 @@ void print_header(const string &header_file, const string &reference)
 		baseref=strtok(NULL,"/");
 	}
 	toread.load_next();
-	fprintf(fo, "##fileformat=VCFv4.2\n");
-	fprintf(fo, "##FILTER=<ID=PASS,Description=\"All filters passed\">\n");
-	fprintf(fo, "##reference=%s\n",prevref);
-	fprintf(fo, "##source=Pamir\n");
-	fprintf(fo, "##ALT=<ID=<INS>,Type=String,Description=\"Insertion of novel sequence\">\n");
-	fprintf(fo, "##INFO=<ID=SVTYPE,Number=1,Type=String,Description=\"Type of structural variant\">\n");
-	fprintf(fo, "##INFO=<ID=SVLEN,Number=1,Type=Integer,Description=\"Difference in length between REF and ALT alleles\">\n");
-	fprintf(fo, "##INFO=<ID=END,Number=1,Type=Integer,Description=\"End coordinate of this variant\">\n");
-	fprintf(fo, "##INFO=<ID=Cluster,Number=1,Type=Integer,Description=\"ID of the cluster the variant is extracted from\">\n");
-	fprintf(fo, "##INFO=<ID=Support,Number=1,Type=Integer,Description=\"Number of reads/contigs supporting the contig\">\n");
-	fprintf(fo, "##INFO=<ID=SEQ,Number=1,Type=String,Description=\"Variant sequence\">\n");
+
+	// Append Texts
+	//header_info =	"##fileformat=VCFv4.2\n"
+	//header_info =	"haha"
+	//			+	"##FILTER=<ID=PASS,Description=\"All filters passed\">\n"
+	//			+	"##reference=" + prevref
+	header_info =	"haha##FILTER=<ID=PASS,Description=\"All filters passed\">\n##reference="; 
+	//header_info+=   prevref
+	header_info+=   prevref;
+	header_info+=	"##source=Pamir\n"
+					"##ALT=<ID=<INS>,Type=String,Description=\"Insertion of novel sequence\">\n"
+					"##INFO=<ID=SVTYPE,Number=1,Type=String,Description=\"Type of structural variant\">\n"
+					"##INFO=<ID=SVLEN,Number=1,Type=Integer,Description=\"Difference in length between REF and ALT alleles\">\n"
+					"##INFO=<ID=END,Number=1,Type=Integer,Description=\"End coordinate of this variant\">\n"
+					"##INFO=<ID=Cluster,Number=1,Type=Integer,Description=\"ID of the cluster the variant is extracted from\">\n"
+					"##INFO=<ID=Support,Number=1,Type=Integer,Description=\"Number of reads/contigs supporting the contig\">\n"
+					"##INFO=<ID=SEQ,Number=1,Type=String,Description=\"Variant sequence\">\n";
+	
+	//header_info+=	"##source=Pamir\n";
+	//header_info+=	"##ALT=<ID=<INS>,Type=String,Description=\"Insertion of novel sequence\">\n";
+	//header_info+=	"##INFO=<ID=SVTYPE,Number=1,Type=String,Description=\"Type of structural variant\">\n";
+	//header_info+=	"##INFO=<ID=SVLEN,Number=1,Type=Integer,Description=\"Difference in length between REF and ALT alleles\">\n";
+	//header_info+=	"##INFO=<ID=END,Number=1,Type=Integer,Description=\"End coordinate of this variant\">\n";
+	//header_info+=	"##INFO=<ID=Cluster,Number=1,Type=Integer,Description=\"ID of the cluster the variant is extracted from\">\n";
+	//header_info+=	"##INFO=<ID=Support,Number=1,Type=Integer,Description=\"Number of reads/contigs supporting the contig\">\n";
+	//header_info+=	"##INFO=<ID=SEQ,Number=1,Type=String,Description=\"Variant sequence\">\n";
+
 	string prevName="";
 	string name = toread.get_name();
 	int ssize = toread.get_size();
 	while (name!=prevName && ssize!=0)
 	{
-		fprintf(fo, "##contig=<ID=%s,length=%d>\n",name.c_str(),ssize);
+		header_info +=	"##contig=<ID=";	header_info+=	name;
+		header_info	+=	",length=";		 	header_info+=	to_string(ssize);
+		header_info	+=	">\n";
+		//header_info +=	"##contig=<ID=" + name + ",length=" + to_string(ssize) + ">\n";
 		prevName=name;
 		toread.load_next();
-		name=toread.get_name();
+		name  =toread.get_name();
 		ssize = toread.get_size();
 	}
-	fprintf(fo, "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n");
+	header_info +=	"#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n";
+	
+	FILE *fo = fopen(header_file.c_str(),"w");
+	fprintf(fo, "%s", header_info.c_str() );
 	fclose(fo);
 }
 /****************************************************************/
@@ -360,6 +448,11 @@ void assemble (const string &partition_file, const string &reference, const stri
 	map<string,string> chroms;
 	genome_partition pt;
 	aligner al(max_len + 2010 );
+
+	string vcf_info=""; vcf_info.reserve(10000000);
+	const int MAX_BUFFER = 500;
+	int n_buffer         =   0;
+
 	while (1) 
 	{
 		auto p 			= pt.read_partition(partition_file, range);
@@ -426,9 +519,19 @@ void assemble (const string &partition_file, const string &reference, const stri
 			tmp_ref += ref.getchar(chrName, tmp_end);
 			//tmp_ref += ref.extract(chrName, tmp_end, tmp_end);
 		}
-		print_calls(chrName, tmp_ref, reports, fo_vcf, pt.get_cluster_id());
+		
+		append_vcf( chrName, tmp_ref, reports, pt.get_cluster_id(), vcf_info);
+		n_buffer++;
+		if ( 0 == n_buffer%MAX_BUFFER )
+		{
+			fprintf( fo_vcf, "%s", vcf_info.c_str());
+			n_buffer = 0;
+			vcf_info.clear();
+		}
 		//print_calls(chrName, reference, reports, fo_vcf, pt.get_cluster_id());
 	}
+	// Sanity check for the last record
+	if ( 0 < vcf_info.size()){	fprintf( fo_vcf, "%s", vcf_info.c_str());}
 	fclose(fo_vcf);
 }
 /*********************************************************************************************/
