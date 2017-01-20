@@ -4,16 +4,9 @@
 
 using namespace std;
 
-class logger
-{
-private:
-	FILE *output;
-
-public:
-	logger(string);
-	~logger();
-	void log(const char*, ...);
-};
+void log_init(string);
+void log_close();
+void log(const char*, ...);
 
 
 #endif
