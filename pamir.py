@@ -780,7 +780,7 @@ def update_partition(config ):
 	control_file  = "{0}/log/26.index_log.log".format(workdir)
 	complete_file = "{0}/stage/26.index_log.finished".format(workdir)
 	run_cmd       = not (os.path.isfile(complete_file) )
-	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
+	#shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
 ######################################################################################
 #### sort the vcf and remove the duplications generate interleaved and paired fastq files from orphans and unmapped oeas.
 def dupremoval_cleaning(config):	
@@ -934,10 +934,10 @@ def remove_concordant_for_each_bestsam(config):
 def run_command(config, force=False):
 	verify_sam(config)
 	mask(config)
-	a0=time.time()
+	#a0=time.time()
 	index(config)
-	a1=time.time()
-	print "index ref",a1-a0
+	#a1=time.time()
+	#print "index ref",a1-a0
 	mrsfast_best_search(config)
 	remove_concordant_for_each_bestsam(config)
 	t0= time.time()
@@ -953,28 +953,28 @@ def run_command(config, force=False):
 	partition(config)
 	t4=time.time()
 	print "parition generation",t4-t3
-	#orphan_assembly(config)
+	orphan_assembly(config)
 	t5=time.time()
 	print "orphan assembly",t5-t4
-	#remove_contamination_orphan_contig(config)
+	remove_contamination_orphan_contig(config)
 	t6=time.time()
 	print "remove contamination",t6-t5
-	#prepare_orphan_contig(config)
+	prepare_orphan_contig(config)
 	t7=time.time()
 	print "prepare orphan contig",t7-t6
-	#oea_to_orphan(config)
+	oea_to_orphan(config)
 	t8=time.time()
 	print "oea to orphan",t8-t7
-	#oea_to_orphan_split(config)
+	oea_to_orphan_split(config)
 	t9=time.time()
 	print "oea to orphan split map",t9-t8
-	#recalibrate_all_oea_to_orphan(config)
+	recalibrate_all_oea_to_orphan(config)
 	t10=time.time()
 	print "recalibrate all oea to orphan",t10-t9
-	#orphans_into_oeacluster(config)
+	orphans_into_oeacluster(config)
 	t11=time.time()
 	print "orphans into oea cluster",t11-t10
-	#print_header(config)
+	print_header(config)
 	t12=time.time()
 	print "print header",t12-t11
 	update_partition(config)

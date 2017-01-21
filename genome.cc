@@ -56,8 +56,8 @@ string genome::extract(const string &rname, int &start, int &end)
 		load_next();
 		
 	}
-	start = max2(start, 1);
-	end = max2(end, 1);
+	start = max22(start, 1);
+	end = max22(end, 1);
 	end = min2(end, (int)reference.size());
 	return reference.substr(start-1, end-start+1);
 }

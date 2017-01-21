@@ -105,10 +105,10 @@ void aligner::align(const string &ref, const string &ass)
 	{
 		for (int j=1; j<= len;j++)
 		{
-			gapa[i][j] = max2( gapa[i-1][j], score[i-1][j]+GAP_OPENING_SCORE ) + GAP_EXTENSION_SCORE;
-			gapb[i][j] = max2( gapb[i][j-1], score[i][j-1]+GAP_OPENING_SCORE ) + GAP_EXTENSION_SCORE;
+			gapa[i][j] = max22( gapa[i-1][j], score[i-1][j]+GAP_OPENING_SCORE ) + GAP_EXTENSION_SCORE;
+			gapb[i][j] = max22( gapb[i][j-1], score[i][j-1]+GAP_OPENING_SCORE ) + GAP_EXTENSION_SCORE;
 			tmp = ((ref[i-1]==ass[j-1])?MATCH_SCORE:MISMATCH_SCORE);
-			score[i][j] = max3(score[i-1][j-1], gapa[i-1][j-1], gapb[i-1][j-1]) + tmp;
+			score[i][j] = max33(score[i-1][j-1], gapa[i-1][j-1], gapb[i-1][j-1]) + tmp;
 		}
 	}
 	

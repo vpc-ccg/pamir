@@ -440,7 +440,7 @@ void assemble (const string &partition_file, const string &reference, const stri
 {
 	const double MAX_AT_GC 		= 0.7;
 	const int MAX_REF_LEN		= 300000000;
-	int LENFLAG					= 1000;
+	int LENFLAG					= 500;//1000;
 	char *line 					= new char[MAX_CHAR];
 	FILE *fo_vcf 				= fopen(out_vcf.c_str(), "w");
 	
