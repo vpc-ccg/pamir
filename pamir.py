@@ -780,7 +780,7 @@ def update_partition(config ):
 	control_file  = "{0}/log/26.index_log.log".format(workdir)
 	complete_file = "{0}/stage/26.index_log.finished".format(workdir)
 	run_cmd       = not (os.path.isfile(complete_file) )
-	#shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
+	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
 ######################################################################################
 #### sort the vcf and remove the duplications generate interleaved and paired fastq files from orphans and unmapped oeas.
 def dupremoval_cleaning(config):	

@@ -389,15 +389,11 @@ void print_header(const string &header_file, const string &reference)
 	}
 	toread.load_next();
 
-	// Append Texts
-	//header_info =	"##fileformat=VCFv4.2\n"
-	//header_info =	"haha"
-	//			+	"##FILTER=<ID=PASS,Description=\"All filters passed\">\n"
-	//			+	"##reference=" + prevref
-	header_info =	"haha##FILTER=<ID=PASS,Description=\"All filters passed\">\n##reference="; 
-	//header_info+=   prevref
+	header_info =	"##fileformat=VCFv4.2\n"
+					"##FILTER=<ID=PASS,Description=\"All filters passed\">\n"
+					"##reference=";
 	header_info+=   prevref;
-	header_info+=	"##source=Pamir\n"
+	header_info+=	"\n##source=Pamir\n"
 					"##ALT=<ID=<INS>,Type=String,Description=\"Insertion of novel sequence\">\n"
 					"##INFO=<ID=SVTYPE,Number=1,Type=String,Description=\"Type of structural variant\">\n"
 					"##INFO=<ID=SVLEN,Number=1,Type=Integer,Description=\"Difference in length between REF and ALT alleles\">\n"
@@ -406,15 +402,6 @@ void print_header(const string &header_file, const string &reference)
 					"##INFO=<ID=Support,Number=1,Type=Integer,Description=\"Number of reads/contigs supporting the contig\">\n"
 					"##INFO=<ID=SEQ,Number=1,Type=String,Description=\"Variant sequence\">\n";
 	
-	//header_info+=	"##source=Pamir\n";
-	//header_info+=	"##ALT=<ID=<INS>,Type=String,Description=\"Insertion of novel sequence\">\n";
-	//header_info+=	"##INFO=<ID=SVTYPE,Number=1,Type=String,Description=\"Type of structural variant\">\n";
-	//header_info+=	"##INFO=<ID=SVLEN,Number=1,Type=Integer,Description=\"Difference in length between REF and ALT alleles\">\n";
-	//header_info+=	"##INFO=<ID=END,Number=1,Type=Integer,Description=\"End coordinate of this variant\">\n";
-	//header_info+=	"##INFO=<ID=Cluster,Number=1,Type=Integer,Description=\"ID of the cluster the variant is extracted from\">\n";
-	//header_info+=	"##INFO=<ID=Support,Number=1,Type=Integer,Description=\"Number of reads/contigs supporting the contig\">\n";
-	//header_info+=	"##INFO=<ID=SEQ,Number=1,Type=String,Description=\"Variant sequence\">\n";
-
 	string prevName="";
 	string name = toread.get_name();
 	int ssize = toread.get_size();
@@ -423,7 +410,6 @@ void print_header(const string &header_file, const string &reference)
 		header_info +=	"##contig=<ID=";	header_info+=	name;
 		header_info	+=	",length=";		 	header_info+=	to_string(ssize);
 		header_info	+=	">\n";
-		//header_info +=	"##contig=<ID=" + name + ",length=" + to_string(ssize) + ">\n";
 		prevName=name;
 		toread.load_next();
 		name  =toread.get_name();
