@@ -369,12 +369,28 @@ def index(config):
 #############################################################################################
 ###### Running commands for each mode 
 def mrsfast_best_search(config):
-	msg           = "Mapping non-concordant reads using mrsFAST-Ultra"
-	project_name  = config.get("project", "name")
+
 	workdir		  = pipeline.workdir
+	control_file = "{0}/log/01.mkdirbestsam.log".format(workdir)
+	complete_file = "{0}/stage/01.mkdirbestsam.log".format(workdir)
+	freeze_arg   = "" 
+	if( os.path.isdir("{0}/bestsam".format(workdir))):
+		cmd		 = "touch {0} {1}".format(control_file,complete_file)
+	else:
+		cmd		 = "mkdir {0}/bestsam/".format(workdir)
+		msg 		 = "Making directory bestsam"
+		run_cmd      = not (os.path.isfile(complete_file))
+		#if (run_cmd):
+	#		clean_state(1,workdir,config)
+		shell( msg, run_cmd , cmd, control_file, complete_file, freeze_arg)
+	msg           = "Mapping non-concordant reads using mrsFAST-Ultra"
 	index_file    = "{0}/{1}.masked".format(workdir, config.get("project", "reference"))
 	input_file    = "{0}/{1}".format(workdir, config.get("project","fastq"))
-	output_file   = "{0}/mrsfast.best.sam".format(workdir)
+	f			 = open(input_file,"r")
+	a			 = f.readline()
+	a 			 = f.readline()
+	config.set("project","readlength", str(len(a.strip())))
+	output_file   = "{0}/bestsam/mrsfast.best.sam".format(workdir)
 	threads       = config.get("mrsfast", "threads")
 	control_file  = "{0}/log/04.mrsfast.best.log".format(workdir);
 	complete_file = "{0}/stage/04.mrsfast.best.finished".format(workdir);
@@ -392,11 +408,10 @@ def mrsfast_best_search(config):
 #############################################################################################
 ###### Running commands for remove_concordant 
 def remove_concordant(config,f):
-	project_name  = config.get("project", "name")
 	workdir		  = pipeline.workdir
 	msg           = "Extracting OEA and Orphan reads of {0}".format(f)
 	input_file    = "{0}/mrsfast.best.sam".format(workdir)
-	config.set("project","readlength", str(len((open(input_file).readline()).split("\t")[10])))
+	config.set("project","readlength", str(len((open(input_file).readline()).split("\t")[10].strip())))
 	with open ( workdir +"/project.config", "w") as configFile:
 		config.write(configFile)
 	output_file   = "{0}/".format(workdir)
@@ -412,7 +427,6 @@ def remove_concordant(config,f):
 ###### Running commands for mrsfast_search
 def mrsfast_search(config ):
 	msg           = "Mapping OEA reads to get anchor locations using mrsFAST-Ultra"
-	project_name  = config.get("project", "name")
 	workdir		  = pipeline.workdir
 	ref_file      = "{0}/{1}.masked".format(workdir, config.get("project", "reference"))
 	input_file    = "{0}/oea.mapped.fq".format(workdir)
