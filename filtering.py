@@ -40,7 +40,7 @@ def get_bed_seq( ref_dict, ref, start, end):
 ################################
 def main():
 	args = sys.argv[1:]
-	if len(args) !=6:
+	if len(args) !=7:
 		usage()
 	MRSFAST= "mrsfast/mrsfast"
 	REF			=	sys.argv[2]
@@ -52,6 +52,7 @@ def main():
 	workdir		= 	sys.argv[5]
 	#how many bp before the breakpoint and after the breakpoint on ref to get. (1000 for now)
 	TLEN		=	int(sys.argv[6])
+	THREADS		=   int(sys.argv[7])
 	tmpf = open("{0}/all_interleaved.fastq".format(workdir),"r")
 	tmp = tmpf.readline()
 	tmp = tmpf.readline().strip()
@@ -138,7 +139,7 @@ def main():
 	f.close()
 	coor.close()
 	os.system(MRSFAST + " --index {0}/allinsertions.fa > {0}/mrsfast.index.log".format(folder))
-	os.system(MRSFAST + " --search {0}/allinsertions.fa --pe --min {1} --max {2} -o {0}/seq.mrsfast.sam -e 3 --seq {3}/all_interleaved.fastq --threads 72 --disable-sam-header --disable-nohits > {0}/.seq.mrsfast.sam.log".format(folder, MIN, MAX, workdir))
+	os.system(MRSFAST + " --search {0}/allinsertions.fa --pe --min {1} --max {2} -o {0}/seq.mrsfast.sam -e 3 --seq {3}/all_interleaved.fastq --threads {4} --disable-sam-header --disable-nohits > {0}/.seq.mrsfast.sam.log".format(folder, MIN, MAX, workdir,THREADS))
 	os.system("./recalibrate {0}/allinsertions.coor {0}/seq.mrsfast.sam {0}/seq.mrsfast.recal.sam".format(folder))
 	os.system("sort -k 3,3 -k 4,4n {0}/seq.mrsfast.recal.sam > {0}/seq.mrsfast.recal.sam.sorted".format(folder))
 	msamlist = open("{0}/seq.mrsfast.recal.sam.sorted".format(folder),"r")

@@ -71,6 +71,10 @@ def command_line_process():
 		metavar='destination',
 		help='Directory that will be used for analysis. (default: ./)'
 	)
+	parser.add_argument('--splitandmap',
+		metavar='splitandmap',
+		help='Directory that will be used for mrsfast mapping. (default: ../)'
+	)
 	parser.add_argument('--reference','-r',
 		metavar='reference',
 		help='The path to the reference genome that should be used for analysis'
@@ -265,31 +269,61 @@ def clean_state( mode_index, workdir, config ):
 #############################################################################################
 ###### Running commands for verify_sam 
 def verify_sam(config ):
-	msg           = "Sorting bam file"	
-	project_name  = config.get("project", "name")
+	#msg			 = "Extract softclip positions"
 	workdir		  = pipeline.workdir
 	input_file    = "{0}/{1}".format(workdir, config.get("project","alignment"))
+	#output_file   = "{0}/partitions_updated.softclip"
+	#cmd			  = pipeline.samtools + " view {0} | python {1} | sort | uniq -c | sort -k 2,2 -k 3n,3 | awk '{print $2\"\t\"$3\"\t\"$1}' > {2}/partitions_updated.softclip".format(input_file, output_file, workdir)
+	#control_file  = "{0}/log/01.softclip.log".format(workdir);
+	#complete_file = "{0}/stage/01.sofclip.finished".format(workdir);
+	#freeze_arg    = ""
+	#run_cmd       = not (os.path.isfile(complete_file))
+	#shell( msg, run_cmd , cmd, control_file, complete_file, freeze_arg)
+
+	msg           = "Sorting bam file"	
 	output_file   = "{0}/{1}".format(workdir, config.get("project","fastq"))
 	control_file  = "{0}/log/01.verify_sam_1.log".format(workdir);
 	complete_file = "{0}/stage/01.verify_sam_1.finished".format(workdir);
 	freeze_arg    = ""
-	cmd			  = pipeline.samtools + " sort -n {0} {0}.sorted.bam".format(input_file) 
+	cmd			  = pipeline.samtools + " sort -n -@ {1} -m 10G {0} {0}.sorted".format(input_file,config.get("project","num-worker")) 
 	run_cmd       = not (os.path.isfile(complete_file) )
 	shell( msg, run_cmd , cmd, control_file, complete_file, freeze_arg)
 	msg           = "Extracting FASTQ from Alignment file"
-	project_name  = config.get("project", "name")
-	workdir		  = pipeline.workdir
-	input_file    = "{0}/{1}".format(workdir, config.get("project","alignment"))
+	input_file    = "{0}/{1}.sorted.bam".format(workdir, config.get("project","alignment"))
 	output_file   = "{0}/{1}".format(workdir, config.get("project","fastq"))
 	control_file  = "{0}/log/01.verify_sam.log".format(workdir);
 	complete_file = "{0}/stage/01.verify_sam.finished".format(workdir);
 	freeze_arg    = ""
-	cmd			  = pipeline.bedtools + "bamtofastq -i {0}.sorted.bam -fq {1}/input_1.fq -fq2 {1}/input_2.fq".format(input_file,output_file) 
-#	cmd           = pipeline.pamir + ' verify_sam {0} {1}'.format( input_file, output_file )
+#	cmd			  = pipeline.bedtools + "bamtofastq -i {0}.sorted.bam -fq {1}/input_1.fq -fq2 {1}/input_2.fq".format(input_file,output_file) 
+	cmd           = pipeline.pamir + ' verify_sam {0} {1}'.format( input_file, output_file )
 	run_cmd       = not (os.path.isfile(complete_file) )
-	if ( run_cmd ):
-		clean_state( 1, workdir, config )
 	shell( msg, run_cmd , cmd, control_file, complete_file, freeze_arg)
+#
+#	msg           = "Sorting bam file"	
+#	project_name  = config.get("project", "name")
+#	workdir		  = pipeline.workdir
+#	input_file    = "{0}/{1}".format(workdir, config.get("project","alignment"))
+#	output_file   = "{0}/{1}".format(workdir, config.get("project","fastq"))
+#	control_file  = "{0}/log/01.verify_sam_1.log".format(workdir);
+#	complete_file = "{0}/stage/01.verify_sam_1.finished".format(workdir);
+#	freeze_arg    = ""
+#	cmd			  = pipeline.samtools + " sort -n {0} {0}.sorted".format(input_file) 
+#	run_cmd       = not (os.path.isfile(complete_file) )
+#	shell( msg, run_cmd , cmd, control_file, complete_file, freeze_arg)
+#	msg           = "Extracting FASTQ from Alignment file"
+#	project_name  = config.get("project", "name")
+#	workdir		  = pipeline.workdir
+#	input_file    = "{0}/{1}".format(workdir, config.get("project","alignment"))
+#	output_file   = "{0}/{1}".format(workdir, config.get("project","fastq"))
+#	control_file  = "{0}/log/01.verify_sam.log".format(workdir);
+#	complete_file = "{0}/stage/01.verify_sam.finished".format(workdir);
+#	freeze_arg    = ""
+#	cmd			  = pipeline.bedtools + " bamtofastq -i {0}.sorted.bam -fq {1}/input_1.fq -fq2 {1}/input_2.fq".format(input_file,output_file) 
+##	cmd           = pipeline.pamir + ' verify_sam {0} {1}'.format( input_file, output_file )
+#	run_cmd       = not (os.path.isfile(complete_file) )
+#	if ( run_cmd ):
+#		clean_state( 1, workdir, config )
+#	shell( msg, run_cmd , cmd, control_file, complete_file, freeze_arg)
 	
 #############################################################################################
 ###### Running commands for mask 
@@ -400,7 +434,27 @@ def mrsfast_search(config ):
 	if ( run_cmd ):
 		clean_state( 6, workdir, config )
 	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
-#############################################################################################
+###########################################################	
+#	ref= os.path.abspath(workdir+"/"+config.get("project","reference"))+".masked"
+#	os.chdir(config.get("project","splitandmap"))
+#	cmd="./split_and_map.py -p {0}/multimap --files {0}/oea.mapped.fq -r {1} --chunksize 250000 --threads {2} --mrsfast {3} --mrsfast-threads 1 --mrsfast-min {4} --mrsfast-max {5} --mrsfast-crop {6}".format(workdir, ref, config.get("project","num-worker"),pipeline.mrsfast,config.get("mrsfast","min"),config.get("mrsfast","max"),config.get("project","readlength"))
+#	if(config.get("mrsfast","errors")!="-1"):
+#		cmd+=" --mrsfast-errors {0}".format(config.get("mrsfast","errors"))
+#	if(config.get("mrsfast","n")!="-1"):
+#		cmd+=" --mrsfast-n {0}".format(config.get("mrsfast","n"))
+#	run_cmd       = not ( os.path.isfile(complete_file) and freeze_arg in open(complete_file).read()) 
+#	if ( run_cmd ):
+#		clean_state( 6, workdir, config )
+#	shell(msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
+#	cmd="mv {0}/multimap/multimap.sam {1}".format(workdir, output_file)
+#	os.chdir(str(os.path.abspath(os.path.dirname(pipeline.pamirpy))))
+#	control_file  = "{0}/log/06_2.mvsam.log".format(workdir);
+#	complete_file = "{0}/stage/06_2.mvsam.finished".format(workdir);
+#	freeze_arg= ""	
+#	msg = "Moving splitandmap sam to mrsfast.sam"
+#	run_cmd       = not ( os.path.isfile(complete_file) and freeze_arg in open(complete_file).read()) 
+#	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)	
+###########################################################
 ###### Running commands for sorting all mapping output 
 def sort(config ):
 	msg           = "Sorting the mapped mates"
@@ -416,27 +470,13 @@ def sort(config ):
 
 	shell( msg, run_cmd , cmd, control_file, complete_file, freeze_arg)
 #############################################################################################
-###### Running commands for modifying oea.unmapped.fq  
-def modify_oea_unmap(config ):
-	msg           = "Modifying unmapped OEA read file format"
-	project_name  = config.get("project", "name")
-	workdir		  = pipeline.workdir
-	input_file    = "{0}/oea.unmapped.fq".format(workdir )
-	output_file   = "{0}/unmapped".format(workdir )
-	control_file  = "{0}/log/08.modify_oea_unmap.log".format(workdir);
-	complete_file = "{0}/stage/08.modify_oea_unmap.finished".format(workdir);
-	freeze_arg    = ""
-	cmd           = pipeline.pamir + ' modify_oea_unmap {0} {1}'.format(  input_file, output_file )
-	run_cmd       = not (os.path.isfile(complete_file) )
-	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
-#############################################################################################
 ###### Running commands for creating OEA clusters 
 def partition(config ):
 	msg           = "Creating OEA clusters"
 	project_name  = config.get("project", "name")
 	workdir		  = pipeline.workdir
 	input_file    = "{0}/sorted.sam".format(workdir)
-	unmapped_file = "{0}/unmapped".format(workdir )
+	unmapped_file = "{0}/oea.unmapped.fq".format(workdir )
 	output_file   = "{0}/partitions".format(workdir )
 	control_file  = "{0}/log/09.partition.log".format(workdir);
 	complete_file = "{0}/stage/09.partition.finished".format(workdir);
@@ -815,7 +855,7 @@ def post_processing(config):
 	control_file  = "{0}/log/30.filtering.log".format(workdir)
 	complete_file = "{0}/stage/30.filtering.finished".format(workdir)
 	run_cmd		  = not (os.path.isfile(complete_file))
-	cmd			  = pipeline.filtering + " {0}/insertions.out_wodups {0}/{1}.masked {2} {3} {0} {4}".format(workdir, config.get("project","reference"), config.get("mrsfast","min"), config.get("mrsfast","max"), str(TLEN))
+	cmd			  = pipeline.filtering + " {0}/insertions.out_wodups {0}/{1}.masked {2} {3} {0} {4} {5}".format(workdir, config.get("project","reference"), config.get("mrsfast","min"), config.get("mrsfast","max"), str(TLEN),config.get("mrsfast","threads"))
 	msg="Filtering insertion candidates"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 	###### Make filtering output VCF
@@ -936,56 +976,22 @@ def run_command(config, force=False):
 	mask(config)
 	#a0=time.time()
 	index(config)
-	#a1=time.time()
-	#print "index ref",a1-a0
 	mrsfast_best_search(config)
 	remove_concordant_for_each_bestsam(config)
-	t0= time.time()
 	mrsfast_search(config)
-	t1=time.time()
-	print "mrsfast-search",t1-t0
 	sort(config)
-	t2=time.time()
-	print "sort",t2-t1
-	modify_oea_unmap(config)
-	t3=time.time()
-	print "modify_oea_unmap",t3-t2
 	partition(config)
-	t4=time.time()
-	print "parition generation",t4-t3
 	orphan_assembly(config)
-	t5=time.time()
-	print "orphan assembly",t5-t4
 	remove_contamination_orphan_contig(config)
-	t6=time.time()
-	print "remove contamination",t6-t5
 	prepare_orphan_contig(config)
-	t7=time.time()
-	print "prepare orphan contig",t7-t6
 	oea_to_orphan(config)
-	t8=time.time()
-	print "oea to orphan",t8-t7
 	oea_to_orphan_split(config)
-	t9=time.time()
-	print "oea to orphan split map",t9-t8
 	recalibrate_all_oea_to_orphan(config)
-	t10=time.time()
-	print "recalibrate all oea to orphan",t10-t9
 	orphans_into_oeacluster(config)
-	t11=time.time()
-	print "orphans into oea cluster",t11-t10
 	print_header(config)
-	t12=time.time()
-	print "print header",t12-t11
 	update_partition(config)
-	t13=time.time()
-	print "update partition",t13-t12
 	dupremoval_cleaning(config)
-	t14=time.time()
-	print "dupremoval cleaning",t14-t13
 	post_processing(config)
-	t15=time.time()
-	print "postprocessing (filtering + sertcover)",t15-t14
 	exit(0)
 
 #############################################################################################
@@ -1247,6 +1253,7 @@ def check_project_preq():
 		config.set("project", "mrsfast-best-search",'')
 		config.set("project", "assembler",str(args.assembler) if args.assembler!=None else "velvet")
 		config.set("project", "donot-remove-contaminant", str( args.donot_remove_contaminant ) if args.donot_remove_contaminant ==True else False)
+		config.set("project", "splitandmap",str(args.splitandmap) if args.splitandmap!=None else str(os.path.abspath("../splitandmap/")))
 		config = get_input_file( config, args.files)
 
 		# Parameters for other parts in the pipeline

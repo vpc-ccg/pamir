@@ -2,7 +2,7 @@
 import os, sys, errno, argparse, subprocess, fnmatch, ConfigParser, shutil
 
 def usage():
-	print '\nUsage: python genotyping.py VCF REF SEQ1.fastq SEQ2.fastq SAMPLENAME mrsFAST-min mrsFAST-max workdir TLEN'
+	print '\nUsage: python genotyping.py VCF REF SEQ1.fastq SEQ2.fastq SAMPLENAME mrsFAST-min mrsFAST-max workdir TLEN THREADS'
 	sys.exit(-1)
 ################################
 def load_fasta( fasta_file ):
@@ -36,7 +36,7 @@ def get_bed_seq( ref_dict, ref, start, end):
 #########################
 def main():
 	args = sys.argv[1:]
-	if len(args) !=9:
+	if len(args) !=10:
 		usage()
 	REF=sys.argv[2]
 	#FILE needs to be sorted according to 1st and 2nd columns
@@ -53,6 +53,7 @@ def main():
 	MAX=sys.argv[7]
 	workdir=sys.argv[8]
 	TLEN = int(sys.argv[9])
+	THREADS = int(sys.argv[10])
 	MRSFAST="mrsfast/mrsfast"
 	folder  ="{0}/genotype".format(workdir)
 	os.system("mkdir -p {0}".format(folder))
@@ -130,13 +131,13 @@ def main():
 	coor.close()
 	coor2.close()
 	os.system(MRSFAST + " --index {0}/allref.fa > {0}/mrsfast.index.log".format(folder))
-	os.system(MRSFAST + " --search {0}/allref.fa --pe --min {4} --max {5} -n 50 --threads 32 -o {0}/seq.mrsfast.ref.{1}.sam -e 3 --seq1 {2} --seq2 {3} --disable-sam-header --disable-nohits > {0}/seq.mrsfast.ref.{1}.sam.log".format(folder, EXT, SEQ1, SEQ2, MIN, MAX))
+	os.system(MRSFAST + " --search {0}/allref.fa --pe --min {4} --max {5} -n 50 --threads {6} -o {0}/seq.mrsfast.ref.{1}.sam -e 3 --seq1 {2} --seq2 {3} --disable-sam-header --disable-nohits > {0}/seq.mrsfast.ref.{1}.sam.log".format(folder, EXT, SEQ1, SEQ2, MIN, MAX, THREADS))
 	os.system("./recalibrate {0}/allref.coor {0}/seq.mrsfast.ref.{1}.sam {0}/seq.mrsfast.ref.{1}.recal.sam".format(folder,EXT))
 	os.system("sort -S 500G -T /cs/compbio2/ -k 3,3 -k 4,4n {0}/seq.mrsfast.ref.{1}.recal.sam > {0}/seq.mrsfast.ref.{1}.recal.sam.sorted".format(folder,EXT))
 	msamlist = open("{0}/seq.mrsfast.ref.{1}.recal.sam.sorted".format(folder,EXT),"r")
 
 	os.system(MRSFAST + " --index {0}/allinsertions.fa > {0}/mrsfast.index2.log".format(folder))
-	os.system(MRSFAST + " --search {0}/allinsertions.fa --pe --min {4} --max {5} -n 50 --threads 32 -o {0}/seq.mrsfast.ins.{1}.sam -e 3 --seq1 {2} --seq2 {3} --disable-sam-header --disable-nohits > {0}/seq.mrsfast.ins.{1}.sam.log".format(folder, EXT, SEQ1, SEQ2, MIN, MAX))
+	os.system(MRSFAST + " --search {0}/allinsertions.fa --pe --min {4} --max {5} -n 50 --threads {6} -o {0}/seq.mrsfast.ins.{1}.sam -e 3 --seq1 {2} --seq2 {3} --disable-sam-header --disable-nohits > {0}/seq.mrsfast.ins.{1}.sam.log".format(folder, EXT, SEQ1, SEQ2, MIN, MAX, THREADS))
 	os.system("./recalibrate {0}/allinsertions.coor {0}/seq.mrsfast.ins.{1}.sam {0}/seq.mrsfast.ins.{1}.recal.sam".format(folder,EXT))
 	os.system("sort -k 3,3 -k 4,4n {0}/seq.mrsfast.ins.{1}.recal.sam > {0}/seq.mrsfast.ins.{1}.recal.sam.sorted".format(folder,EXT))
 	msamlist2 = open("{0}/seq.mrsfast.ins.{1}.recal.sam.sorted".format(folder, EXT),"r")

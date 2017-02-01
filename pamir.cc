@@ -114,50 +114,20 @@ void mask (const string &repeats, const string &path, const string &result, int 
 	delete[] x;
 }
 /**************************************************************/
-void modifyOeaUnmapped (const string &path, const string &result)
-{
-	ifstream fin(path.c_str());
-	FILE *fo = fopen(result.c_str(), "w");
-	
-	string l, a, b, aa, bb, prevaa; 
-	while (getline(fin, a)) {
-		getline(fin, b);
-		getline(fin, l);
-		getline(fin, l);
-
-		prevaa=aa;
-		int ll = a.size();
-		if (ll > 1 && a[ll - 2] == '/')
-			a = a.substr(0, ll - 2);
-		if (a == aa)
-			continue;
-		else {
-			if(aa!="")
-				fprintf(fo, "%s %s\n", aa.c_str(), bb.c_str());
-			aa = a, bb = b;
-		}
-	}
-	if(prevaa != aa)
-	{
-		fprintf(fo, "%s %s\n", aa.c_str(), bb.c_str());
-	}
-	fin.close();
-	fclose(fo);
-}
-/****************************************************************/
 void partify (const string &read_file, const string &mate_file, const string &out, int threshold) 
 {
-	gzFile gzf = gzopen(mate_file.c_str(), "rb");
+	FILE *fin = fopen(mate_file.c_str(), "r");
 	unordered_map<string, string> mymap;
 	const int MAXB = 259072;
-	char buffer[MAXB];
-	char name[MAXB], read[MAXB];
-	while (gzgets(gzf, buffer, MAXB)) {
-		sscanf(buffer, "%s %s", name, read);
-		string read_name = read;
-		if (read_name.size() > 2 && read_name[read_name.size() - 2] == '/')
-			read_name = read_name.substr(0, read_name.size() - 2);
-		mymap[string(name + 1)] = read_name;
+	char name[MAXB], read[MAXB], tmp[MAXB];
+	while (fgets(name, MAXB, fin)) {
+		fgets(read, MAXB, fin);
+		fgets(tmp, MAXB, fin);
+		fgets(tmp, MAXB, fin);
+		if (strlen(name)>2 && name[strlen(name) - 3] == '/')
+			name[strlen(name)-3]='\0';
+		read[strlen(read)-1]='\0';
+		mymap[string(name+1)] = read;
 	}
 	auto g=mymap.begin();
 	while(g!=mymap.end())
@@ -174,10 +144,10 @@ void partify (const string &read_file, const string &mate_file, const string &ou
 		fwrite(&i, 1, sizeof(size_t), fidx);
 		fc++;
 	}
+	fclose(fin);
 	fclose(fo);
 	fclose(fidx);
 }
-
 
 /****************************************************************/
 // For outputing specific log
@@ -426,7 +396,7 @@ void assemble (const string &partition_file, const string &reference, const stri
 {
 	const double MAX_AT_GC 		= 0.7;
 	const int MAX_REF_LEN		= 300000000;
-	int LENFLAG					= 500;//1000;
+	int LENFLAG					= 1000;//500;//1000;
 	char *line 					= new char[MAX_CHAR];
 	FILE *fo_vcf 				= fopen(out_vcf.c_str(), "w");
 	
@@ -554,10 +524,6 @@ int main(int argc, char **argv)
 		else if (mode == "sort") {
 			if (argc != 4) throw "Usage:\tsniper sort [sam-file] [output]";
 			sortFile(argv[2], argv[3], 2 * GB);
-		}
-		else if (mode == "modify_oea_unmap") {
-			if (argc != 4) throw "Usage:\tsniper modi_oea_unmap [fq-file] [output]";
-			modifyOeaUnmapped(argv[2], argv[3]);
 		}
 		else if (mode == "partition") {
 			if (argc != 6) throw "Usage:\tsniper partition [read-file] [mate-file] [output-file] [threshold]";
