@@ -277,7 +277,7 @@ void print_calls(string chrName, const string &reference, vector< tuple< string,
 	}
 }
 /******************************************************************/
-void append_vcf(const string &chrName, const string &reference, const vector< tuple< string, int, int, string, int, float > > &reports, const int &clusterId, string &vcf_str )
+void append_vcf(const string &chrName, const string &reference, const vector< tuple< string, int, int, string, int, float > > &reports, const int &clusterId, string &vcf_str, string &vcf_str_del )
 {
 	for(int r=0;r<reports.size();r++)
 	{
@@ -295,6 +295,21 @@ void append_vcf(const string &chrName, const string &reference, const vector< tu
 			vcf_str += ";Support=";	vcf_str	+=	std::to_string( get<4>(reports[r])) ;
 			vcf_str += ";SEQ=";		vcf_str	+=	get<3>(reports[r]);
 			vcf_str += "\n";
+		}
+		if(get<0>(reports[r])== "DEL")
+		{
+			vcf_str_del += 	chrName;	vcf_str += 	"\t";
+			vcf_str_del +=	std::to_string(get<1>(reports[r]));	vcf_str += "\t.\t";
+			vcf_str_del +=  reference.at(r);
+			vcf_str_del +=  "\t<DEL>\t";
+			vcf_str_del +=  std::to_string( get<5>(reports[r]));
+			vcf_str_del +=  "\tPASS\tSVTYPE=DEL;SVLEN=";
+			vcf_str_del +=  std::to_string( get<2>(reports[r])) ;
+			vcf_str_del += 	";END=";	vcf_str +=	std::to_string( get<1>(reports[r]) + get<2>(reports[r])-1 );
+			vcf_str_del += ";Cluster=";	vcf_str +=	std::to_string( clusterId ) ;
+			vcf_str_del += ";Support=";	vcf_str	+=	std::to_string( get<4>(reports[r])) ;
+			vcf_str_del += ";SEQ=";		vcf_str	+=	get<3>(reports[r]);
+			vcf_str_del += "\n";
 		}
 	}
 }
@@ -399,6 +414,7 @@ void assemble (const string &partition_file, const string &reference, const stri
 	int LENFLAG					= 1000;//500;//1000;
 	char *line 					= new char[MAX_CHAR];
 	FILE *fo_vcf 				= fopen(out_vcf.c_str(), "w");
+	FILE *fo_vcf_del 			= fopen((out_vcf+string("DELS")).c_str(), "w");
 	
 	assembler as(max_len, 15);
 	genome ref(reference.c_str());
@@ -408,6 +424,7 @@ void assemble (const string &partition_file, const string &reference, const stri
 	
 	string tmp_ref; tmp_ref.reserve(4);
 	string vcf_info=""; vcf_info.reserve(10000000);
+	string vcf_info_del=""; vcf_info.reserve(10000000);
 	const int MAX_BUFFER = 500;
 	int n_buffer         =   0;
 
@@ -484,13 +501,20 @@ void assemble (const string &partition_file, const string &reference, const stri
 			//tmp_ref += ref.extract(chrName, tmp_end, tmp_end);
 		}
 		
-		append_vcf( chrName, tmp_ref, reports, pt.get_cluster_id(), vcf_info);
+		append_vcf( chrName, tmp_ref, reports, pt.get_cluster_id(), vcf_info, vcf_info_del);
 		n_buffer++;
 		if ( 0 == n_buffer%MAX_BUFFER )
 		{
 			fprintf( fo_vcf, "%s", vcf_info.c_str());
 			n_buffer = 0;
 			vcf_info.clear();
+		}
+		n_buffer++;
+		if ( 0 == n_buffer%MAX_BUFFER )
+		{
+			fprintf( fo_vcf_del, "%s", vcf_info_del.c_str());
+			n_buffer = 0;
+			vcf_info_del.clear();
 		}
 		//print_calls(chrName, reference, reports, fo_vcf, pt.get_cluster_id());
 	}
