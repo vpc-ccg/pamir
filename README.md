@@ -36,13 +36,15 @@ git clone --recursive https://bitbucket.org/compbio/pamir.git
 cd pamir
 ```
 
-You need to link the velvet executables and blast main directory inside pamir folder: 
+You need to update pamir.config in pamir folder with your paths for the binaries samtools, velveth, velvetg, blastn and the blast database folder db: 
 ```
-pamir$ ln -s /dir/to/samtools /dir/to/pamir/samtools
-pamir$ ln -s /dir/to/velvet/velveth /dir/to/pamir/velveth  
-pamir$ ln -s /dir/to/velvet/velvetg /dir/to/pamir/velvetg  
-pamir$ ln -s /dir/to/blastn /dir/to/pamir/blastn  
-pamir$ ln -s /dir/to/blast-database-directory /dir/to/pamir/blastdb  
+vim pamir.config
+Write your paths for the binaries:
+SAMTOOLS=/your/path/to/samtools-1.3.1/samtools
+VELVETH=/your/path/to/velvet/velveth
+VELVETG=/your/path/to/velvet/velvetg
+BLASTN=/your/path/to/ncbi-blast-2.5.0+/bin/blastn
+BLASTDB=/your/path/to/ncbi-blast-2.5.0+/db/
 ```
 
 Then make
