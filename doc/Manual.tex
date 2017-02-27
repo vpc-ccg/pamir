@@ -46,18 +46,25 @@ export BOOST\_INCLUDE= the/BOOST/version/include/ (directory of BOOST in your ma
 \item cd dir/to/blast/db
 \item ../bin/update\_blastdb.pl nt
 \end{itemize}
-Then
-\begin{itemize}
-\item ln -s /dir/to/velvet/velveth /dir/to/pamir/velveth
-\item ln -s /dir/to/velvet/velvetg /dir/to/pamir/velvetg
-\item ln -s /dir/to/blast\_folder /dir/to/pamir/blast
-\end{itemize}
+
 \end{itemize}
 
 \subsubsection{Details and Troubleshooting}
 \begin{flushleft}
-\texttt{git clone --recursive \gitClone}\\
-\texttt{cd pamir \&\& make}
+\texttt{git clone --recursive \gitUrl}\\
+\texttt{cd pamir}\\
+
+You need to update pamir.config in pamir folder with your paths for the binaries samtools, velveth, velvetg, blastn and the blast database folder db:\\
+vim pamir.config\\
+Write your paths for the binaries:
+\begin{itemize}
+\item SAMTOOLS=/your/path/to/samtools-1.3.1/samtools
+\item VELVETH=/your/path/to/velvet/velveth
+\item VELVETG=/your/path/to/velvet/velvetg
+\item BLASTN=/your/path/to/ncbi-blast-2.5.0+/bin/blastn
+\item BLASTDB=/your/path/to/ncbi-blast-2.5.0+/db/
+\end{itemize}
+\&\& make
 \end{flushleft}
 
 \subsection{Running \toolName}
