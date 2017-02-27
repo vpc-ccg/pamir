@@ -34,7 +34,8 @@ class pipeline:
 	genotyping			= os.path.dirname(os.path.realpath(__file__)) + "/genotyping.py"
 	filterbysetcover	= os.path.dirname(os.path.realpath(__file__)) + "/filter_by_setcover.py"
 	sortfile			= os.path.dirname(os.path.realpath(__file__)) + "/sort_file.pl"
-	blast				= os.path.dirname(os.path.realpath(__file__)) + "/blast"
+	blastn				= os.path.dirname(os.path.realpath(__file__)) + "/blastn"
+	blastdb				= os.path.dirname(os.path.realpath(__file__)) + "/blastdb/"
 	clean				= os.path.dirname(os.path.realpath(__file__)) + "/clean"
 	contaminantFinder	= os.path.dirname(os.path.realpath(__file__)) + "/find_contaminations.py"
 	contaminantRemover	= os.path.dirname(os.path.realpath(__file__)) + "/remove_contaminations.py"
@@ -386,19 +387,20 @@ def mrsfast_best_search(config):
 	msg           = "Mapping non-concordant reads using mrsFAST-Ultra"
 	index_file    = "{0}/{1}.masked".format(workdir, config.get("project", "reference"))
 	input_file    = "{0}/{1}".format(workdir, config.get("project","fastq"))
-	f			 = open(input_file,"r")
-	a			 = f.readline()
-	a 			 = f.readline()
-	config.set("project","readlength", str(len(a.strip())))
 	output_file   = "{0}/bestsam/mrsfast.best.sam".format(workdir)
 	threads       = config.get("mrsfast", "threads")
 	control_file  = "{0}/log/04.mrsfast.best.log".format(workdir);
 	complete_file = "{0}/stage/04.mrsfast.best.finished".format(workdir);
 	freeze_arg    = "ws={0}.error={1}".format(config.get("mrsfast", "window_size"), config.get("mrsfast", "errors"))
+	run_cmd       = not ( os.path.isfile(complete_file) and freeze_arg in open(complete_file).read()) 
+	if run_cmd:
+		f			 = open(input_file,"r")
+		a			 = f.readline()
+		a 			 = f.readline()
+		config.set("project","readlength", str(len(a.strip())))
 	cmd           = pipeline.mrsfast +' --search {0} --threads {1} -n 0 --best --disable-sam-header --disable-nohits --pe --seq {2} --min {3} --max {4} --seqcomp -o {5}'.format(index_file, threads, input_file, config.get("mrsfast","min"), config.get("mrsfast","max"), output_file )
 	if(config.get("mrsfast","errors")!="-1"):
 		cmd+=" -e {0}".format(config.get("mrsfast","errors"))
-	run_cmd       = not ( os.path.isfile(complete_file) and freeze_arg in open(complete_file).read()) 
 
 	#if ( run_cmd ):
 	#	clean_state( 4, workdir, config )
@@ -570,8 +572,8 @@ def remove_contamination_orphan_contig(config):
 		control_file  = "{0}/log/11.blast_nt_orphan_contig.log".format(workdir);
 		complete_file = "{0}/stage/11.blast_nt_orphan_contig.finished".format(workdir);
 		freeze_arg    = ""
-		NT			  = pipeline.blast + "/db/nt"
-		cmd           = pipeline.blast + '/bin/blastn -task megablast -query {0} -db {1} -num_threads 24 > {2}/orphan.fq.contigs.fa_2_NT.megablast'.format(input_file, NT, workdir)
+		NT			  = pipeline.blastdb + "/nt"
+		cmd           = pipeline.blastn + ' -task megablast -query {0} -db {1} -num_threads 24 > {2}/orphan.fq.contigs.fa_2_NT.megablast'.format(input_file, NT, workdir)
 		run_cmd       = not (os.path.isfile(complete_file) )
 	#	if ( run_cmd ):
 	#		clean_state( 11, workdir, config )
@@ -988,7 +990,6 @@ def remove_concordant_for_each_bestsam(config):
 def run_command(config, force=False):
 	verify_sam(config)
 	mask(config)
-	#a0=time.time()
 	index(config)
 	mrsfast_best_search(config)
 	remove_concordant_for_each_bestsam(config)

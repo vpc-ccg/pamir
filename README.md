@@ -40,7 +40,8 @@ You need to link the velvet executables and blast main directory inside pamir fo
 ```
 pamir$ ln -s /dir/to/velvet/velveth /dir/to/pamir/velveth  
 pamir$ ln -s /dir/to/velvet/velvetg /dir/to/pamir/velvetg  
-pamir$ ln -s /dir/to/ncbi-blast-version/ /dir/to/pamir/blast  
+pamir$ ln -s /dir/to/blastn /dir/to/pamir/blastn  
+pamir$ ln -s /dir/to/blast-database-directory /dir/to/pamir/blastdb  
 ```
 
 Then make
