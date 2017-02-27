@@ -32,15 +32,15 @@ cd dir/to/blast/db
 Then, just clone our repository:
 
 ```
-git clone --recursive git@bitbucket.org:compbio/pamir.git
+git clone --recursive https://bitbucket.org/compbio/pamir.git
 cd pamir
 ```
 
-You need to link the velvet executables and blast directory inside pamir folder: 
+You need to link the velvet executables and blast main directory inside pamir folder: 
 ```
 pamir$ ln -s /dir/to/velvet/velveth /dir/to/pamir/velveth  
 pamir$ ln -s /dir/to/velvet/velvetg /dir/to/pamir/velvetg  
-pamir$ ln -s /dir/to/blast folder /dir/to/pamir/blast  
+pamir$ ln -s /dir/to/ncbi-blast-version/ /dir/to/pamir/blast  
 ```
 
 Then make
