@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #786 
 
-import os, sys, errno, argparse, subprocess, fnmatch, ConfigParser,time
+import os, sys, errno, argparse, subprocess, fnmatch, ConfigParser, time, re
 #############################################################################################
 # Class for colored texts and binary path
 class bcolors:
@@ -19,11 +19,7 @@ class pipeline:
 	pamir   			= os.path.dirname(os.path.realpath(__file__)) + "/pamir"
 	sga		   			= os.path.dirname(os.path.realpath(__file__)) + "/sga.py"
 	minia	   			= os.path.dirname(os.path.realpath(__file__)) + "/minia"
-	velveth				= os.path.dirname(os.path.realpath(__file__)) + "/velveth"
-	velvetg				= os.path.dirname(os.path.realpath(__file__)) + "/velvetg"
 	mrsfast  			= os.path.dirname(os.path.realpath(__file__)) + "/mrsfast/mrsfast"
-	bedtools  			= os.path.dirname(os.path.realpath(__file__)) + "/bedtools"
-	samtools			= os.path.dirname(os.path.realpath(__file__)) + "/samtools"
 	recalibrate 		= os.path.dirname(os.path.realpath(__file__)) + "/recalibrate"
 	pprocessor 		 	= os.path.dirname(os.path.realpath(__file__)) + "/partition_processor"
 	sortvcf   			= os.path.dirname(os.path.realpath(__file__)) + "/sort_vcf.py"
@@ -34,8 +30,6 @@ class pipeline:
 	genotyping			= os.path.dirname(os.path.realpath(__file__)) + "/genotyping.py"
 	filterbysetcover	= os.path.dirname(os.path.realpath(__file__)) + "/filter_by_setcover.py"
 	sortfile			= os.path.dirname(os.path.realpath(__file__)) + "/sort_file.pl"
-	blastn				= os.path.dirname(os.path.realpath(__file__)) + "/blastn"
-	blastdb				= os.path.dirname(os.path.realpath(__file__)) + "/blastdb/"
 	clean				= os.path.dirname(os.path.realpath(__file__)) + "/clean"
 	contaminantFinder	= os.path.dirname(os.path.realpath(__file__)) + "/find_contaminations.py"
 	contaminantRemover	= os.path.dirname(os.path.realpath(__file__)) + "/remove_contaminations.py"
@@ -102,7 +96,7 @@ def command_line_process():
 	)
 	parser.add_argument('--external-config', '-ec',
 		metavar='external_config',
-		help='The config file including external tools directories (default: config.pamir)',
+		help='The config file including external tools directories (default: pamir.config)',
 	)
 	parser.add_argument('--mrsfast-index-ws',
 		metavar='window_size',
@@ -1061,40 +1055,52 @@ def check_binary_preq(config):
 			logln ("File {0} cannot be executed. Please use 'make' to build the required binaries.".format(exe) )
 			exit(1)
 	
-	config.set("project", "external_config", str( args.external_config ) if args.external_config != None else  "{0}/config.pamir".format(os.path.dirname(os.path.realpath(__file__))))
+	config.set("project", "external_config", str( args.external_config ) if args.external_config != None else  "{0}/pamir.config".format(os.path.dirname(os.path.realpath(__file__))))
 	extFile = open(config.get("project","external_config"),"r")
 	listExternals = extFile.readlines()
 	for i in listExternals:
-		spliti = i.split("=")
-		if spliti[0]=="VELVETH":
-			VELVETH = spliti[1].strip()
-			if not is_exec(VELVETH):
-				print "[ERROR] File {0} cannot be executed. ".format(VELVETH)
-				logFAIL()
-				logln ("File {0} cannot be executed. ".format(VELVETH) )
-				exit(1)
-			pipeline.velveth = VELVETH
-		elif spliti[0]=="VELVETG":
-			VELVETG = spliti[1].strip()
-			if not is_exec(VELVETG):
-				print "[ERROR] File {0} cannot be executed. ".format(VELVETG)
-				logFAIL()
-				logln ("File {0} cannot be executed. ".format(VELVETG) )
-				exit(1)
-			pipeline.velvetg = VELVETG
-		elif spliti[0]=="BLAST":
-			BLASTDIR= spliti[1].strip()
-			if not is_exec(BLASTDIR+"/bin/blastn"):
-				print "[ERROR] File {0} cannot be executed. ".format(BLASTDIR+"/bin/blastn")
-				logFAIL()
-				logln ("File {0} cannot be executed. ".format(BLASTDIR+"/bin/blastn") )
-				exit(1)
-			if not os.path.exists(BLASTDIR+"/db"):
-				print "[ERROR] No such path {0}. Please make sure you downloaded the nt database in db folder".format(BLASTDIR+"/db")
-				logFAIL()
-				logln ("No such path {0}. Please make sure that you downloaded the nt database in db folder".format(BLASTDIR+"/db") )
-				exit(1)
-			pipeline.blast = BLASTDIR
+		if i[0]!="#":
+			spliti = i.split("=")
+			if spliti[0]=="SAMTOOLS":
+				SAMTOOLS = spliti[1].strip()
+				if not is_exec(SAMTOOLS):
+					print "[ERROR] File {0} cannot be executed. ".format(SAMTOOLS)
+					logFAIL()
+					logln ("File {0} cannot be executed. ".format(SAMTOOLS) )
+					exit(1)
+				pipeline.samtools = SAMTOOLS
+			if spliti[0]=="VELVETH":
+				VELVETH = spliti[1].strip()
+				if not is_exec(VELVETH):
+					print "[ERROR] File {0} cannot be executed. ".format(VELVETH)
+					logFAIL()
+					logln ("File {0} cannot be executed. ".format(VELVETH) )
+					exit(1)
+				pipeline.velveth = VELVETH
+			elif spliti[0]=="VELVETG":
+				VELVETG = spliti[1].strip()
+				if not is_exec(VELVETG):
+					print "[ERROR] File {0} cannot be executed. ".format(VELVETG)
+					logFAIL()
+					logln ("File {0} cannot be executed. ".format(VELVETG) )
+					exit(1)
+				pipeline.velvetg = VELVETG
+			elif spliti[0]=="BLASTN":
+				BLASTN = spliti[1].strip()
+				if not is_exec(BLASTN):
+					print "[ERROR] File {0} cannot be executed. ".format(BLASTN)
+					logFAIL()
+					logln ("File {0} cannot be executed. ".format(BLASTN) )
+					exit(1)
+				pipeline.blastn = BLASTN
+			elif spliti[0]=="BLASTDB":
+				BLASTDB = spliti[1].strip()
+				if not os.path.exists(BLASTDB):
+					print "[ERROR] No such path {0}. Please make sure you have blast database (db) folder. ".format(BLASTDB)
+					logFAIL()
+					logln ("No such path {0}. Please make sure that you have blast database (db) folder.".format(BLASTDB) )
+					exit(1)
+				pipeline.blastdb = BLASTDB
 	logOK()
 
 #############################################################################################
