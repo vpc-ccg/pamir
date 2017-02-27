@@ -38,6 +38,7 @@ cd pamir
 
 You need to link the velvet executables and blast main directory inside pamir folder: 
 ```
+pamir$ ln -s /dir/to/samtools /dir/to/pamir/samtools
 pamir$ ln -s /dir/to/velvet/velveth /dir/to/pamir/velveth  
 pamir$ ln -s /dir/to/velvet/velvetg /dir/to/pamir/velvetg  
 pamir$ ln -s /dir/to/blastn /dir/to/pamir/blastn  
