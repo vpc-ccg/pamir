@@ -18,7 +18,7 @@ boost library 1.62 or higher
 (https://sourceforge.net/projects/boost/?source=directory) 
 
 You also need to define the boost library by typing on your shell  
-export BOOST INCLUDE= the/BOOST/version/include/ (directory of BOOST in your machine).
+export BOOST\_INCLUDE= the/BOOST/version/include/ (directory of BOOST in your machine).
 
 velvet 1.2.10 or higher
 
