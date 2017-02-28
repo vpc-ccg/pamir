@@ -530,51 +530,51 @@ int main(int argc, char **argv)
 
 	try {
 
-		if (argc < 2) throw "Usage:\tsniper [mode=(?)]";
+		if (argc < 2) throw "Usage:\tpamir [mode=(?)]";
 
 		string mode = argv[1];
 		if (mode == "verify_sam") {
-			if (argc != 4) throw "Usage:\tsniper verify_sam [sam-file] [output_prefix]";
+			if (argc != 4) throw "Usage:\tpamir verify_sam [sam-file] [output_prefix]";
 			extractor ext(argv[2], argv[3]);
 		}
 		else if (mode == "remove_concordant") {
-			if (argc != 7) throw "Usage:\tsniper remove_concordant [sam-file] [output] outputtype oea? orphan?";
+			if (argc != 7) throw "Usage:\tpamir remove_concordant [sam-file] [output] outputtype oea? orphan?";
 			extractor ext(argv[2], argv[3], atoi(argv[4]), atoi(argv[5]), atoi(argv[6]));
 		}
 		else if (mode == "mask" || mode == "maski") {
-			if (argc != 6) throw "Usage:\tsniper mask/maski [repeat-file] [reference] [output] [padding]";
+			if (argc != 6) throw "Usage:\tpamir mask/maski [repeat-file] [reference] [output] [padding]";
 			mask(argv[2], argv[3], argv[4], atoi(argv[5]), mode == "maski");
 		}
 		else if (mode == "sort") {
-			if (argc != 4) throw "Usage:\tsniper sort [sam-file] [output]";
+			if (argc != 4) throw "Usage:\tpamir sort [sam-file] [output]";
 			sortFile(argv[2], argv[3], 2 * GB);
 		}
 		else if (mode == "partition") {
-			if (argc != 6) throw "Usage:\tsniper partition [read-file] [mate-file] [output-file] [threshold]";
+			if (argc != 6) throw "Usage:\tpamir partition [read-file] [mate-file] [output-file] [threshold]";
 			partify(argv[2], argv[3], argv[4], atoi(argv[5]));
 		}
 		else if (mode=="header"){
-			if (argc !=4) throw "Usage:3 parameters needed\tsniper header [output_file_name] [reference]";
+			if (argc !=4) throw "Usage:3 parameters needed\tpamir header [output_file_name] [reference]";
 			print_header(argv[2],argv[3]);
 		}
 		else if (mode == "assemble") {
-			if (argc != 9) throw "Usage:10 parameters needed\tsniper assemble [partition-file] [reference] [range] [output-file-vcf] [max-len] [read-length] dir_prefix";
+			if (argc != 9) throw "Usage:10 parameters needed\tpamir assemble [partition-file] [reference] [range] [output-file-vcf] [max-len] [read-length] dir_prefix";
 			log_path = argv[5]; log_path += ".log";
 			log_init( "" );	//log_init( log_path );
 			assemble(argv[2], argv[3], argv[4], argv[5], atoi(argv[6]), atoi(argv[7]), argv[8]);
 			log_close();
 		}
 		else if (mode == "get_cluster") {
-			if (argc != 4) throw "Usage:\tsniper get_cluster [partition-file] [range]";
+			if (argc != 4) throw "Usage:\tpamir get_cluster [partition-file] [range]";
 			genome_partition pt;
 			pt.output_partition( argv[2], argv[3]);
 		}
 		else if (mode == "index_log") {
-			if (argc != 3) throw "Usage:\tsniper index_log [log-file]";
+			if (argc != 3) throw "Usage:\tpamir index_log [log-file]";
 			log_idx( argv[2]);
 		}
 		else if (mode == "output_log") {
-			if (argc != 4) throw "Usage:\tsniper log_idx [log-file] [range]";
+			if (argc != 4) throw "Usage:\tpamir log_idx [log-file] [range]";
 			output_log( argv[2], argv[3]);
 		}
 		else {
