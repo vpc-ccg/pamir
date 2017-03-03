@@ -1,15 +1,13 @@
 /// 786
 
 #include <bits/stdc++.h>
-#include <fmt/format.h>
+//#include <fmt/format.h>
 #include <boost/heap/fibonacci_heap.hpp>
 using namespace std;
 using namespace boost::heap;
 
-#define E(msg,...)\
-	fmt::print(stderr, msg"\n", ##__VA_ARGS__)
-#define L(msg,...)\
-	fmt::print(stdout, msg"\n", ##__VA_ARGS__)
+#define L(c,...) fprintf(stdout,c,##__VA_ARGS__)
+#define E(c,...) fprintf(stderr,c,##__VA_ARGS__)
 
 unordered_map<string, int> read_to_id;
 struct Xread {
@@ -97,11 +95,11 @@ void set_cover (auto &clusters, auto &reads)
 	int i = 0, rx = 0;
 	for (auto &c: clusters) {
 		if (c.reads.size() == 0) {
-			L("Removed: {} {}", c.orig_id, c.name);
+			L("Removed: %d %s\n", c.orig_id, c.name.c_str());
 			continue;
 		}
 
-		L("{} {} {}", c.orig_id, c.reads.size(), c.name);
+		L("%d %u %s\n", c.orig_id, c.reads.size(), c.name.c_str());
 		for (auto &r: c.reads) {
 			//L("{}", read_names[r]);
 		}
@@ -109,7 +107,7 @@ void set_cover (auto &clusters, auto &reads)
 		rx += c.reads.size(), i++;
 	}
 	assert(rx == reads.size());
-	E("{} / {} sets resolved, {} / {} reads resolved", i, clusters.size(), re, rx);
+	E("%d / %u sets resolved, %d / %d reads resolved\n", i, clusters.size(), re, rx);
 }
 
 int main (int argc, char **argv) 
@@ -146,10 +144,10 @@ int main (int argc, char **argv)
 
 		if (clusters.size() % 1000 == 1) {
 			auto p = 100 * ftell(fi) / fsz;
-			fmt::print(stderr, "\r {:.2f}", p);
+			E("\r %f\n", p);
 		}
 	}
-	E("");
+	E("\n");
 
 	for (auto &c: clusters) {
 		auto s = unordered_set<int>(c.reads.begin(), c.reads.end());
@@ -163,8 +161,8 @@ int main (int argc, char **argv)
 		c.support = c.reads.size() - c.unresolved;
 	}
 
-	E("{} clusters", clusters.size());
-	E("{} reads", reads.size());
+	E("%u clusters\n", clusters.size());
+	E("%u reads\n", reads.size());
 
 	set_cover(clusters, reads);
 
@@ -174,7 +172,7 @@ int main (int argc, char **argv)
 	// 	}
 	// }
 
-	E("done");
+	E("done\n");
 
 	return 0;
 }
