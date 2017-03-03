@@ -12,7 +12,7 @@
 #include <cmath>
 #include <zlib.h>
 #include "common.h"
-#include "common2.h"
+//#include "common2.h"
 #include "partition.h"
 #include "assembler.h"
 #include "assembler_ext.h"
