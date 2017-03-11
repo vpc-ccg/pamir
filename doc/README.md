@@ -114,32 +114,26 @@ $ ./pamir.py -p my_project -r ref.fa --files mrsfast-best-search=sample.sam
 ```
 $ ./pamir.py -p my_project -r ref.fa  --files mrsfast-best-search=sample.sam,sample2.sam,sample3.sam
 ```
-
 3. To make a pooled-run with multiple samples which are in a folder called SAMPLEFOLDER: 
 ```
 $ ./pamir.py -p my_project -r ref.fa  --files mrsfast-best-search=SAMPLEFOLDER
 ```
-
 4. To start from another mapping tool's alignment result SAM/BAM file:
 ```
 $ ./pamir.py -p my_project -r ref.fa --files alignment=sample.bam
 ```
-
 5. To start from a gzipped fastq file,
 ```
 $ ./pamir.py -p my_project -r ref.fa --files fastq=sample.fastq.gz
 ```
 6. To ignore regions in a mask file (e.g., repeat regions),
-
 ```
 $ ./pamir.py -p my_project -r ref.fa -m repeat.txt --files mrsfast-best-search=sample.sam
 ```
-
 7. To analyze events only in some regions of the reference genome (e.g., genic regions), 
 ```
 $ ./pamir.py -p my_project -r ref.fa -m genic.region --invert-mask  --files mrsfast-best-search=sample.sam
 ```
-
 8. To make sure that mrsFAST will not report the mapping locations of an OEA read more after the 30th location:
 ```
 $ ./mistrvar.py -p my_project -r ref.fa --mrsfast-n 30 --files mrsfast-best-search=sample.sam
@@ -152,23 +146,21 @@ $ ./pamir.py -p my_project -r ref.fa  --mrsfast-threads 8 --files mrsfast-best-s
 ```
 $ ./pamir.py -p my_project -r ref.fa  --num-worker 20 --files mrsfast-best-search=sample.sam
 ```
-
 11. To specify the assembler as sga for orphan assembly and also the number of prediction jobs will be 20: 
 ```
 $ ./pamir.py -p my_project -r ref.fa  --num-worker 20 --assembler sga --files mrsfast-best-search=sample.sam
 ```
-
 12. To resume from the previously finished stage: 
 ```
 $ ./pamir.py -p my_project --resume
 ```
 
 ### Some Invalid Commands
+The following parameters are not accepted by Pamir:
 1. Project name is missing:
 ```
 $./pamir.py -r ref.fa --files alignment=sample.sam
 ```
-
 2. Reference genome file is missing:
 ```
 $./pamir.py -p my_project --files alignment=sample.sam
@@ -181,7 +173,6 @@ $./pamir.py -p my_project -m non-exist-mask-file --files alignment=sample.sam
 ```
 $./pamir.py -p my_project -r ref.fa
 ```
-
 5. Multiple sequencing sources:
 ```
 $./pamir.py -p my_project  -r ref.fa --files mrsfast-best-search=sample.sam fastq=sample2.fastq.gz
