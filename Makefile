@@ -17,7 +17,7 @@ cm:
 es: 
 	g++ -O3 -o extract_support extract_support.cc common.cc
 sm:
-	g++ -O3 -o smoother -g -std=c++1y -Wfatal-errors -I$(BOOST_INCLUDE) smoother.cc
+	g++ -O3 -o smoother -g -std=c++1y -Wfatal-errors smoother.cc
 mf: 
 	make -C mrsfast
 

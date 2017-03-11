@@ -2,12 +2,19 @@
 
 #include <bits/stdc++.h>
 //#include <fmt/format.h>
-#include <boost/heap/fibonacci_heap.hpp>
+#include "fiboheap.hpp"
+#include <vector>
+
 using namespace std;
-using namespace boost::heap;
+//using namespace boost::heap;
 
 #define L(c,...) fprintf(stdout,c,##__VA_ARGS__)
 #define E(c,...) fprintf(stderr,c,##__VA_ARGS__)
+
+//#define E(msg,...)\
+//	fmt::print(stderr, msg"\n", ##__VA_ARGS__)
+//#define L(msg,...)\
+//	fmt::print(stdout, msg"\n", ##__VA_ARGS__)
 
 unordered_map<string, int> read_to_id;
 struct Xread {
@@ -19,23 +26,28 @@ struct cluster {
 	string name;
 	int support, unresolved;
 	vector<int> reads;
+	bool operator< (const cluster& other) const {
+		//return make_pair(support, unresolved) > make_pair(other.support, other.unresolved);
+		return make_pair(support, make_pair(unresolved, id)) > make_pair(other.support, make_pair(other.unresolved, other.id));
+	}
+	friend ostream& operator<<(ostream& os, const cluster& cl);
 };
 
-struct cluster_compare {
-	bool operator() (const cluster *a, const cluster *b) const {
-		return make_pair(a->support, a->unresolved) < make_pair(b->support, b->unresolved);
-	}
-};
+ostream& operator<<(ostream& os, const cluster& cl) {  
+	os << cl.id << '\t' <<cl.orig_id << '\t' << cl.name << '\t' << cl.support << '\t' << cl.unresolved << '\t' << cl.reads.size();
+	return os;
+} 
 
 void set_cover (auto &clusters, auto &reads) 
 {
-	fibonacci_heap<cluster*, compare<cluster_compare>> heap;
-	unordered_map<int, decltype(heap)::handle_type> heap_handles;
+	FiboHeap<cluster*> heap;
+	unordered_map<int, Node<cluster*>* > heap_handles;
 
+	// inserting them all
 	unordered_map<int,bool> x;
 	for (auto &c: clusters) {
 		if (c.unresolved == 0) continue;
-		heap_handles[c.id] = heap.push(&c);
+		heap_handles[c.id] = heap.insert(&c);
 		x[c.id] = false;
 	}
 
@@ -53,8 +65,10 @@ void set_cover (auto &clusters, auto &reads)
 
 	unordered_set<int> W;
 
-	while (!heap.empty()) {
-		cluster *c = heap.top(); heap.pop();
+	while (!heap.isEmpty()) {
+		cluster *c = heap.getMinimum(); heap.removeMinimum();
+		//cout << c->id << '\t' << c->support <<'\t' << c->unresolved << '\t' << c->reads.size()<<'\n';
+		
 		if (!c->unresolved && !c->support) break;
 		//E("{}-- {} {}", c->id, c->support, c->unresolved);
 
@@ -68,12 +82,14 @@ void set_cover (auto &clusters, auto &reads)
 			if (reads[r].clusters.size() <= 1) continue;
 
 			for (auto &cr: reads[r].clusters) {
-				auto it = heap_handles.find(cr);
+				unordered_map<int, Node<cluster*>* >::const_iterator it = heap_handles.find(cr);
 				if (it == heap_handles.end()) continue; // not in heap anymore
-				assert((*it->second)->id == cr);
-				assert((*it->second)->unresolved > 0);
 
-				(*it->second)->unresolved--;
+				assert(((it->second)->getValue())->id == cr);
+				assert(((it->second)->getValue())->unresolved > 0);
+
+				cluster* newc = it->second->getValue();
+				newc->unresolved--;
 				heap.update(it->second);
 			}
 			reads[r].clusters.clear();
