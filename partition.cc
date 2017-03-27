@@ -33,8 +33,65 @@ genome_partition::~genome_partition ()
 	if (fp) gzclose(fp);
 }
 
+int genome_partition::load_orphan( const string &orphan_contig, const string &oea2orphan )
+{
+	//int INSSIZE=450;
+	char rname[MAX_CHAR], gname[MAX_CHAR], cont[MAX_CHAR], readline[MAX_CHAR], tmp[MAX_CHAR];
+	string rstr, cstr;
+	int flag, pos, qual, npos, tlen, z;
+
+	// loading orphan contig
+	FILE *fin = fopen( orphan_contig.c_str(), "r");
+	while( NULL != fgets( gname, MAX_CHAR, fin ) )
+	{
+		fgets( cont, MAX_CHAR, fin);
+		rstr = string(gname).substr(1,strlen(gname)-2); // excluding leading char and newline
+		cstr = string(cont).substr(0, strlen(cont)-1); // excluding leading char and newline
+		map_cont[rstr] = cstr;
+	}
+	fclose(fin);
+	ERROR("Loading orphan contig file\n");
+	
+	fin = fopen( oea2orphan.c_str(), "r");
+	while( NULL != fgets( readline, MAX_CHAR, fin ) )
+	{	
+		sscanf(readline, "%s %d %s %d %d %s %s %d %d %s %d\n", rname, &flag, gname,  &pos, &qual, tmp, tmp, &npos, &tlen, cont, &z);
+		rstr = string( rname );
+		if (rstr.size() > 2 && rstr[rstr.size() - 2] == '/')
+			rstr = rstr.substr(0, rstr.size() - 2);
+
+		vector<string> tmpv;
+		tmpv.push_back(string(gname));
+		tmpv.push_back( ( (flag & 0x10) == 0x10 )?"-":"+" );
+
+		int contiglen = map_cont[gname].length();
+		int readlen   = strlen(cont);
+		if ( pos < INSSIZE)
+			tmpv.push_back("l");
+		else if(pos > contiglen-INSSIZE-readlen)
+			tmpv.push_back("r");
+		else
+			tmpv.push_back("w");
+
+		if ( map_token.find(rstr) != map_token.end() ) {
+			map_token[rstr].push_back(tmpv);
+		}
+		else
+		{
+			vector<vector<string> > tmp_vec;
+			tmp_vec.push_back(tmpv);
+			map_token[rstr] = tmp_vec;
+		}
+	}
+	fclose(fin);
+	ERROR("Updating OEA contigs\n");
+	return 0;
+}
+
+
 bool genome_partition::add_read (string read_name, int flag, int loc)
 {
+	char sign;
 	if (read_name.size() > 2 && read_name[read_name.size() - 2] == '/')
 		read_name = read_name.substr(0, read_name.size() - 2);
 	
@@ -42,9 +99,36 @@ bool genome_partition::add_read (string read_name, int flag, int loc)
 	auto it = oea_mate.find(read_name);
 	if (it != oea_mate.end()) {
 		if (flag & 0x10)
-			comp.push_back({{read_name + "+", it->second}, {1, loc}});
+			{	comp.push_back({{read_name + "+", it->second}, {1, loc}}); sign = '+';}
 		else
-			comp.push_back({{read_name + "-", reverse_complement(it->second)},{1, loc}});
+			{	comp.push_back({{read_name + "-", reverse_complement(it->second)},{1, loc}}); sign= '-';}
+		// adjust associated orphans for a cluster
+		map<string, vector<int> >::iterator mit;
+		if (map_token.find(read_name) != map_token.end()) {
+			vector<vector<string> >::iterator nit;
+			for (nit=map_token[read_name].begin(); nit != map_token[read_name].end(); nit++){
+				if (myset.find((*nit)[0]) == myset.end()) {
+					vector<int> tmpev;
+					tmpev.push_back(0);
+					tmpev.push_back(0);
+					tmpev.push_back(0);
+					tmpev.push_back(0);
+					myset[(*nit)[0]] = tmpev;
+					//fprintf( stdout, "F_%s_F\n", (*nit)[0].c_str() );
+				}
+
+				if (sign != (*nit)[1][0])
+					myset[(*nit)[0]][1]++;
+				else
+					myset[(*nit)[0]][0]++;
+
+				if ((*nit)[2] == "l")
+					myset[(*nit)[0]][2]++;
+				else
+					myset[(*nit)[0]][3]++;
+			}
+		}
+
 		return true;
 	}
 	else return false;
@@ -74,6 +158,7 @@ vector<pair<pair<string, string>, pair<int,int>>> genome_partition::get_next ()
 {
 	comp.clear();
 	read_cache.clear();
+	myset.clear();
 
 	char read_name[1000], ref_name[1000];
 	int flag, loc;
@@ -100,10 +185,71 @@ vector<pair<pair<string, string>, pair<int,int>>> genome_partition::get_next ()
 
 size_t genome_partition::dump (const vector<pair<pair<string, string>, pair<int,int>>> &vec, FILE *fo, int fc)
 {
+	// Inserting possible orphan contig
+	int acceptedContigNum =0;
+	int nReads = (int)vec.size();
+	int tie= 0;
+	string orphan_info;
+	orphan_info.reserve(20000);
+	
+	map<string, vector<int> >::iterator mit;
+	log("CLUSTER ID: %d\n", fc);
+	for (mit=myset.begin(); mit!=myset.end(); mit++)
+	{
+		string revcontent;
+		//fprintf(flog,"readNum: %d\tcontigname: %s\tleft: %d\tright: %d\tforward: %d\treverse: %d\n", nReads, (*mit).first.c_str(), myset[(*mit).first][2], myset[(*mit).first][3], myset[(*mit).first][0], myset[(*mit).first][1]);
+		log("readNum: %d\tcontigname: %s\tleft: %d\tright: %d\tforward: %d\treverse: %d\n", nReads, (*mit).first.c_str(), myset[(*mit).first][2], myset[(*mit).first][3], myset[(*mit).first][0], myset[(*mit).first][1]);
+		
+		int contiglen = map_cont[(*mit).first].length(); 
+		if(contiglen <= INSSIZE)
+		{
+			if( 0 == myset[(*mit).first][2] )
+			{
+				log( "Short contig and no left or right flank supporters\n");
+				continue;
+			}
+		}
+		else 
+		{
+			if((myset[(*mit).first][2]==0|| myset[(*mit).first][3]==0) && myset[(*mit).first][2] +myset[(*mit).first][3] < 0.3*nReads )
+			{
+				log("either no OEAs mapping on left or right flank and not enough left + right flank support < 30%%\n");
+				continue;
+			}
+		}
+		if( myset[(*mit).first][0] ==  myset[(*mit).first][1] )
+		{
+			orphan_info += (*mit).first + " " + map_cont[(*mit).first] + " 0 -1\n";
+			string content = map_cont[(*mit).first];
+			revcontent = reverse_complement(content);
+			orphan_info += (*mit).first + "_rv " + revcontent+ " 0 -1\n";
+			tie++;
+			acceptedContigNum +=2;
+		}
+		else
+		{
+			if(myset[(*mit).first][0] > myset[(*mit).first][1])
+			{
+				revcontent = map_cont[(*mit).first];
+			}
+			else if(myset[(*mit).first][1] > myset[(*mit).first][0])
+			{
+				string content = map_cont[(*mit).first];
+				revcontent = reverse_complement(content);
+			}
+			orphan_info += (*mit).first + " " + revcontent+ " 0 -1\n";
+			acceptedContigNum ++;
+		}
+	}
+	if ( tie ) { log( "Forward and reverse were in tie condition : %d times.\n", tie);}
+
+	// Actual Partiton Content 
 	size_t pos = ftell(fo);
-	fprintf(fo, "%d %lu %d %d %s\n", fc, vec.size(), p_start, p_end, p_ref.c_str());
+	fprintf(fo, "%d %d %d %d %s\n", fc, nReads + acceptedContigNum, p_start, p_end, p_ref.c_str());
 	for (auto &i: vec)
 		fprintf(fo, "%s %s %d %d\n", i.first.first.c_str(), i.first.second.c_str(), i.second.first, i.second.second);
+	if ( acceptedContigNum )
+		fprintf(fo, "%s", orphan_info.c_str() );
 	return pos;
 }
 int genome_partition::get_cluster_id ()

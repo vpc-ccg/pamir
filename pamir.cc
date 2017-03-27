@@ -15,7 +15,6 @@
 //#include "common2.h"
 #include "partition.h"
 #include "assembler.h"
-#include "assembler_ext.h"
 #include "genome.h"
 #include "aligner.h"
 #include "extractor.h"
@@ -114,7 +113,7 @@ void mask (const string &repeats, const string &path, const string &result, int 
 	delete[] x;
 }
 /**************************************************************/
-void partify (const string &read_file, const string &mate_file, const string &out, int threshold) 
+void partify (const string &read_file, const string &out, int threshold, const string &mate_file) 
 {
 	FILE *fin = fopen(mate_file.c_str(), "r");
 	unordered_map<string, string> mymap;
@@ -134,7 +133,7 @@ void partify (const string &read_file, const string &mate_file, const string &ou
 	{
 		g++;
 	}
-	genome_partition pt(read_file, threshold, mymap); 
+	genome_partition pt(read_file, threshold, mymap);
 	int fc = 1;
 	FILE *fo = fopen(out.c_str(), "wb");
 	FILE *fidx = fopen((out + ".idx").c_str(), "wb");
@@ -144,6 +143,46 @@ void partify (const string &read_file, const string &mate_file, const string &ou
 		fwrite(&i, 1, sizeof(size_t), fidx);
 		fc++;
 	}
+	fclose(fin);
+	fclose(fo);
+	fclose(fidx);
+}
+void partify_orphan (const string &read_file, const string &out, int threshold, 
+//const string &contig_file, const string &orphan2orphan, const string &oea2orphan) 
+	const string &contig_file, const string &oea2orphan,const string &mate_file) 
+{
+	FILE *fin = fopen(mate_file.c_str(), "r");
+	unordered_map<string, string> mymap;
+	const int MAXB = 259072;
+	char name[MAXB], read[MAXB], tmp[MAXB];
+	while (fgets(name, MAXB, fin)) {
+		fgets(read, MAXB, fin);
+		fgets(tmp, MAXB, fin);
+		fgets(tmp, MAXB, fin);
+		if (strlen(name)>2 && name[strlen(name) - 3] == '/')
+			name[strlen(name)-3]='\0';
+		read[strlen(read)-1]='\0';
+		mymap[string(name+1)] = read;
+	}
+	//auto g=mymap.begin();
+	//while(g!=mymap.end())
+	//{
+	//	g++;
+	//}
+	genome_partition pt(read_file, threshold, mymap); 
+	// loading orphan association information
+	pt.load_orphan( contig_file, oea2orphan);
+	
+	int fc = 1;
+	FILE *fo = fopen(out.c_str(), "wb");
+	FILE *fidx = fopen((out + ".idx").c_str(), "wb");
+	while (pt.has_next()) {
+		auto p = pt.get_next();
+		size_t i = pt.dump(p, fo, fc);
+		fwrite(&i, 1, sizeof(size_t), fidx);
+		fc++;
+	}
+	fprintf(stdout, "%d\n",fc-1);
 	fclose(fin);
 	fclose(fo);
 	fclose(fidx);
@@ -296,64 +335,23 @@ void append_vcf(const string &chrName, const string &reference, const vector< tu
 			vcf_str += ";SEQ=";		vcf_str	+=	get<3>(reports[r]);
 			vcf_str += "\n";
 		}
-		if(get<0>(reports[r])== "DEL")
+	/*	if(get<0>(reports[r])== "DEL")
 		{
-			vcf_str_del += 	chrName;	vcf_str += 	"\t";
-			vcf_str_del +=	std::to_string(get<1>(reports[r]));	vcf_str += "\t.\t";
+			vcf_str_del += 	chrName;	vcf_str_del += 	"\t";
+			vcf_str_del +=	std::to_string(get<1>(reports[r]));	vcf_str_del += "\t.\t";
 			vcf_str_del +=  reference.at(r);
 			vcf_str_del +=  "\t<DEL>\t";
 			vcf_str_del +=  std::to_string( get<5>(reports[r]));
 			vcf_str_del +=  "\tPASS\tSVTYPE=DEL;SVLEN=";
 			vcf_str_del +=  std::to_string( get<2>(reports[r])) ;
-			vcf_str_del += 	";END=";	vcf_str +=	std::to_string( get<1>(reports[r]) + get<2>(reports[r])-1 );
-			vcf_str_del += ";Cluster=";	vcf_str +=	std::to_string( clusterId ) ;
-			vcf_str_del += ";Support=";	vcf_str	+=	std::to_string( get<4>(reports[r])) ;
-			vcf_str_del += ";SEQ=";		vcf_str	+=	get<3>(reports[r]);
+			vcf_str_del += 	";END=";	vcf_str_del +=	std::to_string( get<1>(reports[r]) + get<2>(reports[r])-1 );
+			vcf_str_del += ";Cluster=";	vcf_str_del +=	std::to_string( clusterId ) ;
+			vcf_str_del += ";Support=";	vcf_str_del	+=	std::to_string( get<4>(reports[r])) ;
+			vcf_str_del += ";SEQ=";		vcf_str_del	+=	get<3>(reports[r]);
 			vcf_str_del += "\n";
-		}
+		}*/
 	}
 }
-///*******************************************************************/
-//void print_header(const string &header_file, const string &reference)
-//{
-//	FILE *fo = fopen(header_file.c_str(),"w");
-//	genome toread(reference.c_str());
-//	char *absref = new char[1000];
-//	char *baseref = new char[1000]; 
-//	strcpy(absref,reference.c_str());
-//	baseref = strtok(absref,"/");
-//	char *prevref = new char[500];
-//	while(baseref!=NULL)
-//	{
-//		strcpy(prevref,baseref);
-//		baseref=strtok(NULL,"/");
-//	}
-//	toread.load_next();
-//	fprintf(fo, "##fileformat=VCFv4.2\n");
-//	fprintf(fo, "##FILTER=<ID=PASS,Description=\"All filters passed\">\n");
-//	fprintf(fo, "##reference=%s\n",prevref);
-//	fprintf(fo, "##source=Pamir\n");
-//	fprintf(fo, "##ALT=<ID=<INS>,Type=String,Description=\"Insertion of novel sequence\">\n");
-//	fprintf(fo, "##INFO=<ID=SVTYPE,Number=1,Type=String,Description=\"Type of structural variant\">\n");
-//	fprintf(fo, "##INFO=<ID=SVLEN,Number=1,Type=Integer,Description=\"Difference in length between REF and ALT alleles\">\n");
-//	fprintf(fo, "##INFO=<ID=END,Number=1,Type=Integer,Description=\"End coordinate of this variant\">\n");
-//	fprintf(fo, "##INFO=<ID=Cluster,Number=1,Type=Integer,Description=\"ID of the cluster the variant is extracted from\">\n");
-//	fprintf(fo, "##INFO=<ID=Support,Number=1,Type=Integer,Description=\"Number of reads/contigs supporting the contig\">\n");
-//	fprintf(fo, "##INFO=<ID=SEQ,Number=1,Type=String,Description=\"Variant sequence\">\n");
-//	string prevName="";
-//	string name = toread.get_name();
-//	int ssize = toread.get_size();
-//	while (name!=prevName && ssize!=0)
-//	{
-//		fprintf(fo, "##contig=<ID=%s,length=%d>\n",name.c_str(),ssize);
-//		prevName=name;
-//		toread.load_next();
-//		name=toread.get_name();
-//		ssize = toread.get_size();
-//	}
-//	fprintf(fo, "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n");
-//	fclose(fo);
-//}
 /*******************************************************************/
 void print_header(const string &header_file, const string &reference)
 {
@@ -414,7 +412,10 @@ void assemble (const string &partition_file, const string &reference, const stri
 	int LENFLAG					= 1000;//500;//1000;
 	char *line 					= new char[MAX_CHAR];
 	FILE *fo_vcf 				= fopen(out_vcf.c_str(), "w");
-	FILE *fo_vcf_del 			= fopen((out_vcf+string("DELS")).c_str(), "w");
+	string out_vcf_del = out_vcf.substr(0,out_vcf.rfind("."))+string("_DELS")+out_vcf.substr(out_vcf.rfind("x")+1,out_vcf.length());
+	string out_vcf_lq = out_vcf.substr(0,out_vcf.rfind("."))+string("_LOWQUAL")+out_vcf.substr(out_vcf.rfind("x")+1,out_vcf.length());
+	FILE *fo_vcf_del 			= fopen(out_vcf_del.c_str(), "w");
+	FILE *fo_vcf_lq 			= fopen(out_vcf_lq.c_str(), "w");
 	
 	assembler as(max_len, 15);
 	genome ref(reference.c_str());
@@ -423,10 +424,13 @@ void assemble (const string &partition_file, const string &reference, const stri
 	aligner al(max_len + 2010 );
 	
 	string tmp_ref; tmp_ref.reserve(4);
+	string tmp_ref_lq; tmp_ref_lq.reserve(4);
 	string vcf_info=""; vcf_info.reserve(10000000);
+	string vcf_info_lq=""; vcf_info_lq.reserve(10000000);
 	string vcf_info_del=""; vcf_info.reserve(10000000);
 	const int MAX_BUFFER = 500;
 	int n_buffer         =   0;
+	int n_buffer2         =   0;
 
 	while (1) 
 	{
@@ -451,18 +455,13 @@ void assemble (const string &partition_file, const string &reference, const stri
 		log(" + Spanning Range  : %s:%d-%d\n", chrName.c_str(), pt_start, pt_end);
 		log(" + Discovery Range : %s:%d-%d\n", chrName.c_str(), ref_start, ref_end);
 		log(" + Reference       : %s\n\n", ref_part.c_str());
-		//fprintf(stdout,"-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");
-		//fprintf(stdout," + Cluster ID      : %d\n", cluster_id);
-		//fprintf(stdout," + Reads Count     : %lu\n", p.size());
-		//fprintf(stdout," + Spanning Range  : %s:%d-%d\n", chrName.c_str(), pt_start, pt_end);
-		//fprintf(stdout," + Discovery Range : %s:%d-%d\n", chrName.c_str(), ref_start, ref_end);
-		//fprintf(stdout," + Reference       : %s\n\n", ref_part.c_str());
 		// if the genomic region is too big
 		if (ref_end - ref_start > MAX_REF_LEN) 
 			continue;
 		
 		// holding the calls info, can be used to detect the repeated calls, etc.
 		vector< tuple< string, int, int, string, int, float > > reports;//reports.clear();
+		vector< tuple< string, int, int, string, int, float > > reports_lq;//reports.clear();
 		
 		vector<string> reads;
 		for (int i =0;i<p.size();i++)
@@ -477,7 +476,6 @@ void assemble (const string &partition_file, const string &reference, const stri
 			if( check_AT_GC(contig.data, MAX_AT_GC) == 0 || (con_len <= read_length && contig_support <= 1) || con_len > max_len + 400 ) continue;
 		
 			log("\n\n>>>>> Length: %d Support: %d Contig: %s\n", con_len, contig_support, contig.data.c_str());
-			//fprintf(stdout, "\n\n>>>>> Length: %d Support: %d Contig: %s\n", con_len, contig_support, contig.data.c_str());
 			for(int z=0;z<contig.read_information.size();z++)
 				log("%s %s %d %d\n", 
 					contig.read_information[z].name.c_str(),
@@ -485,11 +483,11 @@ void assemble (const string &partition_file, const string &reference, const stri
 					contig.read_information[z].location, 
 					contig.read_information[z].location_in_contig);
 			al.align(ref_part, contig.data);
-			if(al.extract_calls(cluster_id, reports, contig_support, ref_start,">>>")==0)
-			{
+			if(al.extract_calls(cluster_id, reports_lq, reports, contig_support, ref_start,">>>")==0)
+			{ 
 				string rc_contig = reverse_complement(contig.data);	
 				al.align(ref_part, rc_contig);
-				al.extract_calls(cluster_id, reports, contig_support, ref_start, "<<<");
+				al.extract_calls(cluster_id, reports_lq, reports, contig_support, ref_start, "<<<");
 			}
 		}
 		//print_calls new version
@@ -501,6 +499,12 @@ void assemble (const string &partition_file, const string &reference, const stri
 			//tmp_ref += ref.extract(chrName, tmp_end, tmp_end);
 		}
 		
+		tmp_ref_lq.clear();//string tmp_ref = ""; 
+		for (int j =0; j <reports_lq.size();j++)
+		{
+			int tmp_end = get<1>(reports_lq[j])+1;
+			tmp_ref_lq += ref.getchar(chrName, tmp_end);
+		}
 		append_vcf( chrName, tmp_ref, reports, pt.get_cluster_id(), vcf_info, vcf_info_del);
 		n_buffer++;
 		if ( 0 == n_buffer%MAX_BUFFER )
@@ -509,18 +513,32 @@ void assemble (const string &partition_file, const string &reference, const stri
 			n_buffer = 0;
 			vcf_info.clear();
 		}
-		n_buffer++;
+		append_vcf( chrName, tmp_ref_lq, reports_lq, pt.get_cluster_id(), vcf_info_lq, vcf_info_del);
+		n_buffer2++;
+		/*if (n_buffer==0)
+			n_buffer++;
 		if ( 0 == n_buffer%MAX_BUFFER )
 		{
 			fprintf( fo_vcf_del, "%s", vcf_info_del.c_str());
 			n_buffer = 0;
 			vcf_info_del.clear();
+		}*/
+		if(n_buffer2 ==0)
+			n_buffer2++;
+		if ( 0 == n_buffer2%MAX_BUFFER )
+		{
+			fprintf( fo_vcf_lq, "%s", vcf_info_lq.c_str());
+			n_buffer2 = 0;
+			vcf_info_lq.clear();
 		}
-		//print_calls(chrName, reference, reports, fo_vcf, pt.get_cluster_id());
 	}
 	// Sanity check for the last record
 	if ( 0 < vcf_info.size()){	fprintf( fo_vcf, "%s", vcf_info.c_str());}
+	//if ( 0 < vcf_info_del.size()){	fprintf( fo_vcf_del, "%s", vcf_info_del.c_str());}
+	if ( 0 < vcf_info_lq.size()){	fprintf( fo_vcf_lq, "%s", vcf_info_lq.c_str());}
 	fclose(fo_vcf);
+	fclose(fo_vcf_lq);
+	fclose(fo_vcf_del);
 }
 /*********************************************************************************************/
 int main(int argc, char **argv)
@@ -550,8 +568,18 @@ int main(int argc, char **argv)
 			sortFile(argv[2], argv[3], 2 * GB);
 		}
 		else if (mode == "partition") {
-			if (argc != 6) throw "Usage:\tpamir partition [read-file] [mate-file] [output-file] [threshold]";
-			partify(argv[2], argv[3], argv[4], atoi(argv[5]));
+			if ( 6 == argc )
+			{
+				partify(argv[2], argv[3], atoi(argv[4]), argv[5]);
+			}
+			else if ( 8 == argc)
+			{
+				log_path = argv[5]; log_path += "_partitionprocessor.log";
+				log_init( log_path );
+				partify_orphan(argv[2], argv[3], atoi(argv[4]), argv[5], argv[6], argv[7]);
+				log_close();
+			}
+			else{ throw "Usage:\tpamir partition [read-file] [output-file] [threshold] [ [orphan-contig] [oea2orphan] ] [mate_file]"; }
 		}
 		else if (mode=="header"){
 			if (argc !=4) throw "Usage:3 parameters needed\tpamir header [output_file_name] [reference]";

@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 #786 
 
-import os, sys, errno, argparse, subprocess, fnmatch, ConfigParser, time, re
+import os, sys, errno, argparse, subprocess, fnmatch, ConfigParser, re
+from time import time
 #############################################################################################
 # Class for colored texts and binary path
 class bcolors:
@@ -19,7 +20,6 @@ class pipeline:
 	pamir   			= os.path.dirname(os.path.realpath(__file__)) + "/pamir"
 	sga		   			= os.path.dirname(os.path.realpath(__file__)) + "/sga.py"
 	minia	   			= os.path.dirname(os.path.realpath(__file__)) + "/minia"
-	mrsfast  			= os.path.dirname(os.path.realpath(__file__)) + "/mrsfast/mrsfast"
 	recalibrate 		= os.path.dirname(os.path.realpath(__file__)) + "/recalibrate"
 	pprocessor 		 	= os.path.dirname(os.path.realpath(__file__)) + "/partition_processor"
 	sortvcf   			= os.path.dirname(os.path.realpath(__file__)) + "/sort_vcf.py"
@@ -267,13 +267,6 @@ def verify_sam(config ):
 	#msg			 = "Extract softclip positions"
 	workdir		  = pipeline.workdir
 	input_file    = "{0}/{1}".format(workdir, config.get("project","alignment"))
-	#output_file   = "{0}/partitions_updated.softclip"
-	#cmd			  = pipeline.samtools + " view {0} | python {1} | sort | uniq -c | sort -k 2,2 -k 3n,3 | awk '{print $2\"\t\"$3\"\t\"$1}' > {2}/partitions_updated.softclip".format(input_file, output_file, workdir)
-	#control_file  = "{0}/log/01.softclip.log".format(workdir);
-	#complete_file = "{0}/stage/01.sofclip.finished".format(workdir);
-	#freeze_arg    = ""
-	#run_cmd       = not (os.path.isfile(complete_file))
-	#shell( msg, run_cmd , cmd, control_file, complete_file, freeze_arg)
 
 	msg           = "Sorting bam file"	
 	output_file   = "{0}/{1}".format(workdir, config.get("project","fastq"))
@@ -293,33 +286,6 @@ def verify_sam(config ):
 	cmd           = pipeline.pamir + ' verify_sam {0} {1}'.format( input_file, output_file )
 	run_cmd       = not (os.path.isfile(complete_file) )
 	shell( msg, run_cmd , cmd, control_file, complete_file, freeze_arg)
-#
-#	msg           = "Sorting bam file"	
-#	project_name  = config.get("project", "name")
-#	workdir		  = pipeline.workdir
-#	input_file    = "{0}/{1}".format(workdir, config.get("project","alignment"))
-#	output_file   = "{0}/{1}".format(workdir, config.get("project","fastq"))
-#	control_file  = "{0}/log/01.verify_sam_1.log".format(workdir);
-#	complete_file = "{0}/stage/01.verify_sam_1.finished".format(workdir);
-#	freeze_arg    = ""
-#	cmd			  = pipeline.samtools + " sort -n {0} {0}.sorted".format(input_file) 
-#	run_cmd       = not (os.path.isfile(complete_file) )
-#	shell( msg, run_cmd , cmd, control_file, complete_file, freeze_arg)
-#	msg           = "Extracting FASTQ from Alignment file"
-#	project_name  = config.get("project", "name")
-#	workdir		  = pipeline.workdir
-#	input_file    = "{0}/{1}".format(workdir, config.get("project","alignment"))
-#	output_file   = "{0}/{1}".format(workdir, config.get("project","fastq"))
-#	control_file  = "{0}/log/01.verify_sam.log".format(workdir);
-#	complete_file = "{0}/stage/01.verify_sam.finished".format(workdir);
-#	freeze_arg    = ""
-#	cmd			  = pipeline.bedtools + " bamtofastq -i {0}.sorted.bam -fq {1}/input_1.fq -fq2 {1}/input_2.fq".format(input_file,output_file) 
-##	cmd           = pipeline.pamir + ' verify_sam {0} {1}'.format( input_file, output_file )
-#	run_cmd       = not (os.path.isfile(complete_file) )
-#	if ( run_cmd ):
-#		clean_state( 1, workdir, config )
-#	shell( msg, run_cmd , cmd, control_file, complete_file, freeze_arg)
-	
 #############################################################################################
 ###### Running commands for mask 
 def mask(config):
@@ -425,24 +391,35 @@ def mrsfast_search(config ):
 	msg           = "Mapping OEA reads to get anchor locations using mrsFAST-Ultra"
 	workdir		  = pipeline.workdir
 	ref_file      = "{0}/{1}.masked".format(workdir, config.get("project", "reference"))
-	input_file    = "{0}/oea.mapped.fq".format(workdir)
+	#input_file    = "{0}/oea.mapped.fq".format(workdir)
 	output_file   = "{0}/mrsfast.sam".format(workdir)
 	unmapped_file = "{0}/mrsfast.sam.unmap".format(workdir)
 	threads       = config.get("mrsfast", "threads")
 	cutoff        = config.get("mrsfast", "n")
 	
+	input_file = "<(cat <(echo -ne @)"
+	for i in range(1, int(config.get("project","samplenum"))+1):
+		input_file = input_file + " {0}/{1}.oea.mapped.fq".format(workdir,str(i))
+	input_file=input_file+")"
+	
 	control_file  = "{0}/log/06.mrsfast.log".format(workdir);
 	complete_file = "{0}/stage/06.mrsfast.finished".format(workdir);
 	freeze_arg    = "ws={0}.error={1}.cutoff={2}".format(config.get("mrsfast", "window_size"), config.get("mrsfast", "errors"), cutoff)
-	cmd           = pipeline.mrsfast +' --search  {0} --crop {5}  --threads {1} --seq {2} -o {3} -u {4}'.format(ref_file, threads, input_file, output_file, unmapped_file,config.get("project", "readlength") )
+	cmd           = pipeline.mrsfast +' --search  {0} --crop {4}  --threads {1} -o {3} -u {2}'.format(ref_file, threads, unmapped_file, output_file, config.get("project", "readlength") )
 	if(config.get("mrsfast","errors")!="-1"):
 		cmd+=" -e {0}".format(config.get("mrsfast","errors"))
 	if ("0"!= cutoff):
 		cmd += " -n {0}".format(cutoff )
 	run_cmd       = not ( os.path.isfile(complete_file) and freeze_arg in open(complete_file).read()) 
-
+	cmd+= " --seq {0}".format(input_file)
 	if ( run_cmd ):
 		clean_state( 6, workdir, config )
+	fname = "{0}/run_mrsfastsearch.sh".format(workdir)
+	f     = open(fname,"w")
+	f.write("#!/bin/bash\n")
+	f.write(cmd+'\n')
+	f.close()
+	cmd           =  'cat {0} | xargs -I CMD --max-procs=1 bash -c CMD'.format(fname)		
 	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
 ###########################################################	
 #	ref= os.path.abspath(workdir+"/"+config.get("project","reference"))+".masked"
@@ -480,24 +457,6 @@ def sort(config ):
 
 	shell( msg, run_cmd , cmd, control_file, complete_file, freeze_arg)
 #############################################################################################
-###### Running commands for creating OEA clusters 
-def partition(config ):
-	msg           = "Creating OEA clusters"
-	project_name  = config.get("project", "name")
-	workdir		  = pipeline.workdir
-	input_file    = "{0}/sorted.sam".format(workdir)
-	unmapped_file = "{0}/oea.unmapped.fq".format(workdir )
-	output_file   = "{0}/partitions".format(workdir )
-	control_file  = "{0}/log/09.partition.log".format(workdir);
-	complete_file = "{0}/stage/09.partition.finished".format(workdir);
-	freeze_arg    = "1000"
-	cmd           = pipeline.pamir + ' partition {0} {1} {2} 1000'.format(  input_file, unmapped_file, output_file )
-	run_cmd       = not (os.path.isfile(complete_file) )
-
-	if ( run_cmd ):
-		clean_state( 9, workdir, config )
-	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
-#############################################################################################
 ###### Assembling orphan reads into contigs 
 def orphan_assembly(config):
 	msg           = "Creating Orphan contigs"
@@ -505,15 +464,25 @@ def orphan_assembly(config):
 	workdir		  = pipeline.workdir
 	control_file  = "{0}/log/10.orphan_assembly.log".format(workdir);
 	complete_file = "{0}/stage/10.orphan_assembly.finished".format(workdir);
-	input_file    = "{0}/orphan.fq".format(workdir)
+	input_file = "<(cat"
+	for i in range(1, int(config.get("project","samplenum"))+1):
+		input_file = input_file + " {0}/{1}.orphan.fq".format(workdir,str(i))
+	input_file=input_file+")"
+#	input_file    = "{0}/orphan.fq".format(workdir)
 	freeze_arg    = ""
 	msg = "Creating Orphan contigs"
 	run_cmd       = not (os.path.isfile(complete_file) )
 	#if ( run_cmd ):
 	#	clean_state( 10, workdir, config )
 	cmd=""
-	if(config.get("project","assembler")=="velvet"):
+	if(config.get("project","assembler")=="velvet" and run_cmd):
 		cmd 		  = pipeline.velveth + " {0}/velvetRes/ 31 -fastq -short {1}".format(workdir, input_file)
+		fname = "{0}/run_orphanassembly.sh".format(workdir)
+		f     = open(fname,"w")
+		f.write("#!/bin/bash\n")
+		f.write(cmd+'\n')
+		f.close()
+		cmd           =  'cat {0} | xargs -I CMD --max-procs=1 bash -c CMD'.format(fname)		
 		shell(msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
 		control_file  = "{0}/log/10.orphan_assembly_2.log".format(workdir);
 		complete_file = "{0}/stage/10.orphan_assembly_2.finished".format(workdir);
@@ -522,7 +491,7 @@ def orphan_assembly(config):
 		run_cmd       = not (os.path.isfile(complete_file) )
 		shell(msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
 		contigfile    = open("{0}/velvetRes/contigs.fa".format(workdir),"r").readlines()
-		fout		  = open("{0}.contigs.fa".format(input_file),"w")
+		fout		  = open("{0}/orphan.fq.contigs.fa".format(workdir),"w")
 		a=0
 		while a < len(contigfile):
 			content =""
@@ -535,14 +504,14 @@ def orphan_assembly(config):
 					a+=1
 				fout.write(content+"\n")
 		fout.close()
-	elif(config.get("project","assembler")=="sga"):
-		cmd 		  = "python " + pipeline.sga + " " + input_file;
+	elif(config.get("project","assembler")=="sga" and run_cmd):
+		cmd 		  = "python " + pipeline.sga + " {0}".format(input_file)
 		shell(msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
-	elif(config.get("project","assembler")=="minia"):
-		cmd 		  = "{0} -in {1} -kmer-size 31 -abundance-min 3 -out {1}_tmp".format(pipeline.minia, input_file, input_file);
+	elif(config.get("project","assembler")=="minia" and run_cmd):
+		cmd 		  = "{0} -kmer-size 31 -abundance-min 3 -out {1}/orphan.fq_tmp -in {2}".format(pipeline.minia, workdir, input_file);
 		shell(msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
-		fin = open("{0}_tmp.contigs.fa".format(input_file),"r")
-		fout = open("{0}.contigs.fa".format(input_file),"w")
+		fin = open("{0}/orphan.fq_tmp.contigs.fa".format(workdir),"r")
+		fout = open("{0}/orphan.fq.contigs.fa".format(workdir),"w")
 		contigs = fin.readlines()
 		i =0 
 		while i < len(contigs):
@@ -664,10 +633,23 @@ def oea_to_orphan(config):
 	control_file  = "{0}/log/17.oea2orphan.log".format(workdir);
 	complete_file = "{0}/stage/17.oea2orphan.finished".format(workdir);
 	freeze_arg    = ""
-	cmd           = pipeline.mrsfast + ' --search {0} --seq {1} --crop {2} -o {3} -e 0 --disable-sam-header --threads {4}'.format(orphan_ref, seq_fastq, config.get("project","readlength"),output_file, config.get("mrsfast", "threads")) 
+
+	unmapped_file = "<(cat"
+	for i in range(1, int(config.get("project","samplenum"))+1):
+		unmapped_file = unmapped_file + " {0}/{1}.oea.unmapped.fq".format(workdir,str(i))
+	unmapped_file=unmapped_file+")"
+
+	cmd           = pipeline.mrsfast + ' --search {0} --crop {2} -o {3} -e 0 --disable-sam-header --threads {4} --seq {1}'.format(orphan_ref, unmapped_file, config.get("project","readlength"),output_file, config.get("mrsfast", "threads")) 
 	run_cmd       = not (os.path.isfile(complete_file) )
 #	if ( run_cmd ):
 #		clean_state( 16, workdir, config )
+	
+	fname = "{0}/run_oea_to_orphan.sh".format(workdir)
+	f     = open(fname,"w")
+	f.write("#!/bin/bash\n")
+	f.write(cmd+'\n')
+	f.close()
+	cmd           =  'cat {0} | xargs -I CMD --max-procs=1 bash -c CMD'.format(fname)		
 	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg )
 	
 ################################################################################################
@@ -735,12 +717,43 @@ def recalibrate_all_oea_to_orphan(config):
 #		clean_state( 20, workdir, config )
 	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg )
 #############################################################################################
+###### Running commands for creating OEA clusters 
+def partition(config ):
+	msg           = "Creating OEA clusters"
+	project_name  = config.get("project", "name")
+	workdir		  = pipeline.workdir
+	input_file    = "{0}/sorted.sam".format(workdir)
+#	unmapped_file = "{0}/oea.unmapped.fq".format(workdir )
+	output_file   = "{0}/partitions".format(workdir )
+	control_file  = "{0}/log/09.partition.log".format(workdir);
+	complete_file = "{0}/stage/09.partition.finished".format(workdir);
+	orphan_file	  = "{0}/orphan.contigs.ref".format(workdir);
+	oea2orphan	  = "{0}/all_oea2orphan.recal.sam".format(workdir);
+	freeze_arg    = "1000"
+	clusterNumFile= "{0}/clusterNum".format(workdir)
+	unmapped_file = "<(cat"
+	for i in range(1, int(config.get("project","samplenum"))+1):
+		unmapped_file = unmapped_file + " {0}/{1}.oea.unmapped.fq".format(workdir,str(i))
+	unmapped_file=unmapped_file+")"
+#	cmd           = pipeline.pamir + ' partition {0} {1} 1000 {2}'.format( input_file, output_file, unmapped_file)
+	cmd           = pipeline.pamir + ' partition {0} {1} 1000 {2} {3} {4} > {5}'.format( input_file, output_file, orphan_file, oea2orphan, unmapped_file, clusterNumFile)
+	run_cmd       = not (os.path.isfile(complete_file) )
+
+	if ( run_cmd ):
+		clean_state( 9, workdir, config )
+	fname = "{0}/run_partition.sh".format(workdir)
+	f     = open(fname,"w")
+	f.write("#!/bin/bash\n")
+	f.write(cmd+'\n')
+	f.close()
+	cmd           =  'cat {0} | xargs -I CMD --max-procs=1 bash -c CMD'.format(fname)		
+	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
+#############################################################################################
 ###### Insert orphan contigs into OEA clusters.
 def orphans_into_oeacluster(config):
 	msg			  = "Inserting relevant orphan contigs into oea cluster"
 	workdir		  = pipeline.workdir
 	orphan_ref    = "{0}/orphan.contigs.ref".format(workdir)
-	orphan_to_orphan	  = "{0}/orphan2orphan.recal.sam".format(workdir)
 	oea_to_orphan   = "{0}/all_oea2orphan.recal.sam".format(workdir)
 	partition_file   = "{0}/partitions".format(workdir)
 	upartition_file   = "{0}/partitions_updated".format(workdir)
@@ -748,7 +761,7 @@ def orphans_into_oeacluster(config):
 	complete_file = "{0}/stage/22.insert_orphans_into_cluster.finished".format(workdir)
 	clusterNumFile = "{0}/clusterNum".format(workdir);
 	freeze_arg    = ""
-	cmd           = pipeline.pprocessor + ' {0} {1} {2} {3} {4} > {5}'.format(orphan_ref, orphan_to_orphan, oea_to_orphan, partition_file, upartition_file, clusterNumFile)
+	cmd           = pipeline.pprocessor + ' {0} {1} {2} {3} > {4}'.format(orphan_ref, oea_to_orphan, partition_file, upartition_file, clusterNumFile)
 	run_cmd       = not (os.path.isfile(complete_file) )
 	if ( run_cmd ):
 		clean_state( 21, workdir, config )
@@ -775,7 +788,8 @@ def update_partition(config ):
 	msg           = "Assembling updated cluster"
 	project_name  = config.get("project", "name")
 	workdir		  = pipeline.workdir
-	input_file    = "{0}/partitions_updated".format(workdir)
+	#input_file    = "{0}/partitions_updated".format(workdir)
+	input_file    = "{0}/partitions".format(workdir)
 	ref_file	  = "{0}/{1}".format(workdir,config.get("project","reference"))
 	control_file  = "{0}/log/24.update_partition.log".format(workdir)
 	complete_file = "{0}/stage/24.update_partition.finished".format(workdir)
@@ -808,14 +822,13 @@ def update_partition(config ):
 	msg = "Concatenating all vcf and files"
 	cmd="cat "
 	cmd2="cat "
-	cmd3="cat "
 	while i< workNum:
 		cmd+="{0}/insertions.outx{1} ".format(workdir,i)
-		cmd2+="{0}/insertions.logx{1} ".format(workdir,i)
+		#cmd2+="{0}/insertions.logx{1} ".format(workdir,i)
 		i+=1
 	cmd+="> {0}/insertions.out".format(workdir)
 	cmd2+="> {0}/insertions.log".format(workdir)
-	cmdall=cmd+";"+cmd2
+	cmdall=cmd#+";"+cmd2
 	freeze_arg=""
 	control_file  = "{0}/log/25.concatenate_vcf.log".format(workdir)
 	complete_file = "{0}/stage/25.concatenate_vcf.finished".format(workdir)
@@ -830,7 +843,7 @@ def update_partition(config ):
 	control_file  = "{0}/log/26.index_log.log".format(workdir)
 	complete_file = "{0}/stage/26.index_log.finished".format(workdir)
 	run_cmd       = not (os.path.isfile(complete_file) )
-	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
+#	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
 ######################################################################################
 #### sort the vcf and remove the duplications generate interleaved and paired fastq files from orphans and unmapped oeas.
 def dupremoval_cleaning(config):	
@@ -857,7 +870,7 @@ def dupremoval_cleaning(config):
 	msg="Adding header to insertions"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 ######################################################################################
-#### filtering and genotyping.
+#### filtering and postprocessing.
 def post_processing(config):	
 	workdir		  = pipeline.workdir
 	TLEN = 1000
@@ -865,7 +878,7 @@ def post_processing(config):
 	control_file  = "{0}/log/30.filtering.log".format(workdir)
 	complete_file = "{0}/stage/30.filtering.finished".format(workdir)
 	run_cmd		  = not (os.path.isfile(complete_file))
-	cmd			  = pipeline.filtering + " {0}/insertions.out_wodups {0}/{1}.masked {2} {3} {0} {4} {5}".format(workdir, config.get("project","reference"), config.get("mrsfast","min"), config.get("mrsfast","max"), str(TLEN),config.get("mrsfast","threads"))
+	cmd			  = pipeline.filtering + " {0}/insertions.out_wodups {0}/{1}.masked {2} {3} {0} {4} {5} {6} {7}".format(workdir, config.get("project","reference"), config.get("mrsfast","min"), config.get("mrsfast","max"), str(TLEN),config.get("mrsfast","threads"),config.get("project","samplenum"), pipeline.mrsfast)
 	msg="Filtering insertion candidates"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 	###### Make filtering output VCF
@@ -973,34 +986,73 @@ def remove_concordant_for_each_bestsam(config):
 		cmd2+= " > {0}/oea.mapped.fq".format(workdir)
 		cmd3+= " > {0}/oea.unmapped.fq".format(workdir)
 		cmd4+= " > {0}/all_interleaved.fastq".format(workdir)
-		os.system(cmd)
-		os.system(cmd2)
-		os.system(cmd3)
-		os.system(cmd4)
+		#os.system(cmd)
+		#os.system(cmd2)
+		#os.system(cmd3)
+		#os.system(cmd4)
 		os.system("touch {0}/stage/05.all_remove_concordant.finished".format(workdir))
 
 #############################################################################################
 ###### Running commands for each mode 
 def run_command(config, force=False):
+	s0=time()
 	verify_sam(config)
+	s1 = time()
+	#print "verify_sam: ", s1-s0
 	mask(config)
+	s2=time()
+	#print "mask: ", s2-s1
 	index(config)
+	s3=time()
+	#print "index: ",s3-s2
 	mrsfast_best_search(config)
+	s4=time()
+	#print "mrsfast_best_search: ", s4-s3
 	remove_concordant_for_each_bestsam(config)
+	s5=time()
+	#print "remove_concordant_for_each_bestsam: ", s5-s4
 	mrsfast_search(config)
+	s6=time()
+	#print "mrsfast_search: ",s6-s5
 	sort(config)
-	partition(config)
+	s7=time()
+	#print "sort: ",s7-s6
+	#partition(config)
+	s8=time()
+	#print "partition: ",s8-s7
 	orphan_assembly(config)
+	s9=time()
+	#print "orphan_assembly: ",s9-s8
 	remove_contamination_orphan_contig(config)
+	s10=time()
+	#print "remove_contamination_orphan_contig:",s10-s9
 	prepare_orphan_contig(config)
+	s11=time()
+	#print "prepare_orphan_contig: ",s11-s10
 	oea_to_orphan(config)
+	s12=time()
+	#print "oea_to_orphan: ", s12-s11
 	oea_to_orphan_split(config)
+	s13=time()
+	#print "oea_to_orphan_split: ",s13-s12
 	recalibrate_all_oea_to_orphan(config)
-	orphans_into_oeacluster(config)
+	s14=time()
+	#print "recalibrate_all_oea_to_orphan: ",s14-s13
+	partition(config)
+	#orphans_into_oeacluster(config)
+	s15=time()
 	print_header(config)
+	s16=time()
+	#print "print_header: ",s16-s15
 	update_partition(config)
+	s17=time()
+	#print "update_partition: ",s17-s16
 	dupremoval_cleaning(config)
+	s18=time()
+	#print "dupremoval_cleaning: ",s18-s17
 	post_processing(config)
+	s19=time()
+	#print "post_processing: ",s19-s18
 	exit(0)
 
 #############################################################################################
@@ -1069,7 +1121,15 @@ def check_binary_preq(config):
 					logln ("File {0} cannot be executed. ".format(SAMTOOLS) )
 					exit(1)
 				pipeline.samtools = SAMTOOLS
-			if spliti[0]=="VELVETH":
+			if spliti[0]=="MRSFAST":
+				MRSFAST = spliti[1].strip()
+				if not is_exec(MRSFAST):
+					print "[ERROR] File {0} cannot be executed. ".format(MRSFAST)
+					logFAIL()
+					logln ("File {0} cannot be executed. ".format(VELVETH) )
+					exit(1)
+				pipeline.mrsfast = MRSFAST
+			elif spliti[0]=="VELVETH":
 				VELVETH = spliti[1].strip()
 				if not is_exec(VELVETH):
 					print "[ERROR] File {0} cannot be executed. ".format(VELVETH)
@@ -1311,9 +1371,11 @@ def check_project_preq():
 		elif( "" != config.get("project", "mrsfast-best-search")):
 			if(os.path.isdir(config.get("project","mrsfast-best-search"))):
 				symlink_name(config.get("project","mrsfast-best-search"),workdir,'/bestsam')
+				config.set("project","samplenum", str(len(os.listdir(workdir+"/bestsam"))))
 			else:
 				mkdir_p(workdir + '/bestsam');
 				flist =  config.get("project","mrsfast-best-search").split(",")
+				config.set("project","samplenum",str(len(flist)))
 				for f in flist:
 					symlink_name(f,workdir+'/bestsam/',f)
 

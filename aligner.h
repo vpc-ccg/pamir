@@ -50,7 +50,8 @@ public:
 	aligner(int reflen=10000);
 	~aligner();
 	void align(const string &, const string &);
-	int extract_calls(const int &, vector<tuple<string, int, int, string, int, float>> &, const int &, const int &, string);
+	//int extract_calls(const int &, vector<tuple<string, int, int, string, int, float>> &, const int &, const int &, string);
+	int extract_calls(const int &, vector<tuple<string, int, int, string, int, float>> &, vector<tuple<string, int, int, string, int, float>> &, const int &, const int &, string);
 	void dump(string);//void dump(FILE *fo, string);
 	int get_start();
 	int get_end();

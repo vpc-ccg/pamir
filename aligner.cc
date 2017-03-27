@@ -250,7 +250,7 @@ void aligner::align(const string &ref, const string &ass)
 	identity = 1 - (mismatch+indel+log(l))/len;
 }
 /**********************************************************************/
-int aligner::extract_calls( const int &cluster_id, vector<tuple<string, int, int, string, int, float > > &reports, const int &contig_support, const int &ref_start, string direction)
+int aligner::extract_calls( const int &cluster_id, vector<tuple<string, int, int, string, int, float > > &reports_lq, vector<tuple<string, int, int, string, int, float > > &reports, const int &contig_support, const int &ref_start, string direction)
 {
 	ref_abs_start = ref_start + p_start;
 	dump(direction);
@@ -261,7 +261,8 @@ int aligner::extract_calls( const int &cluster_id, vector<tuple<string, int, int
 	double fwdIden 				= get_identity();
 	string insertion_content;
 	int fwdS, fwdE, fwdAS, fwdAE;
-	if( fwdIden > 1.0 && ( left_anchor > 5 && right_anchor > 5 ) && ( left_anchor > 16 || right_anchor > 16 ) )
+	//if( fwdIden > 1.0 && ( left_anchor > 5 && right_anchor > 5 ) && ( left_anchor > 16 || right_anchor > 16 ) )
+	if( fwdIden > 1.0 && left_anchor > 50 || right_anchor > 50 ) 
 	{
 		fwdS = ref_start + p_start;
 		fwdAS 					= 0;
@@ -302,7 +303,8 @@ int aligner::extract_calls( const int &cluster_id, vector<tuple<string, int, int
 					isdeletion         = 1;
 					deletion_content   = a.substr(deletion_start_loc,deletion_end_loc-deletion_start_loc);
 					deletion_start_loc = deletion_start_loc+fwdS;
-					if(deletion_content.length()>0)
+//					if(deletion_content.length()>0)
+					if(deletion_content.length()>0 && fwdIden > 1.0 && ( left_anchor > 5 && right_anchor > 5 ) && ( left_anchor > 16 || right_anchor > 16 ) )
 					{
 						reports.push_back(tuple<string, int, int, string, int, float>("DEL", deletion_start_loc, deletion_content.length(), deletion_content, contig_support, fwdIden ) );
 					}
@@ -341,11 +343,16 @@ int aligner::extract_calls( const int &cluster_id, vector<tuple<string, int, int
 					insertion_content   = b.substr(insertion_start_loc,insertion_end_loc-insertion_start_loc);
 					insertion_start_loc = insertion_start_loc+fwdS;
 					insertion_start_loc = insertion_start_loc-prevLen;
-					if( insertion_content.length() > 0 )
+					//if( insertion_content.length() > 0 )
+					if( insertion_content.length() > 0 && ( left_anchor > 5 && right_anchor > 5 ) && ( left_anchor > 16 || right_anchor > 16 ) )
 					{
 						log("(-) %d\t%d\t%s\t%d (-)\n", insertion_start_loc, insertion_content.length(), insertion_content.c_str(), contig_support);
 						reports.push_back(tuple<string, int, int, string, int, float>("INS", insertion_start_loc, insertion_content.length(), insertion_content, contig_support, fwdIden ) );
 						mapped = 1;
+					}
+					else if (insertion_content.length()>0 && (left_anchor >= 30 || right_anchor >= 30))
+					{
+						reports_lq.push_back(tuple<string, int, int, string, int, float>("INS", insertion_start_loc, insertion_content.length(), insertion_content, contig_support, fwdIden ) );
 					}
 				}
 				prevLen = ins_len;
