@@ -4,8 +4,7 @@ Pamir detects and genotypes novel sequence insertions in single or multiple data
 
 
 ## Installation
-Source code of Pamir can be downloaded from [GitHub](https://github.com/vpc-ccg/pamir).
-In addition, you will need to set up several external tools as described below.
+Source code of Pamir can be downloaded from [GitHub](https://github.com/vpc-ccg/pamir). To begin with, you will need to set up several external tools as described below.
 
 ### Prerequisite
 Pamir relies on specific version of the following tools:
@@ -14,7 +13,7 @@ Pamir relies on specific version of the following tools:
 4. [Velvet](https://github.com/dzerbino/velvet) 1.2.10 or higher
 5. [BLAST](ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/) 2.3.0+ or higher
 
-   You also need to download the latest BLAST nt database to /your/path/to/ncbi-blast-2.5.0+/db/ (see *Configuration* below) for contamination detection. 
+   You also need to download the latest BLAST nt database to /your/path/to/ncbi-blast-2.5.0+/db/ (see *Compilation and Configuration* below) for contamination detection. 
 
 ```
 mkdir /dir/to/blast/db
@@ -22,8 +21,7 @@ cd /dir/to/blast/db
 /path/to/blast/bin/update_blastdb.pl nt
 ```
 
-### Configuration and Troubleshooting
-
+### Compilation and Configuration
 To install Pamir, you need to first fetch Pamir from our [git repository](https://github.com/vpc-ccg/pamir) or download the corresponding compressed files. 
 ```
 git clone --recursive https://bitbucket.org/compbio/pamir.git
@@ -46,6 +44,13 @@ pamir$ make -j
 ```
 
 Now you are ready to go!
+
+### Troubleshooting
+*SSE4 for mrsFAST* If sse4 is not supported in your system, you need to disable the flag of mrsfast by either modifying line 5 of pamir/Makefile to be
+```
+make with-sse4=no -C ../mrsfast
+```
+
 ## Commands Options
 Pamir is designed to detect novel sequence insertions based on one-end anchors (OEA) and orphans from paired-end Whole Genome Sequencing (WGS) reads.
 
@@ -180,3 +185,7 @@ $./pamir.py -p my_project -r ref.fa
 ```
 $./pamir.py -p my_project  -r ref.fa --files mrsfast-best-search=sample.sam fastq=sample2.fastq.gz
 ```
+
+## Contact & Support
+
+Feel free to drop any inquiry to [pinarkavak at gmail dot com]()    .
