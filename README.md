@@ -46,7 +46,8 @@ pamir$ make -j
 Now you are ready to go!
 
 ### Troubleshooting
-*SSE4 for mrsFAST* If sse4 is not supported in your system, you need to disable the flag of mrsfast by either modifying line 5 of pamir/Makefile to be
+#### SSE4 for mrsFAST
+If sse4 is not supported in your system, you need to disable the flag of mrsfast by modifying line 20 of Makefile to be
 ```
 make with-sse4=no -C ../mrsfast
 ```
