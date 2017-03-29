@@ -2,6 +2,12 @@ Pamir: Discovery and Genotyping of Novel Sequence Insertions in Many Sequenced I
 ======
 Pamir detects and genotypes novel sequence insertions in single or multiple datasets of paired-end WGS (Whole Genome Sequencing) Illumina reads by jointly analyzing one-end anchored (OEA) and orphan reads.
 
+# Table of contents
+1. [Installation](#installation)
+2. [Commands Options](#commands-options)
+3. [Output Formats](#output-formats)
+4. [Example Commands](#example-commands)
+5. [Contact & Support](#contact)
 
 ## Installation
 Source code of Pamir can be downloaded from [GitHub](https://github.com/vpc-ccg/pamir). To begin with, you will need to set up several external tools as described below.
@@ -11,7 +17,7 @@ Pamir relies on specific version of the following tools:
 1. g++ 4.9.0 or higher
 2. Python 2.7 or higher (for the package *argparse*)
 4. [Velvet](https://github.com/dzerbino/velvet) 1.2.10 or higher
-5. [BLAST](ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast%2B/LATEST/) 2.3.0+ or higher
+5. [BLAST](ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast\+/LATEST/) 2.3.0+ or higher
 
    You also need to download the latest BLAST nt database to /your/path/to/ncbi-blast-2.5.0+/db/ (see *Compilation and Configuration* below) for contamination detection. 
 
