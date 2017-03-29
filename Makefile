@@ -1,23 +1,21 @@
 CC=g++
 FLAGS= -O3 -std=c++11 
 CFLAGS= -c $(FLAGS) -Wfatal-errors
-SOURCES=partition.cc pamir.cc assembler.cc genome.cc aligner.cc  assembler_ext.cc extractor.cc common.cc bam_parser.cc sam_parser.cc record.cc sort.cc logger.cc
+SOURCES=partition.cpp pamir.cpp assembler.cpp genome.cpp aligner.cpp extractor.cpp common.cpp bam_parser.cpp sam_parser.cpp record.cpp sort.cpp logger.cpp
 LDFLAGS=-lm -lz
 OBJECTS=$(SOURCES:.cc=.o) 
 EXECUTABLE=pamir
-all: snp pp rc es sm mf cm
-basic: snp pp rc es mf cm
+all: snp rc es sm mf cm
+basic: snp rc es mf cm
 
-pp: 
-	g++ -std=gnu++0x -O3 -o partition_processor partition_processor.cc common.cc
 rc: 
-	g++ -O3 -o recalibrate recalibrate.cc
+	g++ -O3 -o recalibrate recalibrate.cpp
 cm: 
-	g++ -O3 -o clean clean_megablast.cc
+	g++ -O3 -o clean clean_megablast.cpp
 es: 
-	g++ -O3 -o extract_support extract_support.cc common.cc
+	g++ -O3 -o extract_support extract_support.cpp common.cpp
 sm:
-	g++ -O3 -o smoother -g -std=c++1y -Wfatal-errors smoother.cc
+	g++ -O3 -o smoother -g -std=c++1y -Wfatal-errors smoother.cpp
 mf: 
 	make -C mrsfast
 
@@ -32,7 +30,6 @@ $(EXECUTABLE): $(OBJECTS)
 clean:
 	rm -f *.o
 	rm -f pamir
-	rm -f partition_processor
 	rm -f recalibrate
 	rm -f extract_support
 	rm -f smoother
