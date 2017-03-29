@@ -3,7 +3,7 @@ FLAGS= -O3 -std=c++11
 CFLAGS= -c $(FLAGS) -Wfatal-errors
 SOURCES=partition.cpp pamir.cpp assembler.cpp genome.cpp aligner.cpp extractor.cpp common.cpp bam_parser.cpp sam_parser.cpp record.cpp sort.cpp logger.cpp
 LDFLAGS=-lm -lz
-OBJECTS=$(SOURCES:.cc=.o) 
+OBJECTS=$(SOURCES:.cpp=.o) 
 EXECUTABLE=pamir
 all: snp rc es sm mf cm
 basic: snp rc es mf cm
