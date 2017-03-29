@@ -16,6 +16,7 @@ Source code of Pamir can be downloaded from [GitHub](https://github.com/vpc-ccg/
 Pamir relies on specific version of the following tools:
 1. g++ 4.9.0 or higher
 2. Python 2.7 or higher (for the package *argparse*)
+3. [samtools](http://www.htslib.org/) 0.1.19 or higher
 4. [Velvet](https://github.com/dzerbino/velvet) 1.2.10 or higher
 5. [BLAST](ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast\+/LATEST/) 2.3.0+ or higher
 
