@@ -11,7 +11,7 @@ Pamir relies on specific version of the following tools:
 1. g++ 4.9.0 or higher
 2. Python 2.7 or higher (for the package *argparse*)
 4. [Velvet](https://github.com/dzerbino/velvet) 1.2.10 or higher
-5. [BLAST](ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/) 2.3.0+ or higher
+5. [BLAST](ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast%2B/LATEST/) 2.3.0+ or higher
 
    You also need to download the latest BLAST nt database to /your/path/to/ncbi-blast-2.5.0+/db/ (see *Compilation and Configuration* below) for contamination detection. 
 
@@ -98,7 +98,7 @@ Pamir uses mrsFAST for multi-mapping the orphan and OEA reads obtained from the 
 1. **--mrsfast-n**: Maximum number of mapping loci of anchor of an OEA. Anchor with higher mapping location will be ignored. 0 for considering all mapping locations. 
 (Default = 50)
 2. **--mrsfast-threads**: Number of the threads used by mrsFAST-Ultra for mapping. (Default = 1)
-3. **--mrsfast-errors**: Number of the errors allowed by mrsFAST-Ultra for mapping. In default mode Pamir does not give any error number to mrsFAST-Ultra, in which case it calculates the error value as 0.06 x readlength. (Default = -1; 0.06% of the read length)
+3. **--mrsfast-errors**: Number of the errors allowed by mrsFAST-Ultra for mapping. In default mode Pamir does not give any error number to mrsFAST-Ultra, in which case it calculates the error value as 0.06 x readlength. (Default = -1; 6% of the read length)
 4. **--mrsfast-index-ws**: Window size used by mrsFAST-Ultra for indexing the reference genome. (Default = 12)
 
 
