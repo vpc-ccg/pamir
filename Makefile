@@ -28,9 +28,4 @@ $(EXECUTABLE): $(OBJECTS)
 	$(CC) $(CFLAGS) $< -o $@ 
 
 clean:
-	rm -f *.o
-	rm -f pamir
-	rm -f recalibrate
-	rm -f extract_support
-	rm -f smoother
-	rm -f clean
+	rm -f *.o pamir recalibrate extract_support smoother clean
