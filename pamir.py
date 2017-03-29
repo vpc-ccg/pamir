@@ -30,7 +30,7 @@ class pipeline:
 	genotyping			= os.path.dirname(os.path.realpath(__file__)) + "/genotyping.py"
 	filterbysetcover	= os.path.dirname(os.path.realpath(__file__)) + "/filter_by_setcover.py"
 	sortfile			= os.path.dirname(os.path.realpath(__file__)) + "/sort_file.pl"
-	clean				= os.path.dirname(os.path.realpath(__file__)) + "/clean"
+	cleanmega				= os.path.dirname(os.path.realpath(__file__)) + "/cleanmega"
 	contaminantFinder	= os.path.dirname(os.path.realpath(__file__)) + "/find_contaminations.py"
 	contaminantRemover	= os.path.dirname(os.path.realpath(__file__)) + "/remove_contaminations.py"
 	workdir 		 	= os.path.dirname(os.path.realpath(__file__))
@@ -546,7 +546,7 @@ def remove_contamination_orphan_contig(config):
 		control_file  = "{0}/log/12.clean_orphancontig_megablast.log".format(workdir);
 		complete_file = "{0}/stage/12.clean_orphancontig_megablast.finished".format(workdir);
 		freeze_arg    = ""
-		cmd           =  pipeline.clean + ' {0}/orphan.fq.contigs.fa_2_NT.megablast {0}/orphan.fq.contigs.fa_2_NT.clean'.format(workdir)
+		cmd           =  pipeline.cleanmega + ' {0}/orphan.fq.contigs.fa_2_NT.megablast {0}/orphan.fq.contigs.fa_2_NT.clean'.format(workdir)
 		run_cmd       = not (os.path.isfile(complete_file) )
 	#	if ( run_cmd ):
 	#		clean_state( 16, workdir, config )

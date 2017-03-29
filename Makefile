@@ -11,7 +11,7 @@ basic: snp rc es mf cm
 rc: 
 	g++ -O3 -o recalibrate recalibrate.cc
 cm: 
-	g++ -O3 -o clean clean_megablast.cc
+	g++ -O3 -o cleanmega clean_megablast.cc
 es: 
 	g++ -O3 -o extract_support extract_support.cc common.cc
 sm:
@@ -28,4 +28,4 @@ $(EXECUTABLE): $(OBJECTS)
 	$(CC) $(CFLAGS) $< -o $@ 
 
 clean:
-	rm -f *.o pamir recalibrate extract_support smoother clean
+	rm -f *.o pamir recalibrate extract_support smoother cleanmega
