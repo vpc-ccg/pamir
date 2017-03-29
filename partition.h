@@ -13,7 +13,7 @@ using namespace std;
 class genome_partition
 {
 	int distance;
-	vector<pair<pair<string, string>, pair<int,int>>> comp;
+	vector<pair<pair<string, string>, pair<int,int> > > comp;
 	unordered_set<string> read_cache;
 	unordered_map<string, string> oea_mate;
 	// for orphan information
@@ -38,13 +38,13 @@ private:
 
 public:
 	genome_partition (void);
-	genome_partition (const string&, int, const unordered_map<string, string>&);
+	genome_partition (const string&, int, const unordered_map<string, string>& );
 	~genome_partition (void);
 
 	int load_orphan( const string &orphan_contig, const string &oea2orphan);
 
-	vector<pair<pair<string, string>, pair<int,int>>> get_next (void);
-	vector<pair<pair<string, string>, pair<int,int>>> read_partition (const string&, const string&);
+	vector<pair<pair<string, string>, pair<int,int> > > get_next (void);
+	vector<pair<pair<string, string>, pair<int,int> > > read_partition (const string&, const string&);
 
 	bool has_next (void);
 	size_t dump (const vector<pair<pair<string, string>, pair<int, int>>>&, FILE*, int);

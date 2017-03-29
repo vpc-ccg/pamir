@@ -1,6 +1,7 @@
 #ifndef __COMMON__
 #define __COMMON__
 #include <string>
+#include <cstdio>
 #include "logger.h"
 
 #define KB  1024LL

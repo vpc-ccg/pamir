@@ -1,21 +1,21 @@
 CC=g++
 FLAGS= -O3 -std=c++11 
 CFLAGS= -c $(FLAGS) -Wfatal-errors
-SOURCES=partition.cpp pamir.cpp assembler.cpp genome.cpp aligner.cpp extractor.cpp common.cpp bam_parser.cpp sam_parser.cpp record.cpp sort.cpp logger.cpp
+SOURCES=partition.cc pamir.cc assembler.cc genome.cc aligner.cc extractor.cc common.cc bam_parser.cc sam_parser.cc record.cc sort.cc logger.cc
 LDFLAGS=-lm -lz
-OBJECTS=$(SOURCES:.cpp=.o) 
+OBJECTS=$(SOURCES:.cc=.o) 
 EXECUTABLE=pamir
 all: snp rc es sm mf cm
 basic: snp rc es mf cm
 
 rc: 
-	g++ -O3 -o recalibrate recalibrate.cpp
+	g++ -O3 -o recalibrate recalibrate.cc
 cm: 
-	g++ -O3 -o clean clean_megablast.cpp
+	g++ -O3 -o clean clean_megablast.cc
 es: 
-	g++ -O3 -o extract_support extract_support.cpp common.cpp
+	g++ -O3 -o extract_support extract_support.cc common.cc
 sm:
-	g++ -O3 -o smoother -g -std=c++1y -Wfatal-errors smoother.cpp
+	g++ -O3 -o smoother -g -std=c++1y -Wfatal-errors smoother.cc
 mf: 
 	make -C mrsfast
 
