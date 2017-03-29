@@ -12,7 +12,6 @@
 #include <cmath>
 #include <zlib.h>
 #include "common.h"
-//#include "common2.h"
 #include "partition.h"
 #include "assembler.h"
 #include "genome.h"
@@ -128,11 +127,6 @@ void partify (const string &read_file, const string &out, int threshold, const s
 		read[strlen(read)-1]='\0';
 		mymap[string(name+1)] = read;
 	}
-	auto g=mymap.begin();
-	while(g!=mymap.end())
-	{
-		g++;
-	}
 	genome_partition pt(read_file, threshold, mymap);
 	int fc = 1;
 	FILE *fo = fopen(out.c_str(), "wb");
@@ -148,7 +142,6 @@ void partify (const string &read_file, const string &out, int threshold, const s
 	fclose(fidx);
 }
 void partify_orphan (const string &read_file, const string &out, int threshold, 
-//const string &contig_file, const string &orphan2orphan, const string &oea2orphan) 
 	const string &contig_file, const string &oea2orphan,const string &mate_file) 
 {
 	FILE *fin = fopen(mate_file.c_str(), "r");
@@ -164,11 +157,6 @@ void partify_orphan (const string &read_file, const string &out, int threshold,
 		read[strlen(read)-1]='\0';
 		mymap[string(name+1)] = read;
 	}
-	//auto g=mymap.begin();
-	//while(g!=mymap.end())
-	//{
-	//	g++;
-	//}
 	genome_partition pt(read_file, threshold, mymap); 
 	// loading orphan association information
 	pt.load_orphan( contig_file, oea2orphan);
