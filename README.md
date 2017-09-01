@@ -7,7 +7,7 @@ Pamir detects and genotypes novel sequence insertions in single or multiple data
 2. [Commands Options](#commands-options)
 3. [Output Formats](#output-formats)
 4. [Example Commands](#example-commands)
-5. [Publications](#publication)
+5. [Publications](#publications)
 6. [Contact & Support](#contact)
 
 ## Installation
@@ -204,7 +204,7 @@ $./pamir.py -p my_project -r ref.fa
 $./pamir.py -p my_project  -r ref.fa --files mrsfast-best-search=sample.sam fastq=sample2.fastq.gz
 ```
 ## Publications
-**Discovery and genotyping of novel sequence insertions in many sequenced individuals.** P. Kavak, Y-Y. Lin, I. Numanagi ́c, H. Asghari, T. Gu ̈ngo ̈r, C. Alkan‡, F. Hach‡. [***Bioinformatics*** (ISMB-ECCB 2017 issue), 33 (14): i161-i169, 2017.](https://doi.org/10.1093/bioinformatics/btx254)
+**Discovery and genotyping of novel sequence insertions in many sequenced individuals.** P. Kavak*, Y-Y. Lin*, I. Numanagić, H. Asghari, T. Güngör, C. Alkan‡, F. Hach‡. [***Bioinformatics*** (ISMB-ECCB 2017 issue), 33 (14): i161-i169, 2017.](https://doi.org/10.1093/bioinformatics/btx254)
 
 ## Contact & Support
 
