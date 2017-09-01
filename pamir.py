@@ -884,7 +884,7 @@ def post_processing(config):
 	control_file  = "{0}/log/30.filtering.log".format(workdir)
 	complete_file = "{0}/stage/30.filtering.finished".format(workdir)
 	run_cmd		  = not (os.path.isfile(complete_file))
-	cmd			  = pipeline.filtering + " {0}/insertions.out_wodups {0}/{1}.masked {2} {3} {0} {4} {5} {6} {7}".format(workdir, config.get("project","reference"), config.get("mrsfast","min"), config.get("mrsfast","max"), str(TLEN),config.get("mrsfast","threads"),config.get("project","samplenum"), pipeline.mrsfast)
+	cmd			  = pipeline.filtering + " {0}/insertions.out_wodups {0}/{1}.masked {2} {3} {0} {4} {5} {6} {7} {8}".format(workdir, config.get("project","reference"), config.get("mrsfast","min"), config.get("mrsfast","max"), str(TLEN),config.get("mrsfast","threads"),config.get("project","samplenum"), pipeline.mrsfast, pipeline.recalibrate )
 	msg="Filtering insertion candidates"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 	###### Make filtering output VCF
