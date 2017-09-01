@@ -93,11 +93,14 @@ Two information are required for running Pamir:
 #### Read Length
 Now Pamir only accepts WGS datasets in which two mates of all reads are of **equal length**.
 
+For datasets with inconsistent read lengths, Pamir will automatically detect the minimum read length and trim all reads into the same length by specifying ```--crop``` in mrsfast.
+
 ### Sequencing Data
 Pamir can take either FASTQ and SAM files as its input. It has three different options to accept inputs:
-1. **SAM/by mrsFAST-best-search**: A paired-end mapping result of your WGS data which satisfies the following conditions: 
-   1. Two mates from a read are grouped together.
-   2. All mates are of equal length.
+1. **SAM/BAM by mrsFAST-best-search**: A paired-end mapping result of your WGS data which satisfies the following conditions: 
+   1. Every mate has exact one primary mapping record. 
+
+    In general, best mapping results from most mapper should be valid input files for this option. Pamir does not assume the order of mapping records in SAM/BAM files, while it took Pamir less time and memory to process SAM/BAM files which are sorted by name (or all records from the same read are grouped together).
     
    For example, a *best-mapping* SAM file is a valid input file for Pamir through ```--files mrsfast-best-search=wgs.sam```.
 
@@ -114,7 +117,7 @@ Pamir can take either FASTQ and SAM files as its input. It has three different o
 Pamir uses mrsFAST for multi-mapping the orphan and OEA reads obtained from the best-mapping output. You can give your own mrsFAST parameters or Pamir will use the default values. Some of the parameters you may want to update are :
 1. **--mrsfast-n**: Maximum number of mapping loci of anchor of an OEA. Anchor with higher mapping location will be ignored. 0 for considering all mapping locations. 
 (Default = 50)
-2. **--mrsfast-threads**: Number of the threads used by mrsFAST-Ultra for mapping. (Default = 1)
+2. **--mrsfast-threads**: Number of the threads used by mrsFAST-Ultra for mapping. (Default = 4)
 3. **--mrsfast-errors**: Number of the errors allowed by mrsFAST-Ultra for mapping. In default mode Pamir does not give any error number to mrsFAST-Ultra, in which case it calculates the error value as 0.06 x readlength. (Default = -1; 6% of the read length)
 4. **--mrsfast-index-ws**: Window size used by mrsFAST-Ultra for indexing the reference genome. (Default = 12)
 
