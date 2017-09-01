@@ -1,7 +1,13 @@
 #ifndef __COMMON__
 #define __COMMON__
+#include <assert.h>
+#include <inttypes.h>
+#include <limits>
 #include <string>
+#include <sstream>
 #include <cstdio>
+#include <vector>
+#include <sys/time.h>
 #include "logger.h"
 
 #define KB  1024LL
@@ -16,10 +22,6 @@
 #define LOG(c,...)\
 	fprintf(stderr, c"\n", ##__VA_ARGS__)
 #define MAX_CHAR 1000000
-//#define max33(a,b,c) max(a, max(b,c))
-//#define max33(a,b,c) ( (a>b)?( ( a>c)?a:c ):((b>c)?b:c) )
-//#define max22(a,b) (((a)>(b))?(a):(b))
-//#define min2(a,b) (((a)<(b))?(a):(b)) 
 
 using namespace std;
 
@@ -48,6 +50,7 @@ inline int max33(int a, int b, int c)
 	return z;
 }
 
+/*************************************************/
 inline char getDNAValue (char ch) {
 	#define _ 0
 	static char c[128] = {
@@ -63,5 +66,89 @@ inline char getDNAValue (char ch) {
 	#undef _
 	return c[ch];
 }
+
+/*************************************************/
+inline std::vector<std::string> split (std::string s, char delim) 
+{
+	std::stringstream ss(s);
+	std::string item;
+	std::vector<std::string> elems;
+	while (std::getline(ss, item, delim)) 
+		elems.push_back(item);
+	return elems;
+}
+
+/*************************************************/
+inline uint64_t zaman() 
+{
+	struct timeval t;
+	gettimeofday(&t, 0);
+	return (t.tv_sec * 1000000ll + t.tv_usec);
+}
+
+/*************************************************/
+// #define ZAMAN
+#ifdef ZAMAN
+	class __zaman__ { // crazy hack for gcc 5.1
+	public:
+		std::map<std::string, uint64_t> times;
+		std::string prefix;
+
+	public:
+		static std::map<std::string, uint64_t> times_global;
+		static std::string prefix_global;
+		static std::mutex mtx;
+	};
+	extern thread_local __zaman__ __zaman_thread__;
+
+	#define ZAMAN_VAR(s) \
+		__zaman_time_##s
+	#define ZAMAN_START(s) \
+		int64_t ZAMAN_VAR(s) = zaman(); \
+		__zaman_thread__.prefix += std::string(#s) + "_"; 
+	#define ZAMAN_END(s) \
+		__zaman_thread__.times[__zaman_thread__.prefix] += (zaman() - ZAMAN_VAR(s)); \
+		__zaman_thread__.prefix = __zaman_thread__.prefix.substr(0, __zaman_thread__.prefix.size() - 1 - strlen(#s)); 
+	#define ZAMAN_THREAD_JOIN() \
+		{ 	std::lock_guard<std::mutex> __l__(__zaman__::mtx); \
+			for (auto &s: __zaman_thread__.times) \
+				__zaman__::times_global[__zaman__::prefix_global + s.first] += s.second; \
+			__zaman_thread__.times.clear(); \
+		}
+	#define ZAMAN_START_P(s) \
+		int64_t ZAMAN_VAR(s) = zaman(); \
+		__zaman__::prefix_global += std::string(#s) + "_"; 
+	#define ZAMAN_END_P(s) \
+		__zaman__::times_global[__zaman__::prefix_global] += (zaman() - ZAMAN_VAR(s)); \
+		__zaman__::prefix_global = __zaman__::prefix_global.substr(0, __zaman__::prefix_global.size() - 1 - strlen(#s)); \
+
+	inline void ZAMAN_REPORT() 
+	{ 
+		using namespace std;
+		ZAMAN_THREAD_JOIN();
+		vector<string> p;
+		for (auto &tt: __zaman__::times_global) { 
+			string s = tt.first; 
+			auto f = split(s, '_');
+			s = "";
+			for (int i = 0; i < f.size(); i++) {
+				if (i < p.size() && p[i] == f[i])
+					s += "  ";
+				else
+					s += "/" + f[i];
+			}
+			p = f;
+			LOG("  %-40s: %'8.1lfs", s.c_str(), tt.second/1000000.0);
+		}
+	}
+#else
+	#define ZAMAN_VAR(s)	
+	#define ZAMAN_START(s) 
+	#define ZAMAN_END(s)
+	#define ZAMAN_THREAD_JOIN()
+	#define ZAMAN_START_P(s)
+	#define ZAMAN_END_P(s)
+	#define ZAMAN_REPORT()
+#endif
 
 #endif
