@@ -81,7 +81,7 @@ For example, when the users run pamir in /my/current/working/location,
 
 1. ***-p my_project***: the project folder will be /my/current/working/location/my_project
 2. ***-p ../../my_project***: the project folder will be /my/current/my_project
-3. ***-p /another/drive***: the project folder will be /another/drive/my_project
+3. ***-p /another/drive***: the project folder will be /another/drive
 
 ### Data Preparation
 #### Required Information
