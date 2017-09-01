@@ -318,10 +318,11 @@ int process_oea( const Record &rc, map<string, Record> &map_oea, FILE *f_map, FI
 /****************************************************************/
 int examine_mapping( const Record &rc, map<string, Record > &map_read, FILE *f_map, FILE *f_unmap, int ftype, double clip_ratio  )
 {
+	
 	map<string, Record >::iterator it = map_read.find( rc.getReadName() );
 	if ( it == map_read.end() ) 
 	{
-		fprintf(stdout, "Can not find _%s_\n", rc.getReadName() );
+		map_read[rc.getReadName() ] = rc;
 	}
 	else
 	{
@@ -490,10 +491,6 @@ extractor::extractor(string filename, string output_prefix, int ftype, int oea, 
 
 			}
 			// Hints:  BWA can report concordant mappings with next > pos with negative tlen
-			else if (  (pos < pair_pos ) or ( pos == pair_pos && 0 < tlen) )
-			{
-				map_read[ rc.getReadName() ] = rc;
-			}
 			else
 			{
 				tmp_size = examine_mapping( rc, map_read, foea_mapped, foea_unmapped, ftype, clip_ratio);
@@ -503,14 +500,14 @@ extractor::extractor(string filename, string output_prefix, int ftype, int oea, 
 				}
 				
 			}
-			count++; if (0 == count%100000){ERROR( ".");}
+			count++; if (0 == count%100000){fprintf( stderr, ".");}
 		}
 		parser->readNext();
 	}
 	
 	delete parser;
 	
-	ERROR("\n");
+	ERROR("");
 	//ERROR( "\nMax %d %d %d \n", max_size, max_orphan, max_oea);
 	//ERROR( "\nFinal %u %u %u \n", map_read.size(), map_orphan.size(), map_oea.size() );
 	//fclose(ftest);
