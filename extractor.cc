@@ -290,7 +290,7 @@ int process_orphan( const Record &rc, map<string,  Record> &map_orphan, FILE *fo
 	return (int)map_orphan.size();
 }
 /****************************************************************/
-int process_oea( const Record &rc, map<string, Record> &map_oea, FILE *f_map, FILE *f_unmap, int ftype)
+int process_oea( const Record &rc, map<string, Record> &map_oea, FILE *f_map, FILE *f_unmap, int ftype, int &min_length)
 {
 	map<string, Record>::iterator it;
 	it = map_oea.find( rc.getReadName() );
@@ -300,11 +300,13 @@ int process_oea( const Record &rc, map<string, Record> &map_oea, FILE *f_map, FI
 		{
 			output_record( f_unmap, ftype, rc );
 			output_record( f_map, ftype, it->second );
+			if ( (min_length < 0 ) || ( strlen(it->second.getSequence()) < min_length ) ){ min_length = strlen(it->second.getSequence());}
 		}
 		else
 		{
 			output_record( f_map, ftype, rc);
 			output_record( f_unmap, ftype, it->second);
+			if ( (min_length < 0 ) || ( strlen(rc.getSequence() ) < min_length ) ){ min_length = strlen(rc.getSequence());}
 		}
 		map_oea.erase(it);
 	}
@@ -316,7 +318,7 @@ int process_oea( const Record &rc, map<string, Record> &map_oea, FILE *f_map, FI
 }
 
 /****************************************************************/
-int examine_mapping( const Record &rc, map<string, Record > &map_read, FILE *f_map, FILE *f_unmap, int ftype, double clip_ratio  )
+int examine_mapping( const Record &rc, map<string, Record > &map_read, FILE *f_map, FILE *f_unmap, int ftype, double clip_ratio, int &min_length  )
 {
 	
 	map<string, Record >::iterator it = map_read.find( rc.getReadName() );
@@ -381,11 +383,13 @@ int examine_mapping( const Record &rc, map<string, Record > &map_read, FILE *f_m
 					{
 						output_record( f_map, ftype, rc);
 						output_record( f_unmap, ftype, rc2);
+						if ( (min_length < 0 ) || ( strlen(rc.getSequence()) < min_length ) ){ min_length = strlen(rc.getSequence());}
 					}
 					else
 					{
 						output_record( f_map, ftype, rc2);
 						output_record( f_unmap, ftype, rc);
+						if ( (min_length < 0 ) || ( strlen(rc2.getSequence()) < min_length ) ){ min_length = strlen(rc2.getSequence());}
 					}
 					
 				}
@@ -395,11 +399,13 @@ int examine_mapping( const Record &rc, map<string, Record > &map_read, FILE *f_m
 					{
 						output_record( f_map, ftype, rc2);
 						output_record( f_unmap, ftype, rc);
+						if ( (min_length < 0 ) || ( strlen(rc2.getSequence()) < min_length ) ){ min_length = strlen(rc2.getSequence());}
 					}
 					else
 					{
 						output_record( f_map, ftype, rc);
 						output_record( f_unmap, ftype, rc2);
+						if ( (min_length < 0 ) || ( strlen(rc.getSequence()) < min_length ) ){ min_length = strlen(rc.getSequence());}
 					}
 				}
 			}
@@ -413,7 +419,7 @@ int examine_mapping( const Record &rc, map<string, Record > &map_read, FILE *f_m
 /****************************************************************/
 extractor::extractor(string filename, string output_prefix, int ftype, int oea, int orphan, double clip_ratio = 0.99 ) 
 {
-
+	int min_length = -1;
 	FILE *fi = fopen(filename.c_str(), "rb");
 	char magic[2];
 	fread(magic, 1, 2, fi);
@@ -429,7 +435,7 @@ extractor::extractor(string filename, string output_prefix, int ftype, int oea, 
 
 	string comment = parser->readComment();
 
-	FILE *foea_mapped, *foea_unmapped, *forphan, *fall_int;
+	FILE *foea_mapped, *foea_unmapped, *forphan, *fall_int, *f_min_length;
 	fall_int  = fopen ((output_prefix + "all_interleaved.fastq").c_str(), "w");
 	if (oea) 
 	{
@@ -485,7 +491,7 @@ extractor::extractor(string filename, string output_prefix, int ftype, int oea, 
 			{
 				if ( oea )
 				{
-					tmp_c = process_oea( rc, map_oea, foea_mapped, foea_unmapped, ftype );
+					tmp_c = process_oea( rc, map_oea, foea_mapped, foea_unmapped, ftype, min_length );
 					if ( tmp_c > max_oea) {	max_oea = tmp_c; }
 				}
 
@@ -493,7 +499,7 @@ extractor::extractor(string filename, string output_prefix, int ftype, int oea, 
 			// Hints:  BWA can report concordant mappings with next > pos with negative tlen
 			else
 			{
-				tmp_size = examine_mapping( rc, map_read, foea_mapped, foea_unmapped, ftype, clip_ratio);
+				tmp_size = examine_mapping( rc, map_read, foea_mapped, foea_unmapped, ftype, clip_ratio, min_length);
 				if ( tmp_size > max_size)
 				{	
 					max_size = tmp_size;
@@ -512,6 +518,10 @@ extractor::extractor(string filename, string output_prefix, int ftype, int oea, 
 	//ERROR( "\nFinal %u %u %u \n", map_read.size(), map_orphan.size(), map_oea.size() );
 	//fclose(ftest);
 	
+	fall_int      = fopen ((output_prefix + "all_interleaved.fastq").c_str(), "w");
+	f_min_length  = fopen ((output_prefix + "min_length").c_str(), "w");
+	fprintf(f_min_length, "%d\n", min_length);
+	fclose( f_min_length);
 	// close file
 	if (oea)
 	{
