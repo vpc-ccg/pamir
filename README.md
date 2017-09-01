@@ -7,7 +7,8 @@ Pamir detects and genotypes novel sequence insertions in single or multiple data
 2. [Commands Options](#commands-options)
 3. [Output Formats](#output-formats)
 4. [Example Commands](#example-commands)
-5. [Contact & Support](#contact)
+5. [Publications](#publication)
+6. [Contact & Support](#contact)
 
 ## Installation
 Source code of Pamir can be downloaded from [GitHub](https://github.com/vpc-ccg/pamir). To begin with, you will need to set up several external tools as described below.
@@ -72,6 +73,15 @@ A typical command to start Pamir is
 
 ### Project Name
 To run Pamir you have to specify a project name such that Pamir will create a folder to store the results and intermediate files. You need to specify project name by `-p`. 
+
+#### Project Location
+Pamir will create the folder under the current working directory unless absolute or relative paths are explicity stated otherwise.
+
+For example, when the users run pamir in /my/current/working/location,
+
+1. ***-p my_project***: the project folder will be /my/current/working/location/my_project
+2. ***-p ../../my_project***: the project folder will be /my/current/my_project
+3. ***-p /another/drive***: the project folder will be /another/drive/my_project
 
 ### Data Preparation
 #### Required Information
@@ -193,6 +203,8 @@ $./pamir.py -p my_project -r ref.fa
 ```
 $./pamir.py -p my_project  -r ref.fa --files mrsfast-best-search=sample.sam fastq=sample2.fastq.gz
 ```
+## Publications
+**Discovery and genotyping of novel sequence insertions in many sequenced individuals.** P. Kavak, Y-Y. Lin, I. Numanagi ́c, H. Asghari, T. Gu ̈ngo ̈r, C. Alkan‡, F. Hach‡. [***Bioinformatics*** (ISMB-ECCB 2017 issue), 33 (14): i161-i169, 2017.](https://doi.org/10.1093/bioinformatics/btx254)
 
 ## Contact & Support
 
