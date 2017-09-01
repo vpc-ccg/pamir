@@ -158,6 +158,11 @@ def command_line_process():
 		help='Max job memory in PBS file. Read documents before changing its value! (default: 16 GB.)',
 		default='16G'
 	)
+	parser.add_argument('--matched-ratio',
+		metavar='matched_ratio',
+		help='Minimum ratio of matched bases for mappings. Read with matched ratio low than the value due to indels or clipping will be included in the analysis. (default: 0.99) ',
+		default='16G'
+	)
 	parser.add_argument('--files',
 		metavar='files',
 		nargs='+',
@@ -380,7 +385,7 @@ def remove_concordant(config,f):
 	control_file  = "{0}/log/05.remove_concordant.log".format(workdir);
 	complete_file = "{0}/stage/05.remove_concordant.finished".format(workdir);
 	freeze_arg    = ""
-	cmd           = pipeline.pamir + ' remove_concordant {0} {1} 2 1 1'.format(  input_file, output_file )
+	cmd           = pipeline.pamir + ' remove_concordant {0} {1} 2 1 1 {2}'.format(  input_file, output_file, config.get("pamir", "matched_ratio") )
 	run_cmd       = not (os.path.isfile(complete_file) )
 	if ( run_cmd ):
 		clean_state( 5, workdir, config )
@@ -1279,6 +1284,7 @@ def initialize_config_pamir( config, args):
 	config.set("pamir", "worker-id", str(args.worker_id) if args.worker_id != None else "-1")
 	config.set("pamir", "job-time", args.job_max_time if args.job_max_time != None else "06:00:00")
 	config.set("pamir", "job-memory",args.job_max_memory if args.job_max_memory != None else "16G")
+	config.set("pamir", "matched_ratio", str( args.matched_ratio ) if args.matched_ratio != None else "0.99")
 	return config
 
 #############################################################################################
