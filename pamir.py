@@ -989,7 +989,6 @@ def remove_concordant_for_each_bestsam(config):
 				os.system("rm {0}/mrsfast.best.sam".format(workdir))
 			if os.path.isfile(workdir+"/bestsam/"+f):
 				symlink_name(workdir+"/bestsam/"+f, workdir, "mrsfast.best.sam")
-			config.set("project", "mrsfast-best-search", os.path.abspath(f))
 			remove_concordant(config,f)
 			os.system("mv {0}/orphan.fq {0}/{1}.orphan.fq".format(workdir,a))
 			os.system("mv {0}/oea.mapped.fq {0}/{1}.oea.mapped.fq".format(workdir,a))
