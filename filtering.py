@@ -3,7 +3,7 @@ import os, sys, errno, argparse, subprocess, fnmatch, ConfigParser, shutil
 
 
 def usage():
-	print '\nUsage: python filtering.py VCF REF mrsFAST-min mrsFAST-max workdir TLEN THREADS samplenum mrsfast'
+	print '\nUsage: python filtering.py VCF REF mrsFAST-min mrsFAST-max workdir TLEN THREADS samplenum mrsfast recalibrate'
 	sys.exit(-1)
 
 ##############################
@@ -40,7 +40,7 @@ def get_bed_seq( ref_dict, ref, start, end):
 ################################
 def main():
 	args = sys.argv[1:]
-	if len(args) !=9:
+	if len(args) != 10:
 		usage()
 	REF			=	sys.argv[2]
 	FILE		=	sys.argv[1]
@@ -53,7 +53,8 @@ def main():
 	TLEN		=	int(sys.argv[6])
 	THREADS		=   int(sys.argv[7])
 	samplenum	=	int(sys.argv[8])
-	MRSFAST= sys.argv[9]
+	MRSFAST		= sys.argv[9]
+	RECALIBRATE = sys.argv[10]
 
 	tmpf = open("{0}/1.all_interleaved.fastq".format(workdir),"r")
 	tmp = tmpf.readline()
@@ -154,7 +155,7 @@ def main():
 	f.close()
 	cmd           =  'cat {0} | xargs -I CMD --max-procs=1 bash -c CMD'.format(fname)	
 	os.system(cmd)
-	os.system("./recalibrate {0}/allinsertions.coor {0}/seq.mrsfast.sam {0}/seq.mrsfast.recal.sam".format(folder))
+	os.system("{1} {0}/allinsertions.coor {0}/seq.mrsfast.sam {0}/seq.mrsfast.recal.sam".format(folder, RECALIBRATE) )
 	os.system("sort -k 3,3 -k 4,4n {0}/seq.mrsfast.recal.sam > {0}/seq.mrsfast.recal.sam.sorted".format(folder))
 	msamlist = open("{0}/seq.mrsfast.recal.sam.sorted".format(folder),"r")
 	chrName=""
