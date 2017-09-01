@@ -108,7 +108,7 @@ def command_line_process():
 	)
 	parser.add_argument('--mrsfast-threads',
 		metavar='mrsfast_threads',
-		help='Number of the threads used by mrsFAST-Ultra for mapping (default: 1)',
+		help='Number of the threads used by mrsFAST-Ultra for mapping (default: 4)',
 	)
 	parser.add_argument('--mrsfast-n',
 		metavar='mrsfast_n',
@@ -161,7 +161,7 @@ def command_line_process():
 	parser.add_argument('--matched-ratio',
 		metavar='matched_ratio',
 		help='Minimum ratio of matched bases for mappings. Read with matched ratio low than the value due to indels or clipping will be included in the analysis. (default: 0.99) ',
-		default='16G'
+		default='0.99'
 	)
 	parser.add_argument('--files',
 		metavar='files',
@@ -378,9 +378,6 @@ def remove_concordant(config,f):
 	workdir		  = pipeline.workdir
 	msg           = "Extracting OEA and Orphan reads of {0}".format(f)
 	input_file    = "{0}/mrsfast.best.sam".format(workdir)
-	config.set("project","readlength", str(len((open(input_file).readline()).split("\t")[10].strip())))
-	with open ( workdir +"/project.config", "w") as configFile:
-		config.write(configFile)
 	output_file   = "{0}/".format(workdir)
 	control_file  = "{0}/log/05.remove_concordant.log".format(workdir);
 	complete_file = "{0}/stage/05.remove_concordant.finished".format(workdir);
@@ -959,6 +956,18 @@ def output_cluster(config, c_range ):
 	control_file  = "{0}/log/output_cluster.log".format(workdir);
 	cmd           = pipeline.pamir + " get_cluster {0}/partition {1}".format(workdir, c_range)
 	shell( msg, True, cmd, control_file, '', '')
+
+#############################################################################################
+def update_min_length( config, a):
+	workdir		= pipeline.workdir
+	input_file	= "{0}/{1}.min_length".format(workdir, a)
+	min_l 		= config.get("project","readlength")
+	with open( input_file , 'r') as f:
+	    tmp_l = f.readline().strip()
+	if ( ("-1" == min_l) or ( int(tmp_l) < int(min_l))):
+		config.set("project","readlength", tmp_l )
+		with open ( workdir +"/project.config", "w") as configFile:
+			config.write(configFile)
 #############################################################################################
 def remove_concordant_for_each_bestsam(config):
 	workdir = pipeline.workdir
@@ -982,10 +991,12 @@ def remove_concordant_for_each_bestsam(config):
 			os.system("mv {0}/oea.mapped.fq {0}/{1}.oea.mapped.fq".format(workdir,a))
 			os.system("mv {0}/oea.unmapped.fq {0}/{1}.oea.unmapped.fq".format(workdir,a))
 			os.system("mv {0}/all_interleaved.fastq {0}/{1}.all_interleaved.fastq".format(workdir,a))
+			os.system("mv {0}/min_length {0}/{1}.min_length".format(workdir,a))
 			cmd+="{0}/{1}.orphan.fq ".format(workdir,a)
 			cmd2+="{0}/{1}.oea.mapped.fq ".format(workdir,a)
 			cmd3+="{0}/{1}.oea.unmapped.fq ".format(workdir,a)
 			cmd4+="{0}/{1}.all_interleaved.fastq ".format(workdir,a)
+			update_min_length( config, a)
 			a+=1
 		cmd+= " > {0}/orphan.fq".format(workdir)
 		cmd2+= " > {0}/oea.mapped.fq".format(workdir)
@@ -1263,7 +1274,7 @@ def get_input_file(config, args_files):
 def initialize_config_mrsfast( config, args):
 	config.add_section("mrsfast")
 	config.set("mrsfast", "window_size", str( args.mrsfast_index_ws ) if args.mrsfast_index_ws != None else  "12")
-	config.set("mrsfast", "threads", str( args.mrsfast_threads ) if args.mrsfast_threads != None else  "1")
+	config.set("mrsfast", "threads", str( args.mrsfast_threads ) if args.mrsfast_threads != None else  "4")
 	config.set("mrsfast", "errors", str( args.mrsfast_errors ) if args.mrsfast_errors != None else  "-1")
 	config.set("mrsfast", "min", str( args.mrsfast_min ) if args.mrsfast_min != None else  "-1")
 	config.set("mrsfast", "max", str( args.mrsfast_max ) if args.mrsfast_max != None else  "-1")
@@ -1341,6 +1352,7 @@ def check_project_preq():
 		config.set("project", "assembler",str(args.assembler) if args.assembler!=None else "velvet")
 		config.set("project", "donot-remove-contaminant", str( args.donot_remove_contaminant ) if args.donot_remove_contaminant ==True else False)
 		config.set("project", "splitandmap",str(args.splitandmap) if args.splitandmap!=None else str(os.path.abspath("../splitandmap/")))
+		config.set("project", "readlength", '-1' )
 		config = get_input_file( config, args.files)
 
 		# Parameters for other parts in the pipeline
