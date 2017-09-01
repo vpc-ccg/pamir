@@ -30,7 +30,7 @@ class pipeline:
 	genotyping			= os.path.dirname(os.path.realpath(__file__)) + "/genotyping.py"
 	filterbysetcover	= os.path.dirname(os.path.realpath(__file__)) + "/filter_by_setcover.py"
 	sortfile			= os.path.dirname(os.path.realpath(__file__)) + "/sort_file.pl"
-	cleanmega				= os.path.dirname(os.path.realpath(__file__)) + "/cleanmega"
+	cleanmega			= os.path.dirname(os.path.realpath(__file__)) + "/cleanmega"
 	contaminantFinder	= os.path.dirname(os.path.realpath(__file__)) + "/find_contaminations.py"
 	contaminantRemover	= os.path.dirname(os.path.realpath(__file__)) + "/remove_contaminations.py"
 	workdir 		 	= os.path.dirname(os.path.realpath(__file__))
@@ -571,7 +571,11 @@ def remove_contamination_orphan_contig(config):
 		run_cmd		  = not(os.path.isfile(complete_file))
 		if run_cmd:
 			shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg )
-			exit(1)
+			if os.stat("{0}/orphan.fq.contigs.contaminations".format(workdir)).st_size != 0:
+				exit(1)
+			else:
+				msg = "Contamination file is empty, continuing"
+				shell(msg, 1, "", "", "", "")
 		msg			  = "Excluding contaminated contigs"
 		contig_file    = "{0}/orphan.fq.contigs.fa".format(workdir)
 		contamination_file    = "{0}/orphan.fq.contigs.contaminations".format(workdir)
