@@ -411,7 +411,7 @@ int examine_mapping( const Record &rc, map<string, Record > &map_read, FILE *f_m
 }
 // select any reads whose clipping ratio is less than the clip_ratio in the analysis for mrsfast mapping
 /****************************************************************/
-extractor::extractor(string filename, string output_prefix, int ftype, int oea, int orphan, int max_e, double clip_ratio = 0.99 ) 
+extractor::extractor(string filename, string output_prefix, int ftype, int oea, int orphan, double clip_ratio = 0.99 ) 
 {
 
 	FILE *fi = fopen(filename.c_str(), "rb");
