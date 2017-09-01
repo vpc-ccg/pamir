@@ -265,21 +265,28 @@ int parse_sc( const char *cigar, int &match_l, int &read_l )
 	return 0;
 }
 /****************************************************************/
-int process_orphan( const Record &rc, map<string,  Record> &map_orphan, FILE *forphan, int ftype)
+int process_orphan( const Record &rc, map<string,  Record> &map_orphan, FILE *forphan, FILE *f_int, int ftype)
 {
 	map<string, Record>::iterator it;
 	it = map_orphan.find( rc.getReadName() );
 	if ( it != map_orphan.end() )	
 	{
-		if ( ( 0x40 == 0x40 & rc.getMappingFlag() ) )
+		if ( ( 0x40 == (0x40 & rc.getMappingFlag() )) )
 		{
 			output_record( forphan, ftype, rc);
 			output_record( forphan, ftype, it->second);
+			
+			output_record( f_int, 2, rc);
+			output_record( f_int, 2, it->second);
+
 		}
 		else
 		{
-			output_record( forphan, ftype, rc);
 			output_record( forphan, ftype, it->second);
+			output_record( forphan, ftype, rc);
+			
+			output_record( f_int, 2, it->second);
+			output_record( f_int, 2, rc);
 		}
 		map_orphan.erase(it);
 	}
@@ -290,13 +297,13 @@ int process_orphan( const Record &rc, map<string,  Record> &map_orphan, FILE *fo
 	return (int)map_orphan.size();
 }
 /****************************************************************/
-int process_oea( const Record &rc, map<string, Record> &map_oea, FILE *f_map, FILE *f_unmap, int ftype, int &min_length)
+int process_oea( const Record &rc, map<string, Record> &map_oea, FILE *f_map, FILE *f_unmap, FILE *f_int, int ftype, int &min_length)
 {
 	map<string, Record>::iterator it;
 	it = map_oea.find( rc.getReadName() );
 	if ( it != map_oea.end() )	
 	{
-		if ( 0x4 & rc.getMappingFlag() )
+		if ( (0x4 == ( 0x4 & rc.getMappingFlag() ) ) )
 		{
 			output_record( f_unmap, ftype, rc );
 			output_record( f_map, ftype, it->second );
@@ -308,6 +315,19 @@ int process_oea( const Record &rc, map<string, Record> &map_oea, FILE *f_map, FI
 			output_record( f_unmap, ftype, it->second);
 			if ( (min_length < 0 ) || ( strlen(rc.getSequence() ) < min_length ) ){ min_length = strlen(rc.getSequence());}
 		}
+		// interleaved files for genotyping
+		if ( ( 0x40 == ( 0x40 & rc.getMappingFlag() ) ) )
+		{
+			output_record( f_int, 2, rc);
+			output_record( f_int, 2, it->second);
+
+		}
+		else
+		{
+			output_record( f_int, 2, it->second);
+			output_record( f_int, 2, rc);
+		}
+
 		map_oea.erase(it);
 	}
 	else
@@ -318,7 +338,7 @@ int process_oea( const Record &rc, map<string, Record> &map_oea, FILE *f_map, FI
 }
 
 /****************************************************************/
-int examine_mapping( const Record &rc, map<string, Record > &map_read, FILE *f_map, FILE *f_unmap, int ftype, double clip_ratio, int &min_length  )
+int examine_mapping( const Record &rc, map<string, Record > &map_read, FILE *f_map, FILE *f_unmap, FILE *f_int, int ftype, double clip_ratio, int &min_length  )
 {
 	
 	map<string, Record >::iterator it = map_read.find( rc.getReadName() );
@@ -408,6 +428,19 @@ int examine_mapping( const Record &rc, map<string, Record > &map_read, FILE *f_m
 						if ( (min_length < 0 ) || ( strlen(rc.getSequence()) < min_length ) ){ min_length = strlen(rc.getSequence());}
 					}
 				}
+				
+				// interleaved files for genotyping
+				if ( ( 0x40 == ( 0x40 & rc.getMappingFlag() ) ) )
+				{
+					output_record( f_int, 2, rc);
+					output_record( f_int, 2, rc2);
+
+				}
+				else
+				{
+					output_record( f_int, 2, rc2);
+					output_record( f_int, 2, rc);
+				}
 			}
 		}
 
@@ -483,7 +516,7 @@ extractor::extractor(string filename, string output_prefix, int ftype, int oea, 
 			{
 				if ( orphan )
 				{
-					tmp_c = process_orphan( rc, map_orphan, forphan, ftype );
+					tmp_c = process_orphan( rc, map_orphan, forphan, fall_int, ftype );
 					if ( tmp_c > max_orphan) {	max_orphan=tmp_c;	}
 				}
 			}
@@ -491,7 +524,7 @@ extractor::extractor(string filename, string output_prefix, int ftype, int oea, 
 			{
 				if ( oea )
 				{
-					tmp_c = process_oea( rc, map_oea, foea_mapped, foea_unmapped, ftype, min_length );
+					tmp_c = process_oea( rc, map_oea, foea_mapped, foea_unmapped, fall_int, ftype, min_length );
 					if ( tmp_c > max_oea) {	max_oea = tmp_c; }
 				}
 
@@ -499,7 +532,7 @@ extractor::extractor(string filename, string output_prefix, int ftype, int oea, 
 			// Hints:  BWA can report concordant mappings with next > pos with negative tlen
 			else
 			{
-				tmp_size = examine_mapping( rc, map_read, foea_mapped, foea_unmapped, ftype, clip_ratio, min_length);
+				tmp_size = examine_mapping( rc, map_read, foea_mapped, foea_unmapped, fall_int, ftype, clip_ratio, min_length);
 				if ( tmp_size > max_size)
 				{	
 					max_size = tmp_size;
@@ -518,7 +551,6 @@ extractor::extractor(string filename, string output_prefix, int ftype, int oea, 
 	//ERROR( "\nFinal %u %u %u \n", map_read.size(), map_orphan.size(), map_oea.size() );
 	//fclose(ftest);
 	
-	fall_int      = fopen ((output_prefix + "all_interleaved.fastq").c_str(), "w");
 	f_min_length  = fopen ((output_prefix + "min_length").c_str(), "w");
 	fprintf(f_min_length, "%d\n", min_length);
 	fclose( f_min_length);
