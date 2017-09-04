@@ -278,7 +278,10 @@ def verify_sam(config ):
 	control_file  = "{0}/log/01.verify_sam_1.log".format(workdir);
 	complete_file = "{0}/stage/01.verify_sam_1.finished".format(workdir);
 	freeze_arg    = ""
-	cmd			  = pipeline.samtools + " sort -n -@ {1} -m 10G {0} > {0}.sorted".format(input_file,config.get("project","num-worker")) 
+	cmd			  = pipeline.samtools + " sort -n -@ {1} -m 10G {0} > {0}.sorted".format(input_file,config.get("project","num-worker"))
+	cmd			  = pipeline.samtools + " sort -n -@ {1} -m 10G {0} > {0}.sorted".format(input_file,config.get("project","num-worker"))
+	if ( 1 == pipeline.samtools_version):
+		cmd		  = pipeline.samtools + " sort -n -@ {1} -m 10G -o {0}.sorted.bam -O bam {0}".format(input_file,config.get("project","num-worker"))
 	run_cmd       = not (os.path.isfile(complete_file) )
 	shell( msg, run_cmd , cmd, control_file, complete_file, freeze_arg)
 	msg           = "Extracting FASTQ from Alignment file"
@@ -1113,6 +1116,21 @@ def symlink_name(src, dest, filename ):
 ##########	Make sure the project is successfully built
 def is_exec(f):
 	return os.path.isfile(f) and os.access(f, os.X_OK)
+
+########## Detect major version for samtools
+def samtools_major_version( samtools_path ):
+	cmd	= "{0} sort || true".format(samtools_path)      # force retrun value as 0
+	control_file    = "{0}/log/samtools.version".format( pipeline.workdir )
+	shell("", True, cmd, control_file, "", "", True)
+	sr = open( control_file, 'r')
+	for line in sr:
+		ver = 0
+		if ("Usage:" == line[0:6]):
+			if 5 == len(line.split()):
+				ver = 1
+			break
+	sr.close()
+	return ver
 #############################################################################################
 def check_binary_preq(config):
 	args = command_line_process().parse_args()
@@ -1180,6 +1198,7 @@ def check_binary_preq(config):
 					logln ("No such path {0}. Please make sure that you have blast database (db) folder.".format(BLASTDB) )
 					exit(1)
 				pipeline.blastdb = BLASTDB
+	pipeline.samtools_version = samtools_major_version( pipeline.samtools )
 	logOK()
 
 #############################################################################################
