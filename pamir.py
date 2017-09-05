@@ -1403,10 +1403,12 @@ def check_project_preq():
 			symlink(config.get("project", "alignment"), workdir)
 			config.set("project", "alignment", os.path.basename(config.get("project", "alignment")) )
 			config.set("project", "fastq",  project_name + ".fastq" )
+			config.set("project","samplenum", str(len( config.get("project", "alignment").split(",") )) )
 			
 		elif( "" != config.get("project", "fastq")):
 			symlink(config.get("project", "fastq"), workdir)
 			config.set("project", "fastq", os.path.basename(config.get("project", "fastq")))
+			config.set("project","samplenum", str(len( config.get("project", "fastq").split(",") )) )
 		elif( "" != config.get("project", "mrsfast-best-search")):
 			if(os.path.isdir(config.get("project","mrsfast-best-search"))):
 				symlink_name(config.get("project","mrsfast-best-search"),workdir,'/bestsam')
