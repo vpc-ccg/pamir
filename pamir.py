@@ -278,10 +278,9 @@ def verify_sam(config ):
 	control_file  = "{0}/log/01.verify_sam_1.log".format(workdir);
 	complete_file = "{0}/stage/01.verify_sam_1.finished".format(workdir);
 	freeze_arg    = ""
-	cmd			  = pipeline.samtools + " sort -n -@ {1} -m 10G {0} > {0}.sorted".format(input_file,config.get("project","num-worker"))
-	cmd			  = pipeline.samtools + " sort -n -@ {1} -m 10G {0} > {0}.sorted".format(input_file,config.get("project","num-worker"))
+	cmd			  = pipeline.samtools + " sort -n -@ {1} -m 10G {0} {0}.sorted".format(input_file,config.get("project","num-worker"))
 	if ( 1 == pipeline.samtools_version):
-		cmd		  = pipeline.samtools + " sort -n -@ {1} -m 10G -o {0}.sorted.bam -O bam {0}".format(input_file,config.get("project","num-worker"))
+		cmd		  = pipeline.samtools + " sort -n -@ {1} -m 10G -o {0}.sorted.bam -T {0}.sorted.tmp -O bam {0}".format(input_file,config.get("project","num-worker"))
 	run_cmd       = not (os.path.isfile(complete_file) )
 	shell( msg, run_cmd , cmd, control_file, complete_file, freeze_arg)
 	msg           = "Extracting FASTQ from Alignment file"
