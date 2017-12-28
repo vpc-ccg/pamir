@@ -540,8 +540,18 @@ int main(int argc, char **argv)
 
 		string mode = argv[1];
 		if (mode == "verify_sam") {
-			if (argc != 4) throw "Usage:\tpamir verify_sam [sam-file] [output_prefix]";
-			extractor ext(argv[2], argv[3]);
+			if ( 4 == argc )
+			{
+				extractor ext(argv[2], argv[3], 0.95);
+			}
+			else if ( 5 == argc)
+			{
+				extractor ext(argv[2], argv[3], stod(argv[4]) );
+			}
+			else
+			{	
+				throw "Usage:\tpamir verify_sam [sam-file] [output_prefix] matched_ratio";
+			}
 		}
 		else if (mode == "remove_concordant") {
 			if (argc != 8) throw "Usage:\tpamir remove_concordant [sam-file] [output] outputtype oea? orphan? matched_ratio";

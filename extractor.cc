@@ -139,8 +139,10 @@ int md_length( char *md)
 	if (0 < tmp){length+=tmp;}
 	return length;
 }
+
+// Designed for sam/bam sorted by read-name.
 /*************************************************************/
-extractor::extractor(string filename, string output) 
+extractor::extractor(string filename, string output, double match_r = 1.0) 
 {
 
 	FILE *fi = fopen(filename.c_str(), "rb");
@@ -158,86 +160,88 @@ extractor::extractor(string filename, string output)
 
 
 	FILE *fq = fopen (output.c_str(),"w");
-	//FILE *fqsam = fopen ((output + ".sam").c_str(),"w");
 
 	char *opt 			= new char[1000000];
 	char *MD 			= new char[1000000];
-	string fr_rname;
-	string fr_seq;
-	string fr_qual;
-	uint32_t fr_flag;
+	string record;
+	string f_rname, c_rname;
+	string f_seq,  s_seq;
+	string f_qual, s_qual;
+	uint32_t p_flag;
 	uint32_t flag;
-	uint32_t tlen;
-	int errNum;
+	uint32_t tlen, f_len =0, s_len = 0;
+	int f_match = 0, s_match = 0, match = 0;
 	while (parser->hasNext())
 	{
 		const Record &rc = parser->next();
 		flag = rc.getMappingFlag();
-		tlen = strlen(rc.getSequence());
-		errNum = int(tlen*0.94);
-		if((flag & 0x800) != 0x800)
+		tlen = strlen( rc.getSequence() );
+		if(  (flag & 0x800) != 0x800 )
 		{
-			if((flag & 0x5) == 0x5 || (flag & 0x9)==0x9 || (flag & 0xD)==0xD)
+			f_rname = string(rc.getReadName());
+			if ( f_rname !=  c_rname)  
 			{
-				output_record(fq, 2, rc);
-			}
-			else
-			{
-				strcpy(opt,rc.getOptional());
-				strtok(opt,"\t");
-				MD = strtok(NULL,"\t");
-				if(md_length(MD) >= errNum)
+				if ( f_len && s_len &&  ( (match_r >= (f_match*1.0)/f_len ) || ( match_r >= (s_match*1.0)/s_len)  ))
 				{
-					if((flag & 0x40) == 0x40)
-					{
-						fr_rname = string(rc.getReadName());
-						fr_seq = string(rc.getSequence());
-						if((flag & 0x10) == 0x10)
-						{
-							fr_seq = reverse_complement(fr_seq);
-						}
-						fr_qual = string(rc.getQuality());
-					}
+					record = S("@%s/1\n%s\n+\n%s\n@%s/2\n%s\n+\n%s\n", c_rname.c_str(), f_seq.c_str(), f_qual.c_str(), c_rname.c_str(), s_seq.c_str(), s_qual.c_str() );
+					fwrite(record.c_str(), 1, record.size(), fq);
 				}
-				else
+				f_seq[0] = '\0';
+				s_seq[0] = '\0';
+				f_len = 0;
+				s_len = 0;
+				f_match = 0;
+				s_match = 0;
+				c_rname = f_rname;
+			}
+		
+			strcpy(opt,rc.getOptional());
+			strtok(opt,"\t");
+			MD = strtok(NULL,"\t");
+			match = md_length(MD);
+			
+			if (  (flag & 0x40) == 0x40  )
+			{
+				if ( f_len < tlen )
 				{
-					if((flag & 0x40) == 0x40)
+					f_seq  = string(rc.getSequence());
+					f_qual = string(rc.getQuality());
+					if( (flag & 0x10) == 0x10)
 					{
-						output_record(fq, 2, rc);
-						//output_record(fqsam, 3, rc);
-						int secondWritten = 0;
-						while(secondWritten != 1)
-						{
-							parser->readNext();
-							if(parser->hasNext())
-							{
-								const Record &rc2 = parser->next();
-								flag = rc2.getMappingFlag();
-								if((flag & 0x800) != 0x800)
-								{
-									output_record(fq, 2, rc2);
-									//output_record(fqsam, 3, rc2);
-									secondWritten = 1;
-								}
-							}
-						}
+						f_seq = reverse_complement(f_seq);
+						f_qual = reverse( f_qual );
 					}
-					else
+					f_len = tlen;
+
+					if (f_match < match){ f_match = match;}
+				}
+			}
+			else if ( (flag & 0x80) == 0x80  )
+			{
+				if ( s_len < tlen )
+				{
+					s_seq  = string(rc.getSequence());
+					s_qual = string(rc.getQuality());
+					if( (flag & 0x10) == 0x10)
 					{
-						fprintf(fq,"@%s/1\n%s\n+\n%s\n", fr_rname.c_str(), fr_seq.c_str(), fr_qual.c_str());
-						//fprintf(fqsam,"@%s/1\t%s\t%s\n", fr_rname.c_str(), fr_seq.c_str(), fr_qual.c_str());
-						output_record(fq, 2, rc);
-						//output_record(fqsam, 3, rc);
+						s_seq = reverse_complement( s_seq );
+						s_qual = reverse( s_qual );
 					}
+					s_len = tlen;
+					if (s_match < match){ s_match = match;}
 				}
 			}
 		}
 		parser->readNext();
 	}
 	
+	if ( f_len && s_len &&  ( (match_r >= (f_match*1.0)/f_len ) || ( match_r >= (s_match*1.0)/s_len)  ))
+	{
+		record = S("@%s/1\n%s\n+\n%s\n@%s/2\n%s\n+\n%s\n", c_rname.c_str(), f_seq.c_str(), f_qual.c_str(), c_rname.c_str(), s_seq.c_str(), s_qual.c_str() );
+		fwrite(record.c_str(), 1, record.size(), fq);
+	}
 	delete parser;
 	fclose(fq);
-	//fclose(fqsam);
 }
 /****************************************************************/
 int parse_sc( const char *cigar, int &match_l, int &read_l )
