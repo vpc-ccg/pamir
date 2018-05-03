@@ -1162,7 +1162,7 @@ def check_binary_preq(config):
 				if not is_exec(MRSFAST):
 					print "[ERROR] File {0} cannot be executed. ".format(MRSFAST)
 					logFAIL()
-					logln ("File {0} cannot be executed. ".format(VELVETH) )
+					logln ("File {0} cannot be executed. ".format(MRSFAST) )
 					exit(1)
 				pipeline.mrsfast = MRSFAST
 			elif spliti[0]=="VELVETH":
