@@ -262,7 +262,7 @@ int aligner::extract_calls( const int &cluster_id, vector<tuple<string, int, int
 	string insertion_content;
 	int fwdS, fwdE, fwdAS, fwdAE;
 	//if( fwdIden > 1.0 && ( left_anchor > 5 && right_anchor > 5 ) && ( left_anchor > 16 || right_anchor > 16 ) )
-	if( fwdIden > 1.0 && left_anchor > 50 || right_anchor > 50 ) 
+	if( fwdIden > 1.0 && ( left_anchor > 50 || right_anchor > 50 )  )
 	{
 		fwdS = ref_start + p_start;
 		fwdAS 					= 0;

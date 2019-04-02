@@ -1,9 +1,10 @@
 /// 786
 
-#include <bits/stdc++.h>
-//#include <fmt/format.h>
 #include "fiboheap.h"
+#include <cassert>
 #include <vector>
+#include <unordered_map>
+#include <unordered_set>
 
 using namespace std;
 //using namespace boost::heap;
@@ -38,7 +39,8 @@ ostream& operator<<(ostream& os, const cluster& cl) {
 	return os;
 } 
 
-void set_cover (auto &clusters, auto &reads) 
+//void set_cover (auto &clusters, auto &reads) 
+void set_cover (vector<cluster>& clusters, vector<Xread>& reads) 
 {
 	FiboHeap<cluster*> heap;
 	unordered_map<int, Node<cluster*>* > heap_handles;
@@ -115,7 +117,7 @@ void set_cover (auto &clusters, auto &reads)
 			continue;
 		}
 
-		L("%d %u %s\n", c.orig_id, c.reads.size(), c.name.c_str());
+		L("%d %lu %s\n", c.orig_id, c.reads.size(), c.name.c_str());
 		for (auto &r: c.reads) {
 			//L("{}", read_names[r]);
 		}
@@ -123,7 +125,7 @@ void set_cover (auto &clusters, auto &reads)
 		rx += c.reads.size(), i++;
 	}
 	assert(rx == reads.size());
-	E("%d / %u sets resolved, %d / %d reads resolved\n", i, clusters.size(), re, rx);
+	E("%d / %lu sets resolved, %d / %d reads resolved\n", i, clusters.size(), re, rx);
 }
 
 int main (int argc, char **argv) 
@@ -177,8 +179,8 @@ int main (int argc, char **argv)
 		c.support = c.reads.size() - c.unresolved;
 	}
 
-	E("%u clusters\n", clusters.size());
-	E("%u reads\n", reads.size());
+	E("%lu clusters\n", clusters.size());
+	E("%lu reads\n", reads.size());
 
 	set_cover(clusters, reads);
 
