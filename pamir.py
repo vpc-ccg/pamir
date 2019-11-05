@@ -16,23 +16,21 @@ class bcolors:
 	UNDERLINE = '\033[4m'
 
 class pipeline:
-	pamirpy 			= os.path.dirname(os.path.realpath(__file__)) + "/pamir.py"
+	pamirpy 			= os.path.dirname(os.path.realpath(__file__)) + "/scripts/pamir.py"
 	pamir   			= os.path.dirname(os.path.realpath(__file__)) + "/pamir"
-	sga		   			= os.path.dirname(os.path.realpath(__file__)) + "/sga.py"
 	minia	   			= os.path.dirname(os.path.realpath(__file__)) + "/minia"
 	recalibrate 		= os.path.dirname(os.path.realpath(__file__)) + "/recalibrate"
-	pprocessor 		 	= os.path.dirname(os.path.realpath(__file__)) + "/partition_processor"
-	sortvcf   			= os.path.dirname(os.path.realpath(__file__)) + "/sort_vcf.py"
+	sortvcf   			= os.path.dirname(os.path.realpath(__file__)) + "/scripts/sort_vcf.py"
 	ext_sup     		= os.path.dirname(os.path.realpath(__file__)) + "/extract_support"
-	filtering			= os.path.dirname(os.path.realpath(__file__)) + "/filtering.py"
-	gensetcov			= os.path.dirname(os.path.realpath(__file__)) + "/generate_setcover_input.py"
+	filtering			= os.path.dirname(os.path.realpath(__file__)) + "/scripts/filtering.py"
+	gensetcov			= os.path.dirname(os.path.realpath(__file__)) + "/scripts/generate_setcover_input.py"
 	smoother			= os.path.dirname(os.path.realpath(__file__)) + "/smoother"
-	genotyping			= os.path.dirname(os.path.realpath(__file__)) + "/genotyping.py"
-	filterbysetcover	= os.path.dirname(os.path.realpath(__file__)) + "/filter_by_setcover.py"
-	sortfile			= os.path.dirname(os.path.realpath(__file__)) + "/sort_file.pl"
+	genotyping			= os.path.dirname(os.path.realpath(__file__)) + "/scripts/genotyping.py"
+	filterbysetcover	= os.path.dirname(os.path.realpath(__file__)) + "/scripts/filter_by_setcover.py"
+	sortfile			= os.path.dirname(os.path.realpath(__file__)) + "/scripts/sort_file.sh"
 	cleanmega			= os.path.dirname(os.path.realpath(__file__)) + "/cleanmega"
-	contaminantFinder	= os.path.dirname(os.path.realpath(__file__)) + "/find_contaminations.py"
-	contaminantRemover	= os.path.dirname(os.path.realpath(__file__)) + "/remove_contaminations.py"
+	contaminantFinder	= os.path.dirname(os.path.realpath(__file__)) + "/scripts/find_contaminations.py"
+	contaminantRemover	= os.path.dirname(os.path.realpath(__file__)) + "/scripts/remove_contaminations.py"
 	workdir 		 	= os.path.dirname(os.path.realpath(__file__))
 	# example usage for help
 	example  = "\tTo create a new project: specify (1) project name, (2) reference genomes and (3) input sequences (either --alignment, --fastq, or --mrsfast-best-search)\n"
@@ -76,7 +74,7 @@ def command_line_process():
 	)
 	parser.add_argument('--assembler','-a',
 		metavar='assembler',
-		help='The type of the assembler for assembling orphans: sga/minia. (default:sga)'
+		help='The type of the assembler for assembling orphans: velvet/minia. (default:velvet)'
 	)
 	parser.add_argument('--max-contig','-c',
 		type=int,
@@ -365,7 +363,15 @@ def mrsfast_best_search(config):
 		a			 = f.readline()
 		a 			 = f.readline()
 		config.set("project","readlength", str(len(a.strip())))
-	cmd           = pipeline.mrsfast +' --search {0} --threads {1} -n 0 --best --disable-sam-header --disable-nohits --pe --seq {2} --min {3} --max {4} --seqcomp -o {5}'.format(index_file, threads, input_file, config.get("mrsfast","min"), config.get("mrsfast","max"), output_file )
+	cmd           = pipeline.mrsfast +' --search {0} --threads {1} -n 0 --best --disable-sam-header --disable-nohits --pe --seq {2} --seqcomp -o {3}'.format(index_file, threads, input_file, output_file )
+
+
+	if(config.get("mrsfast","min")!="-1"):
+		cmd+=" --min {0}".format(config.get("mrsfast","min"))
+	
+	if(config.get("mrsfast","max")!="-1"):
+		cmd+=" --max {0}".format(config.get("mrsfast","max"))
+	
 	if(config.get("mrsfast","errors")!="-1"):
 		cmd+=" -e {0}".format(config.get("mrsfast","errors"))
 
@@ -508,9 +514,6 @@ def orphan_assembly(config):
 					a+=1
 				fout.write(content+"\n")
 		fout.close()
-	elif(config.get("project","assembler")=="sga" and run_cmd):
-		cmd 		  = "python " + pipeline.sga + " {0}".format(input_file)
-		shell(msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
 	elif(config.get("project","assembler")=="minia" and run_cmd):
 		cmd 		  = "{0} -kmer-size 31 -abundance-min 3 -out {1}/orphan.fq_tmp -in {2}".format(pipeline.minia, workdir, input_file);
 		shell(msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
@@ -756,24 +759,7 @@ def partition(config ):
 	f.close()
 	cmd           =  'cat {0} | xargs -I CMD --max-procs=1 bash -c CMD'.format(fname)		
 	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg)
-#############################################################################################
-###### Insert orphan contigs into OEA clusters.
-def orphans_into_oeacluster(config):
-	msg			  = "Inserting relevant orphan contigs into oea cluster"
-	workdir		  = pipeline.workdir
-	orphan_ref    = "{0}/orphan.contigs.ref".format(workdir)
-	oea_to_orphan   = "{0}/all_oea2orphan.recal.sam".format(workdir)
-	partition_file   = "{0}/partitions".format(workdir)
-	upartition_file   = "{0}/partitions_updated".format(workdir)
-	control_file  = "{0}/log/22.insert_orphans_into_cluster.log".format(workdir)
-	complete_file = "{0}/stage/22.insert_orphans_into_cluster.finished".format(workdir)
-	clusterNumFile = "{0}/clusterNum".format(workdir);
-	freeze_arg    = ""
-	cmd           = pipeline.pprocessor + ' {0} {1} {2} {3} > {4}'.format(orphan_ref, oea_to_orphan, partition_file, upartition_file, clusterNumFile)
-	run_cmd       = not (os.path.isfile(complete_file) )
-	if ( run_cmd ):
-		clean_state( 21, workdir, config )
-	shell( msg, run_cmd, cmd, control_file, complete_file, freeze_arg )
+
 #############################################################################################
 ###### Print VCF header 
 def print_header(config):
@@ -928,7 +914,7 @@ def post_processing(config):
 	control_file  = "{0}/log/36.sort_setcover.log".format(workdir)
 	complete_file = "{0}/stage/36.sort_setcover.finished".format(workdir)
 	run_cmd		  = not (os.path.isfile(complete_file))
-	cmd			  = "perl " + pipeline.sortfile + " {0}/insertions.out_wodups_filtered_setcov_PASS".format(workdir)
+	cmd			  =   pipeline.sortfile + " {0}/insertions.out_wodups_filtered_setcov_PASS".format(workdir)
 	msg="Sort setcover output"
 	shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
 	###### VCF setcover output
@@ -946,14 +932,7 @@ def post_processing(config):
 		tmp = splittedline[7].split(";")
 		fout.write(splittedline[1]+"\t"+tmp[1].split("=")[1]+"\n")
 	fout.close()
-	###### Evaluate
-	control_file  = "{0}/log/38.evaluate.log".format(workdir)
-	complete_file = "{0}/stage/38.evaluate.finished".format(workdir)
-	run_cmd		  = not (os.path.isfile(complete_file))
-	cmd			  = "z_py/eva2.py z_py/bp_solution.txt {0}/insertions.out_wodups_filtered_setcov_PASS.sorted_loclen".format(workdir)
-	msg="Evaluating"
-	#shell(msg,run_cmd,cmd,control_file,complete_file,freeze_arg)
-		
+	
 #############################################################################################
 ###### Running commands for extracting clusters 
 def output_cluster(config, c_range ):
@@ -1060,7 +1039,7 @@ def run_command(config, force=False):
 	s14=time()
 	#print "recalibrate_all_oea_to_orphan: ",s14-s13
 	partition(config)
-	#orphans_into_oeacluster(config)
+
 	s15=time()
 	print_header(config)
 	s16=time()
@@ -1466,5 +1445,5 @@ def main():
 
 #############################################################################################
 if __name__ == "__main__":
-    sys.exit(main())
+	sys.exit(main())
 
