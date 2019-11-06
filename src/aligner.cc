@@ -116,7 +116,7 @@ void aligner::align(const string &ref, const string &ass)
 	int max = score[1][len];
 	int pi = 1;
 	int pj = len;
-	for (int i=1; i<=ref.length(); i++)
+	for (int i=2; i<=ref.length(); i++)
 	{
 		if (score[i][len] > max)
 		{
@@ -150,12 +150,12 @@ void aligner::align(const string &ref, const string &ass)
 			b += ass[pj-1];
 			c += ((tmp>0)?'|':' ');
 
-			if (gapa[pi-1][pj-1] + tmp == score[pi][pj]) 
+			if (gapa[pi-1][pj-1] + tmp  == score[pi][pj]) 
 			{
 				indel++;
 				cur = 1;
 			}
-			else if (gapb[pi-1][pj-1] + tmp == score[pi][pj]) 
+			else if (gapb[pi-1][pj-1] + tmp  == score[pi][pj]) 
 			{
 				indel++;
 				cur = 2;
@@ -264,6 +264,7 @@ int aligner::extract_calls( const int &cluster_id, vector<tuple<string, int, int
 	//if( fwdIden > 1.0 && ( left_anchor > 5 && right_anchor > 5 ) && ( left_anchor > 16 || right_anchor > 16 ) )
 	if( fwdIden > 1.0 && ( left_anchor > 50 || right_anchor > 50 )  )
 	{
+//		fwdS = p_start;
 		fwdS = ref_start + p_start;
 		fwdAS 					= 0;
 		fwdAE 					= a.length()-1;
@@ -284,8 +285,9 @@ int aligner::extract_calls( const int &cluster_id, vector<tuple<string, int, int
 					if( b[p] == '-' )
 					{
 						deletion_start_loc = p;
-						break;
-						del_len = 1;
+
+                        del_len = 1;
+                        break;
 					}
 				}
 				for( ; p < b.length(); p++ )
@@ -324,8 +326,10 @@ int aligner::extract_calls( const int &cluster_id, vector<tuple<string, int, int
 					if( a[p] == '-' )
 					{
 						insertion_start_loc = p;
-						break;
-						ins_len = 1;
+					
+
+                        ins_len = 1;
+                        break;
 					}
 				}
 				for( ; p < a.length(); p++ )
@@ -341,8 +345,9 @@ int aligner::extract_calls( const int &cluster_id, vector<tuple<string, int, int
 				if( ins_len >= 5 && insertion_start_loc != -1 && insertion_start_loc + 1 != insertion_end_loc )
 				{
 					insertion_content   = b.substr(insertion_start_loc,insertion_end_loc-insertion_start_loc);
-					insertion_start_loc = insertion_start_loc+fwdS;
-					insertion_start_loc = insertion_start_loc-prevLen;
+					insertion_start_loc = insertion_start_loc+fwdS - 1;
+
+                    insertion_start_loc = insertion_start_loc-prevLen;
 					//if( insertion_content.length() > 0 )
 					if( insertion_content.length() > 0 && ( left_anchor > 5 && right_anchor > 5 ) && ( left_anchor > 16 || right_anchor > 16 ) )
 					{
@@ -350,12 +355,12 @@ int aligner::extract_calls( const int &cluster_id, vector<tuple<string, int, int
 						reports.push_back(tuple<string, int, int, string, int, float>("INS", insertion_start_loc, insertion_content.length(), insertion_content, contig_support, fwdIden ) );
 						mapped = 1;
 					}
-					else if (insertion_content.length()>0 && (left_anchor >= 30 || right_anchor >= 30))
+					else if (insertion_content.length()>0 && (left_anchor >= 16 || right_anchor >= 16))
 					{
 						reports_lq.push_back(tuple<string, int, int, string, int, float>("INS", insertion_start_loc, insertion_content.length(), insertion_content, contig_support, fwdIden ) );
 					}
 				}
-				prevLen = ins_len;
+				prevLen += ins_len;
 				p++;
 			}
 		}

@@ -5,6 +5,7 @@
 #include<cassert>
 #include "assembler.h"
 
+
 using namespace std;
 
 inline char DNA(char c) {

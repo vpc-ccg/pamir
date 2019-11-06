@@ -13,7 +13,7 @@ int buffer_size;
 
 void log_init(string name = "")
 {
-	buffer = new char[5*1024*1024];
+	buffer = new char[20*1024*1024];
 	buffer[0] = '\0';
 	buffer_size = 0;
 	if (name != "")

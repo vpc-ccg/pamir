@@ -308,6 +308,25 @@ void append_vcf(const string &chrName, const string &reference, const vector< tu
 {
 	for(int r=0;r<reports.size();r++)
 	{
+    	if(get<0>(reports[r])== "INS")
+		{
+			vcf_str += 	chrName;	vcf_str += 	"\t";
+			vcf_str +=	std::to_string(get<1>(reports[r]));	vcf_str += "\t.\t";
+			vcf_str +=  reference.at(r);
+			vcf_str +=  "\t";
+            vcf_str += reference.at(r);
+            vcf_str += get<3>(reports[r]);
+            vcf_str +=  "\t";
+			vcf_str +=  std::to_string( get<5>(reports[r]));
+			vcf_str +=  "\tPASS\t";
+//			vcf_str +=  std::to_string( get<2>(reports[r])) ;
+//			vcf_str += 	";END=";	vcf_str +=	std::to_string( get<1>(reports[r]) + get<2>(reports[r])-1 );
+			vcf_str += "Cluster=";	vcf_str +=	std::to_string( clusterId ) ;
+			vcf_str += ";Support=";	vcf_str	+=	std::to_string( get<4>(reports[r])) ;
+//			vcf_str += ";SEQ=";		vcf_str	+=	get<3>(reports[r]);
+			vcf_str += "\n";
+		}
+/*
 		if(get<0>(reports[r])== "INS")
 		{
 			vcf_str += 	chrName;	vcf_str += 	"\t";
@@ -323,7 +342,7 @@ void append_vcf(const string &chrName, const string &reference, const vector< tu
 			vcf_str += ";SEQ=";		vcf_str	+=	get<3>(reports[r]);
 			vcf_str += "\n";
 		}
-	/*	if(get<0>(reports[r])== "DEL")
+    	if(get<0>(reports[r])== "DEL")
 		{
 			vcf_str_del += 	chrName;	vcf_str_del += 	"\t";
 			vcf_str_del +=	std::to_string(get<1>(reports[r]));	vcf_str_del += "\t.\t";
@@ -393,16 +412,19 @@ void print_header(const string &header_file, const string &reference)
 	fclose(fo);
 }
 /****************************************************************/
-void assemble (const string &partition_file, const string &reference, const string &range, const string &out_vcf, int max_len, int read_length, const string &prefix)
+void assemble (const string &partition_file, const string &reference, const string &range, const string &name, int max_len, int read_length, const string &prefix)
 {
 	const double MAX_AT_GC 		= 0.7;
 	const int MAX_REF_LEN		= 300000000;
 	int LENFLAG					= 1000;//500;//1000;
 	char *line 					= new char[MAX_CHAR];
+    string out_vcf = prefix + "/" + name + ".vcf";
 	FILE *fo_vcf 				= fopen(out_vcf.c_str(), "w");
-	string out_vcf_del = out_vcf.substr(0,out_vcf.rfind("."))+string("_DELS")+out_vcf.substr(out_vcf.rfind("x")+1,out_vcf.length());
-	string out_vcf_lq = out_vcf.substr(0,out_vcf.rfind("."))+string("_LOWQUAL")+out_vcf.substr(out_vcf.rfind("x")+1,out_vcf.length());
-	FILE *fo_vcf_del 			= fopen(out_vcf_del.c_str(), "w");
+//	string out_vcf_del = out_vcf.substr(0,out_vcf.rfind("."))+string("_DELS")+out_vcf.substr(out_vcf.rfind("x")+1,out_vcf.length());
+//	string out_vcf_lq = out_vcf.substr(0,out_vcf.rfind("."))+string("_LOWQUAL")+out_vcf.substr(out_vcf.rfind("x")+1,out_vcf.length());
+    string out_vcf_del = prefix + "/" + name + "_DELS.vcf";
+    string out_vcf_lq = prefix  + "/" + name + "_LOW_QUAL.vcf";
+    FILE *fo_vcf_del 			= fopen(out_vcf_del.c_str(), "w");
 	FILE *fo_vcf_lq 			= fopen(out_vcf_lq.c_str(), "w");
 	
 	assembler as(max_len, 15);
@@ -482,7 +504,7 @@ void assemble (const string &partition_file, const string &reference, const stri
 		tmp_ref.clear();//string tmp_ref = ""; 
 		for (int j =0; j <reports.size();j++)
 		{
-			int tmp_end = get<1>(reports[j])+1;
+			int tmp_end = get<1>(reports[j]);
 			tmp_ref += ref.getchar(chrName, tmp_end);
 			//tmp_ref += ref.extract(chrName, tmp_end, tmp_end);
 		}
@@ -490,7 +512,7 @@ void assemble (const string &partition_file, const string &reference, const stri
 		tmp_ref_lq.clear();//string tmp_ref = ""; 
 		for (int j =0; j <reports_lq.size();j++)
 		{
-			int tmp_end = get<1>(reports_lq[j])+1;
+			int tmp_end = get<1>(reports_lq[j]);
 			tmp_ref_lq += ref.getchar(chrName, tmp_end);
 		}
 		append_vcf( chrName, tmp_ref, reports, pt.get_cluster_id(), vcf_info, vcf_info_del);
@@ -557,6 +579,10 @@ int main(int argc, char **argv)
 			if (argc != 8) throw "Usage:\tpamir remove_concordant [sam-file] [output] outputtype oea? orphan? matched_ratio";
 			extractor ext(argv[2], argv[3], atoi(argv[4]), atoi(argv[5]), atoi(argv[6]), stod(argv[7]));
 		}
+		else if (mode == "getfastq") {
+			if(argc != 4) throw "Usage:\tpamir getfastq  [sam-file/bam-file] [output]";
+			extractor ext(argv[2], argv[3] );//, atoi(argv[4]), atoi(argv[5]), atoi(argv[6]), stod(argv[7]));
+		}
 		else if (mode == "mask" || mode == "maski") {
 			if (argc != 6) throw "Usage:\tpamir mask/maski [repeat-file] [reference] [output] [padding]";
 			mask(argv[2], argv[3], argv[4], atoi(argv[5]), mode == "maski");
@@ -567,8 +593,14 @@ int main(int argc, char **argv)
 		}
 		else if (mode == "partition") {
 			if ( 6 == argc )
-			{
-				partify(argv[2], argv[3], atoi(argv[4]), argv[5]);
+            {
+
+				log_path = argv[5]; log_path += "_partitionprocessor.log";
+
+				log_init( log_path );
+                partify(argv[2], argv[3], atoi(argv[4]), argv[5]);
+
+
 			}
 			else if ( 8 == argc)
 			{

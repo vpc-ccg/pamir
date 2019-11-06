@@ -57,7 +57,11 @@ string genome::extract(const string &rname, int &start, int &end)
 		
 	}
 	start = max22(start, 1);
-	end = max22(end, 1);
+    if(end <= 0){
+        std::cerr << "STH is wrong!\n Reference end cannot be less than 1" << std::endl;
+        exit(-1);
+    }
+//	end = max22(end, 1);
 	end = min2(end, (int)reference.size());
 	return reference.substr(start-1, end-start+1);
 }

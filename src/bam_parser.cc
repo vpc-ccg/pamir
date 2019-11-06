@@ -14,9 +14,9 @@ BAMParser::BAMParser (const string &filename):
 
 
 	fd = fopen(filename.c_str(), "rb");
-	fseek(fd, 0L, SEEK_END);
-	file_size = ftell(fd);
-	fseek(fd, 0L, SEEK_SET);
+	//fseek(fd, 0L, SEEK_END);
+	//file_size = ftell(fd);
+	//fseek(fd, 0L, SEEK_SET);
 
 	input = gzdopen(fileno(fd), "rb");
 	if (input == Z_NULL)	

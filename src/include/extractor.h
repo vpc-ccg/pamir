@@ -10,6 +10,7 @@ public:
 	extractor(string, string, int, int, int);
 	extractor(string, string, double ); 
 	extractor(string, string, int, int, int, double);
+	extractor(string, string ); 
 	~extractor();
 
 };
