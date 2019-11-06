@@ -211,4 +211,4 @@ $./pamir.py -p my_project  -r ref.fa --files mrsfast-best-search=sample.sam fast
 
 ## Contact & Support
 
-Feel free to drop any inquiry to [pinarkavak at gmail dot com]()    .
+Feel free to drop any inquiry at the [issue page](https://github.com/vpc-ccg/pamir/issues)    .
