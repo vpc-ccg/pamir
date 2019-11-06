@@ -67,6 +67,7 @@ Pamir is designed to detect novel sequence insertions based on one-end anchors (
 13. threads: number of threads to use for alignment jobs
 14. input: a list of input files per individual like following, where files should be in the (path)/(raw-data)/. This version of pamir accepts BAM and CRAM files as input.
 
+```
 input:
   "A":
    - A.cram
@@ -74,7 +75,7 @@ input:
    - B.cram
   "C":
    - C.cram
-
+```
 
 Pamir can be run with the following commands, this version of pamir requires 2 steps to be run in order. Where first command create the partition files, and second command genotypes the insertions.
 ```
