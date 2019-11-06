@@ -130,7 +130,7 @@ Pamir uses mrsFAST for multi-mapping the orphan and OEA reads obtained from the 
 Pamir generates a [VCF file](https://samtools.github.io/hts-specs/VCFv4.2.pdf) for detected novel sequence insertions. You can run genotyping for each sample after obtaining the VCF file by:
 
 ``` 
-python genotyping.py projectFolder/insertions.out_wodups_filtered_setcov_PASS.sorted reference.fa.masked sample1_FASTQ_1.fq sample1_FASTQ_2.fq [readlength] [SAMPLENAME] [mrsfast-min] [mrsfast-max] [projectFolder] [TEMPLATE_LEN]
+python scripts/genotyping.py projectFolder/insertions.out_wodups_filtered_setcov_PASS.sorted reference.fa.masked sample1_FASTQ_1.fq sample1_FASTQ_2.fq [readlength] [SAMPLENAME] [mrsfast-min] [mrsfast-max] [projectFolder] [TEMPLATE_LEN]
 ```
 
 The default template length is set to be 1000.
