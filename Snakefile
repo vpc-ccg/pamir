@@ -110,7 +110,7 @@ rule move_bams:
 
 rule move_vcf:
     input:
-        config["analysis"]+"/vis/{sample}/new_geno.vcf" 
+        config["analysis"]+"/vis/{sample}/final.vcf" 
     output:
         config["results"]+"/ind/{sample}/events.vcf" 
     shell:
@@ -146,7 +146,7 @@ rule move_fai:
 
 rule make_data_js:
     input:
-        expand(config["analysis"]+"/vis/{sample}/new_geno.vcf",sample=config["input"].keys()),
+        expand(config["analysis"]+"/vis/{sample}/final.vcf",sample=config["input"].keys()),
     output:
         config["results"]+"/data.js"
     run:
@@ -235,7 +235,7 @@ rule all_vis_table:
                 print( "{}\t{}".format(cnt,"\t".join(details)), file=hand)
 
 
-
+"""
 rule copy_vcf_to_results:
     input:
         bam=config["analysis"]+"/vis/{sample}/final.bam",
@@ -246,6 +246,7 @@ rule copy_vcf_to_results:
         "cp {input.vcf} {output}"
 
 #            print("\n".join(xml_lines),file=out_hand)
+"""
 rule get_final_bam:
     input:
         bam=config["analysis"]+"/vis/bams/{sample}.bam",
@@ -289,12 +290,12 @@ rule fetch_concordants_for_vis:
     input:
         cram=get_cram_name,
         cram_index=get_cram_index,
-        vcf=config["analysis"]+"/pamir/genotyping/{sample}/insertions.named.no_centro.vcf",
-        #vcf=config["analysis"]+"/pamir/genotyping/{sample}/insertions.named.vcf",
+        #vcf=config["analysis"]+"/pamir/genotyping/{sample}/insertions.named.no_centro.vcf",
+        vcf=config["analysis"]+"/pamir/annotation/{sample}/annotated.named.no_centro.vcf",
         fasta=config["analysis"]+"/vis/events_ref.fa",
     output:
         sam=config["analysis"]+"/vis/bams/{sample}.sam",
-        vcf=config["analysis"]+"/vis/{sample}/new_geno.vcf",
+        vcf=config["analysis"]+"/vis/{sample}/final.vcf",
         head=config["analysis"]+"/vis/bams/{sample}.header",
     params:
         ref=config["reference"],
@@ -305,6 +306,8 @@ rule fetch_concordants_for_vis:
     threads:
         config["other_threads"]
     run:
+        genotype_dic = { 0 : "0/0", 1 : "1/0", 2 : "1/1"}
+
         cmd="samtools view -H {} > {}".format(input.cram,output.head)
         process = subprocess.Popen(cmd,shell=True);
         process.communicate()
@@ -366,12 +369,35 @@ rule fetch_concordants_for_vis:
                         print(l,file=samhand)
                     print("\t".join(v[:8]),end=";",file=vcfhand)
                     #print(samlines[0])
-                    left,right,ref = samlines[0].split("\t")
-                    print("NGLeft={}".format(left),end=";",file=vcfhand)
-                    print("NGRight={}".format(right),end=";",file=vcfhand)
-                    print("NGRef={}".format(ref),end="\t",file=vcfhand)
-                    print("\t".join(v[8:]),file=vcfhand)#,end="\t")
-                    #print("GT\t{}".format(genotype),file=vcfhand)
+                    left,right,ref = [int(x) for x in samlines[0].split("\t")]
+                    
+                    if ref + left == 0:
+                        left_ratio  = -1
+                    else:
+                        left_ratio  = (left  - ref) / (left  + ref)
+                    if ref  + right == 0:
+                        right_ratio = -1
+                    else:
+                        right_ratio = (right - ref) / (right + ref)
+
+                    lg = []
+                    for ratio in [left_ratio, right_ratio]:
+                        if left_ratio >= 0.3:
+                            lg.append(2)
+                        elif left_ratio <= -0.3:
+                            lg.append(0)
+                        else:
+                            lg.append(1)
+                    
+                    genotype = genotype_dic[min(lg)]
+ 
+                    print("GLeft={}".format(left),end=";",file=vcfhand)
+                    print("GRight={}".format(right),end=";",file=vcfhand)
+                    print("GRef={}".format(ref),end="\t",file=vcfhand)
+                    print("GLRatio={}".format(left_ratio),end="\t",file=vcfhand)
+                    print("GRRatio={}".format(left_ratio),end="\t",file=vcfhand)
+                    print("\t".join(v[8:]),file=vcfhand,end="\t")
+                    print("GT\t{}".format(genotype),file=vcfhand)
                     #stdout = stdout.decode('utf-8').splitlines()
                    
                 #mycmd = cmd + " {}:{}-{}".format(fields[0],start,end)
@@ -451,7 +477,7 @@ rule merge_fastas:
    
 rule make_vis_fasta:
     input:
-        vcf=config["analysis"]+"/pamir/genotyping/{sample}/insertions.named.no_centro.vcf",
+        vcf=config["analysis"]+"/pamir/annotation/{sample}/annotated.named.no_centro.vcf",
     output:
         fasta=temp(config["analysis"]+"/vis/{sample}/events_ref.fa"),
         bed  =config["analysis"]+"/vis/{sample}/events_ins_pos.bed",
@@ -472,8 +498,8 @@ rule make_vis_fasta:
                 fields = line.rstrip().split("\t")
                 if fields[6] != "PASS":
                     continue
-                if fields[9] == "0/0":
-                    continue
+ #               if fields[9] == "0/0":
+ #                   continue
                 ins_id = fields[2]
                 ch = fields[0]
                 pos = int(fields[1])
@@ -498,7 +524,8 @@ rule make_vis_fasta:
                 seq = seq[:mid] + ins + seq[mid:]
                 print(">{}\n{}".format(ins_id,seq.rstrip()),file=fast_hand)
                 print("{}\t{}\t{}\t{}".format(ins_id,mid,mid+len(ins),fields[7]),file=bed_hand)
-                    
+
+"""          
 rule merge_relevant_bams:
     input:
         expand(config["analysis"]+"/pamir/genotyping/{sample}/relevant.bam",sample=[x[0][0:x[0].find(".")] for x in config["input"].values()]) 
@@ -529,6 +556,7 @@ rule get_relevant_bed:
     shell:
        "cat {input.table} | cut -f 2 | tr '-' '\t' | cut -f 1,2 | sort | uniq |awk 'BEGIN{{OFS=\"\t\";}}{{myval=0;if(myval<$2-1000){{myval=$2-1000;}}print $1,myval,$2+1000;}}' | grep -v 'HLA' > {output}"
 
+
 rule all_genotyped_table:
     input:
         expand(config["analysis"]+"/pamir/genotyping/{sample}/insertions.named.no_centro.vcf",sample=[x[0][0:x[0].find(".")] for x in config["input"].values()]) 
@@ -557,15 +585,7 @@ rule all_genotyped_table:
                 cnt = float(len(patients))
                 print( "{}\t{}".format(cnt/total_count,"\t".join(details)), file=hand)
 
-
-
-rule all_genotyped_named_vcf:
-    input:
-        expand(config["analysis"]+"/pamir/genotyping/{sample}/insertions.named.no_centro.vcf",sample=[x[0][0:x[0].find(".")] for x in config["input"].values()]) 
-    output:
-        config["analysis"]+"/pamir/genotyping/named-done"
-    shell:
-        "touch {output}"
+"""
 
 rule all_filtered_vcf:
     input:
@@ -581,7 +601,7 @@ rule remove_centromeres_from_vcf:
     output:
         "{sample}.no_centro.vcf",
     params:
-        centromeres="/groups/hachgrp/annotations/GTF/centrosome.hg38.bed",
+        centromeres=config["centromeres"],
     shell:
         "bedtools intersect -a {input} -b <(cat {params.centromeres} | sed 's/chr//') -v -header > {output}"
 
@@ -602,6 +622,7 @@ rule rename_events:
                 fields[2] = "-".join([fields[0],fields[1],ho.hexdigest()])
                 print( "\t".join(fields), file=ohand)
                 
+'''
 rule genotype_please:
     input:
         vcf=config["analysis"]+"/pamir/annotation/{sample}/annotated.vcf", 
@@ -626,7 +647,7 @@ rule genotype_please:
         "python scripts/genotyping.py {input.vcf} {params.ref} {input.mate1}   {input.mate2} {wildcards.sample} {params.min_tlen} {params.max_tlen} {params.wd}/{wildcards.sample} {params.tlen} {threads} {params.read_len} {params.MRSFAST} {params.RECALIBRATE} && cat {input.header} {params.wd}/{wildcards.sample}/insertions_genotype_{wildcards.sample}.vcf.nohead > {output}" 
 
 
-'''
+
 rule samtools_get_fastq_mates:
     input:
         cram=config["path"]+config["raw-data"]+"/{sample}.final.cram"
@@ -642,10 +663,11 @@ rule filter_by_setcover:
     input:
         smooth=config["analysis"]+"/pamir/annotation/{sample}/smooth",
         fvcf=config["analysis"]+"/pamir/annotation/{sample}/filtered.vcf",
+        header=config["analysis"]+"/pamir/header.vcf",
     output:
         config["analysis"]+"/pamir/annotation/{sample}/annotated.vcf",
     shell:
-        "python scripts/filter_by_setcover.py {input.smooth} {input.fvcf} {output}"
+        "python scripts/filter_by_setcover.py {input.smooth} {input.fvcf} /dev/stdout | cat {input.header} /dev/stdin > {output}"
 
 rule smoother:
     input:
@@ -711,12 +733,11 @@ rule generate_vcf_header:
                         "##INFO=<ID=FLSUP,Number=1,Type=Integer,Description=\"Number of left supporting reads in filtering\">\n",
                         "##INFO=<ID=FLRSUP,Number=1,Type=Integer,Description=\"Number of right supporting reads in filtering\">\n",
                         "##INFO=<ID=FSUP,Number=1,Type=Integer,Description=\"Number of total supporting reads in filtering\">\n",       
-                        "##INFO=<ID=GRSUP,Number=1,Type=Float,Description=\"Number of reads passing through the breakpoint on template REF sequence\">\n",
-                        "##INFO=<ID=GISUP,Number=1,Type=Float,Description=\"Number of reads passing through the breakpoint on template INS sequence ((leftbreakpoint+rightbreakpoint)/2)\">\n",
-                        "##INFO=<ID=GRATIO,Number=1,Type=Float,Description=\"Ratio between GISUP and GRSUP (GISUP-GRSUP)/(GISUP+GRSUP)\">\n",
-                        "##INFO=<ID=NGLeft,Number=1,Type=Float,Description=\"Number of reads passing through the left breakpoint on template INS sequence\">\n",
-                        "##INFO=<ID=NGRight,Number=1,Type=Float,Description=\"Number of reads passing through the right breakpoint on template INS sequence)\">\n",
-                        "##INFO=<ID=NGRef,Number=1,Type=Float,Description=\"Number of reads passing through the breakpoint on template REF sequence)\">\n",
+                        "##INFO=<ID=GLeft,Number=1,Type=Float,Description=\"Number of reads passing through the left breakpoint on template INS sequence\">\n",
+                        "##INFO=<ID=GRight,Number=1,Type=Float,Description=\"Number of reads passing through the right breakpoint on template INS sequence)\">\n",
+                        "##INFO=<ID=GRef,Number=1,Type=Float,Description=\"Number of reads passing through the breakpoint on template REF sequence)\">\n",
+                        "##INFO=<ID=GRRatio,Number=1,Type=Float,Description=\"Ratio between GRight and GRef\">\n",
+                        "##INFO=<ID=GLRatio,Number=1,Type=Float,Description=\"Ratio between GLeft and GRef \">\n",
                         "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">\n",
                         "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tGENOTYPE\n"])
         with open(output[0],'w') as hand:
@@ -790,7 +811,6 @@ elif config["assembler"] == "spades":
         shell:
             "spades.py -m {params.max_memory} -t {threads} {params.formatted_input} -o {params.dr} && cat {params.dr}/contigs.fasta | tr  '\\n' '\\t' | sed 's/>/\\n>/g' | sed 's/\\t/\\n/' | tr -d '\\t' | awk 'NR>1' > {params.dr}/tmp.fa && mv {params.dr}/tmp.fa {output}"
 elif config["assembler"] == "abyss":
- #abyss-pe k=48 name=test2 in='/groups//hachgrp/projects/col-calkan-1000g/analysis/sim/rem-cor/*/*.orphan.fq
      rule abyss_all:
         input:
             expand(config["analysis"]+"/rem-cor/{sample}/{sample}.orphan.canonical.fq "+ config["analysis"]+"/rem-cor/{sample}/{sample}.orphan.almost.fq",sample=[x[0][0:x[0].find(".")] for x in config["input"].values()]),
@@ -1094,13 +1114,9 @@ rule velvet_all:
     shell:
         "module load velvet/1.2.10  && export NUM_OMP_THREADS {threads} && cd {params.dr}  && {params.velveth} . 31 -fastq <(cat {input}) && {params.velvetg} . -min_contig_lgth 400 -cov_cutoff 2; module unload velvet"
 
-
-
-
 rule get_all_reads_from_cram:
     input:
         get_cram_name
-#        config["path"]+config["raw-data"]+"/{sample}.final.cram"
     output:
         m1=config["analysis"]+"/fastqs/{sample}/{sample}.mate1.gz",
         m2=config["analysis"]+"/fastqs/{sample}/{sample}.mate2.gz",        
@@ -1108,12 +1124,11 @@ rule get_all_reads_from_cram:
         ref=config["reference"],
         wd=config["analysis"]+"/rem-cor/{sample}"
     shell:
-        "cd {params.wd} && /groups/hachgrp/projects/col-calkan-1000g/code/pamir_getfastq getfastq <(samtools view -T {params.ref} {input}) {wildcards.sample} && mv {wildcards.sample}_1.fastq.gz {output.m1} && mv {wildcards.sample}_2.fastq.gz {output.m2}"
+        "cd {params.wd} && ./pamir getfastq <(samtools view -T {params.ref} {input}) {wildcards.sample} && mv {wildcards.sample}_1.fastq.gz {output.m1} && mv {wildcards.sample}_2.fastq.gz {output.m2}"
 
 rule cram_split:
     input:
         get_cram_name
-        #config["path"]+config["raw-data"]+"/{sample}.final.cram"
     output:
         orphan_can=config["analysis"]+"/rem-cor/{sample}/{sample}.orphan.canonical.fq",
         orphan_ex=config["analysis"]+"/rem-cor/{sample}/{sample}.orphan.almost.fq",
@@ -1130,18 +1145,3 @@ rule cram_split:
         1
     shell:
         "CRPW=$(pwd) && cd {params.analysis}/{wildcards.sample} && samtools view {input} -T {params.REF} | $CRPW/{params.PAMIR} remove_concordant /dev/stdin {wildcards.sample} {params.pamir_params}"
-
-
-#Generate stats for the pam
-rule cram_split_stats:
-    input:
-        orphan=rules.cram_split.output.orphan_can,
-        oea_ma=rules.cram_split.output.oea_mapped,
-        oea_un=rules.cram_split.output.oea_unmapp,
-    output:
-        config["analysis"]+"/rem-cor/{sample}/stats.txt"
-    params:
-        folder=config["analysis"]+"/rem-cor/{sample}/"
-    shell:
-        "cd {params.folder} &&  cat  <(echo '') <(echo {wildcards.sample}) <(cat {input.orphan}| wc -l | awk '{{print $1/8;}}'  ) <(cat {input.oea_ma}| wc -l | awk '{{print $1/4;}}') | tr '\n' '|' >> {output} && cd - "
-

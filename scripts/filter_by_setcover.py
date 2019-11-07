@@ -21,7 +21,7 @@ def main():
     dictvcf = dict()
     for line in vcffile:
         if line[0] == "#":
-            continue
+            fout.write(line)
         spline = line.split()
 
         key = spline[0]+"-"+spline[1]
