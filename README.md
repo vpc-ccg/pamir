@@ -6,8 +6,9 @@ Pamir detects and genotypes novel sequence insertions in single or multiple data
 # Table of contents
 1. [Installation](#installation)
 2. [Output Formats](#output-formats)
+3. [Project Configuration](#project-configuration)
 4. [Publications](#publications)
-5. [Contact & Support](#contact)
+5. [Contact & Support](#contact-and-support)
 
 ## Installation
 Source code of Pamir can be downloaded from [GitHub](https://github.com/vpc-ccg/pamir). To begin with, you will need to set up several external tools as described below.
@@ -66,6 +67,7 @@ Pamir is designed to detect novel sequence insertions based on one-end anchors (
 13. threads: number of threads to use for alignment jobs
 14. input: a list of input files per individual like following, where files should be in the (path)/(raw-data)/. This version of pamir accepts BAM and CRAM files as input.
 
+```
 input:
   "A":
    - A.cram
@@ -73,13 +75,22 @@ input:
    - B.cram
   "C":
    - C.cram
-
+```
 
 Pamir can be run with the following commands, this version of pamir requires 2 steps to be run in order. Where first command create the partition files, and second command genotypes the insertions.
 ```
 pamir.sh  --configfile /path/to/config.yaml   [path]/[analysis-base]/[population]/pamir/partition/done
 pamir.sh  --configfile /path/to/config.yaml
 ```
+
+You can pass any snakemake parameter to pamir.sh.
+```
+-j [number of threads]
+-np [Dry Run]
+--forceall [rerun all steps regardless of the current stage]
+etc.
+```
+
 
 #### Read Length
 Now Pamir only accepts WGS datasets in which two mates of all reads are of **equal length**.
@@ -89,9 +100,10 @@ Now Pamir only accepts WGS datasets in which two mates of all reads are of **equ
 Pamir generates a [VCF file](https://samtools.github.io/hts-specs/VCFv4.2.pdf) for detected novel sequence insertions. You can run genotyping for each sample after obtaining the VCF file by:
 
 Results will be in the following structure
-[results-base] -> [population] |-> ind  ------>|->A ----|->events.bam
-                               |-> events.ref  |->B ..  |->events.vcf
-                                               |->C ..  |->events.bed
+
+    [results-base] -> [population] |-> ind  ------>|->A ----|->events.bam
+                                   |-> events.ref  |->B ..  |->events.vcf                         
+                                                   |->C ..  |->events.bed
 
 events.vcf contains genotyped insertions calls.
 events.fa  is the reference build from called insertions + flanking regions from the genome
@@ -101,7 +113,7 @@ events.bed is the bed file showing the insertion positions on events.fa
 ## Publications
 **Discovery and genotyping of novel sequence insertions in many sequenced individuals.** P. Kavak*, Y-Y. Lin*, I. Numanagić, H. Asghari, T. Güngör, C. Alkan‡, F. Hach‡. [***Bioinformatics*** (ISMB-ECCB 2017 issue), 33 (14): i161-i169, 2017.](https://doi.org/10.1093/bioinformatics/btx254)
 
-## Contact & Support
+## Contact and Support
 
 Feel free to drop any inquiry at the [issue page](https://github.com/vpc-ccg/pamir/issues)    .
 
