@@ -83,6 +83,15 @@ pamir.sh  --configfile /path/to/config.yaml   [path]/[analysis-base]/[population
 pamir.sh  --configfile /path/to/config.yaml
 ```
 
+You can pass any snakemake parameter to pamir.sh.
+```
+-j [number of threads]
+-np [Dry Run]
+--forceall [rerun all steps regardless of the current stage]
+etc.
+```
+
+
 #### Read Length
 Now Pamir only accepts WGS datasets in which two mates of all reads are of **equal length**.
 
