@@ -39,7 +39,11 @@ if [ -z $FAILED ]; then
 
 fi
 
-
 if [ -z $FAILED ]; then 
-    snakemake -s "${SCRIPT_PATH}/Snakefile" -d ${SCRIPT_PATH}  "$@";
+    if [[ "$@" == *"cluster-config"* ]]; then
+        mkdir -p ~/.slurm-logs
+        snakemake -s "${SCRIPT_PATH}/Snakefile" -d ${SCRIPT_PATH}  "$@" --cluster "sbatch -J {cluster.name} -p {cluster.part} -c {cluster.c} --mem {cluster.mem}  -t {cluster.time} --output '$HOME/.slurm-logs/%j.out' --error '$HOME/.slurm-logs/%j.err'";
+    else
+        snakemake -s "${SCRIPT_PATH}/Snakefile" -d ${SCRIPT_PATH}  "$@";
+    fi
 fi
