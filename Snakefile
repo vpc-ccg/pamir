@@ -256,7 +256,8 @@ rule get_final_bam:
     threads:
         config["other_threads"]
     shell:
-        "samtools merge {output} {input.bam} {input.orphan_bam} -c -@ {threads} && samtools index {output}"
+        "samtools merge {output} {input.bam} {input.orphan_bam} -c -@ {threads} && samtools index -@ {threads} {output}"
+
 rule convert_vis_sam_to_bam:
     input:
         sam=config["analysis"]+"/vis/bams/{sample}.sam",
@@ -264,9 +265,9 @@ rule convert_vis_sam_to_bam:
     output:
         config["analysis"]+"/vis/bams/{sample}.bam",
     threads:
-        32
+        16
     shell:
-        "cat {input.header} {input.sam} | samtools sort -m16G -@ {threads} > {output}"
+        "cat {input.header} {input.sam} | samtools sort -m6G -@ {threads} > {output}"
         
 rule make_rg_lines_for_header:
     output:
@@ -439,7 +440,7 @@ rule convert_orphans_to_bam:
     output:
         bam=temp(config["analysis"]+"/vis/{sample}/orphans.bam"),
     threads:
-        config["other_threads"]
+        16
     shell:
         "cat <(samtools view -H {input.sam}) {input.rgs} <(samtools view {input.sam}) | samtools view -Shb | samtools sort -m4G -@ {threads} -o {output.bam}"
 rule map_orphans_to_vis_fasta:
@@ -450,9 +451,7 @@ rule map_orphans_to_vis_fasta:
     output: 
         sam=temp(config["analysis"]+"/vis/{sample}/orphans.sam"),
     threads:
-        48
-#    params:
-#        rgs="\"@RG\\tID:3\\tLB:3\""
+        config["align_threads"]
     shell:
         "bwa mem -t {threads} {input.fasta} {input.fastq} -p | ./util/process orphan > {output}"
 
