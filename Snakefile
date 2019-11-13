@@ -18,9 +18,15 @@ if "assembler_k" not in config:
     config["assembler_k"] = 64
 if "read_length" not in config:
     config["read_length"] = 100
+if "min_contig_len" not in config:
+    config["min_contig_len"] = config["read_length"]
 
-
-
+if "assembly_threads" not in config:
+    config["assembly_threads"] = 64
+if "aligner_threads" not in config:
+    config["assembly_threads"] = 16
+if "other_threads" not in config:
+    config["assembly_threads"] = 16
 
 def get_cram_name(wildcards):
     cram_name = config["input"][wildcards.sample][0]
@@ -394,9 +400,10 @@ rule fetch_concordants_for_vis:
  
                     print("GLeft={}".format(left),end=";",file=vcfhand)
                     print("GRight={}".format(right),end=";",file=vcfhand)
-                    print("GRef={}".format(ref),end="\t",file=vcfhand)
-                    print("GLRatio={}".format(left_ratio),end="\t",file=vcfhand)
-                    print("GRRatio={}".format(left_ratio),end="\t",file=vcfhand)
+                    print("GRef={}".format(ref),end=";",file=vcfhand)
+                    print("GLRatio={}".format(left_ratio),end=";",file=vcfhand)
+                    print("GRRatio={}".format(left_ratio),end=";",file=vcfhand)
+                    print("Sample={}".format(wildcards.sample),end="\t",file=vcfhand)
                     print("\t".join(v[8:]),file=vcfhand,end="\t")
                     print("GT\t{}".format(genotype),file=vcfhand)
                     #stdout = stdout.decode('utf-8').splitlines()
@@ -662,11 +669,11 @@ rule filter_by_setcover:
     input:
         smooth=config["analysis"]+"/pamir/annotation/{sample}/smooth",
         fvcf=config["analysis"]+"/pamir/annotation/{sample}/filtered.vcf",
-        header=config["analysis"]+"/pamir/header.vcf",
+        #header=config["analysis"]+"/pamir/header.vcf",
     output:
         config["analysis"]+"/pamir/annotation/{sample}/annotated.vcf",
     shell:
-        "python scripts/filter_by_setcover.py {input.smooth} {input.fvcf} /dev/stdout | cat {input.header} /dev/stdin > {output}"
+        "python scripts/filter_by_setcover.py {input.smooth} {input.fvcf}  {output}"
 
 rule smoother:
     input:
