@@ -4,7 +4,7 @@ SCRIPT_PATH="$(dirname `which $0`)/pamir"
 
 #command -v conda && echo "Found conda, skipping checks :)" >&2 || { NO_CONDA=1; }
 
-VERS_CHECKER="./pamir/scripts/version_check.py"
+VERS_CHECKER="$SCRIPT_PATH/scripts/version_check.py"
 
    
 #Checking if tools exist

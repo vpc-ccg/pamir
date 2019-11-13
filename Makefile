@@ -47,7 +47,7 @@ DEPS = $(OBJECTS:.o=.d) $(UTIL_OBJ:.o=.d) $(TAMIR_OBJ:.o=.d)
 COMPILE_FLAGS = -std=c++14 #-Wall -Wextra #Removed because pamir gives way too many warnings 
 INCLUDES = -I $(SRC_PATH)/include/
 
-LFLAGS = -lm -lz
+LFLAGS = $(LDFLAGS) -lm -lz
 
 .PHONY: default_make
 default_make: release

@@ -1,7 +1,7 @@
 
 
-config["analysis"]=config["path"]+config["analysis-base"]+"/"+config["cohort"]
-config["results"]=config["path"]+config["results-base"]+"/"+config["cohort"]
+config["analysis"]=config["path"]+config["analysis-base"]+"/"+config["population"]
+config["results"]=config["path"]+config["results-base"]+"/"+config["population"]
 
 def tool_exists(name):
     from shutil import which
@@ -153,7 +153,7 @@ rule make_data_js:
         import json
         import sys
         populations = {}
-        cohort = config["cohort"]
+        cohort = config["population"]
         with open(output[0], 'w') as ohand:
             print("var mut_data = ",file=ohand)
             for invcf in input:
@@ -197,7 +197,7 @@ rule make_summary_js:
         import sys
         import json
         with open(output[0],'w') as ohand, open(input[0],'r') as ihand:
-            print("var cohort_request=\"{}\"".format(config["cohort"]),file=ohand)
+            print("var cohort_request=\"{}\"".format(config["population"]),file=ohand)
             print("var cohort_size={}".format(len(config["input"].keys())),file=ohand)
             print("var table_summary_file =[",file=ohand)
             for line in ihand:
@@ -790,7 +790,7 @@ if config["assembler"] == "minia":
             max_memory=250000,
             dr=config["analysis"]+"/minia/",
         threads:
-            config["assemble_threads"]
+            config["assembly_threads"]
         shell:
            "cd {params.dr} && minia  -in {input} -kmer-size {params.k} -abundance-min {params.min_abundance} -max-memory {params.max_memory} -nb-cores {threads} && mv reads.contigs.fa contigs.fasta"
 elif config["assembler"] == "spades": 
@@ -806,7 +806,7 @@ elif config["assembler"] == "spades":
             dr=config["analysis"]+"/spades",
             formatted_input=format_spades_inputs(),
         threads:
-            config["assemble_threads"]
+            config["assembly_threads"]
         shell:
             "spades.py -m {params.max_memory} -t {threads} {params.formatted_input} -o {params.dr} && cat {params.dr}/contigs.fasta | tr  '\\n' '\\t' | sed 's/>/\\n>/g' | sed 's/\\t/\\n/' | tr -d '\\t' | awk 'NR>1' > {params.dr}/tmp.fa && mv {params.dr}/tmp.fa {output}"
 elif config["assembler"] == "abyss":
@@ -819,7 +819,7 @@ elif config["assembler"] == "abyss":
             k=config["assembler_k"],
             dr=config["analysis"]+"/abyss/",
         threads:
-            config["assemble_threads"]
+            config["assembly_threads"]
         shell:
             "cd {params.dr} && abyss-pe name=temp in='{input}' k={params.k} && mv temp-contigs.fa contigs.fasta"
 def genlogs(wildcards):
