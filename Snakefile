@@ -1,36 +1,57 @@
 
 
-config["analysis"]=config["path"]+config["analysis-base"]+"/"+config["population"]
-config["results"]=config["path"]+config["results-base"]+"/"+config["population"]
+def cfg_default( key, val):
+    if key not in config:
+        config[key] = val
+
+def cfg_mandatory( key):
+    assert key in config, "{} is a mandatory field in config".format(key)
+    
+
+cfg_mandatory("path")
+cfg_mandatory("read_length")
+cfg_mandatory("reference")
+cfg_mandatory("raw-data")
+cfg_mandatory("centromeres")
+cfg_mandatory("blastdb")
+cfg_mandatory("input")
+cfg_mandatory("population")
+
+
+
+cfg_default("pamir_partition_per_thread",1000)
+#cfg_default("pamir_segment_count",16)
+cfg_default("analysis-base","/analysis")
+cfg_default("results-base","/results")
+
+cfg_default("analysis","{}{}/{}".format(config["path"],config["analysis-base"],config["population"]))
+cfg_default("results","{}{}/{}".format(config["path"],config["results-base"],config["population"]))
+
+cfg_default("linked-data", config["analysis"] + "/linked-data")
+cfg_default("assembler","minia")
+cfg_default("assembler_k", 64)
+cfg_default("pamir_min_contig_len", config["read_length"])
+cfg_default("assembly_threads",64)
+cfg_default("aligner_threads", 16)
+cfg_default("other_threads",16)
 
 def tool_exists(name):
     from shutil import which
     return which(name) is not None
-if "assembler" not in config:
-    config["assembler"] = "minia"
 
 assembler_binaries = {"minia":"minia","abyss":"abyss-pe","spades":"spades.py"}
 #assembler_min_versions = {"minia":"3.2.0", "abyss":"2.0.3" ,"spades":"3.13.1"}
 
 assert tool_exists(assembler_binaries[config["assembler"]]), assembler_binaries[config["assembler"]] + " not found in the PATH"
 
-if "assembler_k" not in config:
-    config["assembler_k"] = 64
-if "read_length" not in config:
-    config["read_length"] = 100
-if "min_contig_len" not in config:
-    config["min_contig_len"] = config["read_length"]
 
-if "assembly_threads" not in config:
-    config["assembly_threads"] = 64
-if "aligner_threads" not in config:
-    config["assembly_threads"] = 16
-if "other_threads" not in config:
-    config["assembly_threads"] = 16
+
+
+
 
 def get_cram_name(wildcards):
     cram_name = config["input"][wildcards.sample][0]
-    return config["path"]+config["raw-data"]+"/"+cram_name
+    return config["linked-data"]+"/"+cram_name
 
 def get_cram_index(wildcards):
     return "{}.crai".format(get_cram_name(wildcards))
@@ -458,7 +479,7 @@ rule map_orphans_to_vis_fasta:
     output: 
         sam=temp(config["analysis"]+"/vis/{sample}/orphans.sam"),
     threads:
-        config["align_threads"]
+        config["aligner_threads"]
     shell:
         "bwa mem -t {threads} {input.fasta} {input.fastq} -p | ./util/process orphan > {output}"
 
@@ -648,7 +669,7 @@ rule genotype_please:
         MRSFAST="mrsfast",
         RECALIBRATE="./util/recalibrate",
     threads:
-        config["align_threads"] 
+        config["aligner_threads"] 
     shell:
         "python scripts/genotyping.py {input.vcf} {params.ref} {input.mate1}   {input.mate2} {wildcards.sample} {params.min_tlen} {params.max_tlen} {params.wd}/{wildcards.sample} {params.tlen} {threads} {params.read_len} {params.MRSFAST} {params.RECALIBRATE} && cat {input.header} {params.wd}/{wildcards.sample}/insertions_genotype_{wildcards.sample}.vcf.nohead > {output}" 
 
@@ -709,7 +730,7 @@ rule filter_vcf:
         max_insert=1000,
         read_len=config["read_length"],
     threads:
-        config["align_threads"]
+        config["aligner_threads"]
     shell:
         "python scripts/filtering.py {input.vcf} {params.ref} {params.min_insert} {params.max_insert} {params.wd}/{wildcards.sample}/ {params.tlen} {threads} {input.fq} mrsfast ./util/recalibrate {params.read_len} && cat {input.header} {input.vcf}_filtered > {output.vcf}"
          
@@ -829,12 +850,15 @@ elif config["assembler"] == "abyss":
             config["assembly_threads"]
         shell:
             "cd {params.dr} && abyss-pe name=temp in='{input}' k={params.k} && mv temp-contigs.fa contigs.fasta"
+
+
+"""
 def genlogs(wildcards):
     with open("{}/pamir/partition/{}/cc".format(config["analysis"],wildcards.sample),'r') as hand:
         for line in hand:
             value = int(line.rstrip())
             break
-    t = int(config["assembly_segmenter_count"])
+    t = int(config["pamir_segment_count"])
     jump = int(value/t)+1
     l =  [ "{}/pamir/assembly/{}/QQ{}-{}QQ.log".format(config["analysis"],wildcards.sample,x-1,x+jump-1) for x in range(1,value,jump)]
     *_, last = range(1,value,jump)
@@ -847,7 +871,7 @@ def genos(wildcards):
         for line in hand:
             value = int(line.rstrip())
             break
-    t = int(config["assembly_segmenter_count"])
+    t = int(config["pamir_segment_count"])
     jump = int(value/t)+1
     l =  [ "{}/pamir/assembly/{}/QQ{}-{}QQ.vcf".format(config["analysis"],wildcards.sample,x-1,x+jump-1) for x in range(1,value,jump)]
     *_, last = range(1,value,jump)
@@ -861,6 +885,7 @@ def replace_last(string, pattern, replacement):
 
 def genos_lq(wildcards):
     return ( replace_last(x,".vcf","_LOW_QUAL.vcf") for x in genos(wildcards))
+
 
 rule pamir_assemble_full:
     input:
@@ -889,7 +914,66 @@ rule pamir_assemble_part:
         wd=config["analysis"]+"/pamir/assembly",
     shell:
         "./pamir assemble {input.partition} {params.ref} {wildcards.segment} QQ{wildcards.segment}QQ 30000 {params.read_length} {params.wd}/{wildcards.sample} > {output.logs}"
+"""
 
+rule pamir_assemble_full_new:
+    input:
+        partition=config["analysis"]+"/pamir/partition/{sample}/partition",
+        cluster_count=config["analysis"]+"/pamir/partition/{sample}/cc",
+    output:
+        vcf=config["analysis"]+"/pamir/assembly/{sample}/all.vcf",
+        vcf_lq=config["analysis"]+"/pamir/assembly/{sample}/all_LOW_QUAL.vcf",
+        logs=config["analysis"]+"/pamir/assembly/{sample}/all.log",
+    params:
+        pppt = config["pamir_partition_per_thread"],
+        ref=config["reference"],
+        read_length=config["read_length"],
+        wd=config["analysis"]+"/pamir/assembly",
+    threads:
+        config["assembly_threads"],
+    run:
+        with open( input.cluster_count, 'r') as chand:
+            cc = int(chand.readline())
+        
+        index = 0
+
+        cmd_template =  "./pamir assemble {0} {1} {{0}}-{{1}} T{{2}} 30000 {2} {3}/{4} > {3}/{4}/T{{2}}.log".format(input.partition, params.ref, params.read_length, params.wd, wildcards.sample)
+        while index + params.pppt <= cc:
+            tids = []
+            procs = []
+            for tid in range(threads):
+                start = index
+                end = index + params.pppt
+                cmd = cmd_template.format(start,end,tid)
+                procs.append(subprocess.Popen(cmd, shell=True))
+                tids.append(tid)
+                index = end
+                if index + params.pppt > cc:
+                    break
+            
+            if index < cc:
+                start = index
+                end =  cc
+                cmd = cmd_template.format(start,end,tid+1)
+                tids.append(tid+1)            
+                procs.append(subprocess.Popen(cmd, shell=True))
+            for proc in procs:
+                proc.communicate()
+            vcfs = [ "{}/{}/T{}.vcf".format(params.wd,wildcards.sample,tid) for tid in tids]
+            lqvs = [ "{}/{}/T{}_LOW_QUAL.vcf".format(params.wd,wildcards.sample,tid) for tid in tids]
+            logs = [ "{}/{}/T{}.log".format(params.wd,wildcards.sample,tid) for tid in tids]
+            
+
+            catcmd = "cat " + " ".join(vcfs) + " >> " + output.vcf
+            vcf_p  = subprocess.Popen(catcmd,shell=True)
+            catcmd = "cat " + " ".join(lqvs) + " >> " + output.vcf_lq
+            low_p  = subprocess.Popen(catcmd,shell=True)
+            catcmd = "cat " + " ".join(logs) + " >> " + output.logs
+            log_p  = subprocess.Popen(catcmd,shell=True)
+
+            vcf_p.communicate()
+            low_p.communicate()
+            log_p.communicate()
 
 rule recalibrate_oea_to_orphan:
     input:
@@ -954,7 +1038,7 @@ rule filter_contigs:
     output:
         config["analysis"]+"/"+config["assembler"]+"/reads.contigs.filtered.fa"
     params:
-        min_contig_len=config["min_contig_len"],
+        pamir_min_contig_len=config["pamir_min_contig_len"],
     run:
         with open(input[0],'r') as hand, open(output[0],'w+') as arm:
             line = hand.readline()
@@ -963,7 +1047,7 @@ rule filter_contigs:
                     raise Exception('multi line fastas not good')
                 header = line.rstrip()
                 line = hand.readline()
-                if len(line) > params.min_contig_len + 1: #Plus 1 for endline
+                if len(line) > params.pamir_min_contig_len + 1: #Plus 1 for endline
                     print(header,file=arm)
                     print(line.rstrip(),file=arm)
                 line = hand.readline()
@@ -1102,7 +1186,7 @@ rule mrsfast_anchor_wg_map:
         error=7,
         N=50,
     threads:
-        config["align_threads"]
+        config["aligner_threads"]
     shell:
         "mrsfast --search {params.ref} --seq {input} --threads {threads}  -e {params.error} -o {output} --mem {params.mem} -n {params.N}"
 
@@ -1132,6 +1216,22 @@ rule get_all_reads_from_cram:
     shell:
         "cd {params.wd} && ./pamir getfastq <(samtools view -T {params.ref} {input}) {wildcards.sample} && mv {wildcards.sample}_1.fastq.gz {output.m1} && mv {wildcards.sample}_2.fastq.gz {output.m2}"
 
+rule link_bam:
+    input:
+        config["path"]+config["raw-data"]+"/{sample}.bam"
+    output:
+        config["linked-data"]+"/{sample}.bam"
+    shell:
+        "ln -s {input} {output}"
+rule link_cram:
+    input:
+        config["path"]+config["raw-data"]+"/{sample}.cram"
+    output:
+        config["linked-data"]+"/{sample}.cram"
+    shell:
+        "ln -s {input} {output}"
+
+       # CRAMS=config["path"]+config["raw-data"],
 rule cram_split:
     input:
         get_cram_name
@@ -1145,9 +1245,11 @@ rule cram_split:
         analysis=config["analysis"]+"/rem-cor",
         REF=config["reference"],
         PAMIR="./pamir",
-        CRAMS=config["path"]+config["raw-data"],
+        CRAMS=config["linked-data"],
         pamir_params="2 1 1 0.95",
     threads:
         1
     shell:
         "CRPW=$(pwd) && cd {params.analysis}/{wildcards.sample} && samtools view {input} -T {params.REF} | $CRPW/{params.PAMIR} remove_concordant /dev/stdin {wildcards.sample} {params.pamir_params}"
+
+
