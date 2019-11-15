@@ -62,9 +62,9 @@ pamir$ mv pamir.sh /usr/bin/
 Pamir is designed to detect novel sequence insertions based on one-end anchors (OEA) and orphans from paired-end Whole Genome Sequencing (WGS) reads. A .yaml configuration file with the following fields.
 
 1. path: full path to your project working directory
-2. raw-data: Where are the crams(bams) are stored relative to the path(1)
-3. analysis-base: Where intermediate files should be stored relative to the path(1)
-4. results-base: Where final results should be stored relative to the path(1)
+2. raw-data: Location of the input files (crams or bams) relative to the project path(1)
+3. analysis-base: Location of intermediate files relative to the path(1)
+4. results-base: Location of final results relative to the path(1)
 5. population: population name/id
 6. reference: Whole genome reference path
 7. min\_contig\_len: Minimum contig length from the external assembler to use (Should be same as read length)
@@ -90,7 +90,6 @@ input:
 
 Pamir can be run with the following commands, this version of pamir requires 2 steps to be run in order. Where first command create the partition files, and second command genotypes the insertions.
 ```
-pamir.sh  --configfile /path/to/config.yaml   [path]/[analysis-base]/[population]/pamir/partition/done
 pamir.sh  --configfile /path/to/config.yaml
 ```
 
@@ -111,16 +110,32 @@ Now Pamir only accepts WGS datasets in which two mates of all reads are of **equ
 Pamir generates a [VCF file](https://samtools.github.io/hts-specs/VCFv4.2.pdf) for detected novel sequence insertions. You can run genotyping for each sample after obtaining the VCF file by:
 
 Your project will be in the following structure
+```
+[path]/
+├── [raw-data]      <--- Temp Folder
+│   ├── A.cram
+│   ├── B.cram
+│   └── C.cram
+├── [analysis-base] <--- Temp Folder
+│   └── population
+└── [result-base]   <--- Results foldeer
+    └── population
+        ├── events.ref
+        └── ind
+            ├── A
+            │   ├── events.bam
+            │   ├── events.bed
+            │   └── events.vcf
+            ├── B
+            │   ├── events.bam
+            │   ├── events.bed
+            │   └── events.vcf
+            └── C
+                ├── events.bam
+                ├── events.bed
+                └── events.vcf
+```
 
-[path] ->  | -> [raw-data] -> |-> A.cram
-           |                  |-> B.cram
-           |                  |-> C.cram
-           |
-           | -> [analysis-base] ->  [population] -> [...Intermediate Files...]
-           |
-           | -> [results-base]  -> [population] -> |-> ind  ------>|->A ----|->events.bam
-                                                   |-> events.ref  |->B ..  |->events.vcf                         
-                                                                   |->C ..  |->events.bed
 
 events.vcf contains genotyped insertions calls.
 events.fa  is the reference build from called insertions + flanking regions from the genome
@@ -132,7 +147,6 @@ events.bed is the bed file showing the insertion positions on events.fa
     curl -L https://ndownloader.figshare.com/files/18706463?private_link=42900675d70a9a2282e8 --output small-example.tar.gz
     tar xzvf small-example.tar.gz
     cd small-example; ./configure.sh
-    pamir.sh -j16 --configfile config.yaml $(pwd)/analysis/sim/pamir/partition/done
     pamir.sh -j16 --configfile config.yaml
 
 ## Publications
