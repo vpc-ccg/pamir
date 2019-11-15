@@ -38,7 +38,7 @@
     "fetch_concordants_for_vis" :
     {
         "name" : "fetchconc",
-        "c" : 64,
+        "c" : 62,
         "mem" : "700G",
         "time": "23:59:59",
         "part": "normal,express,long",
@@ -70,7 +70,7 @@
     "abyss_all" :
     {
         "name" : "minia-all",
-        "c" : 64,
+        "c" : 62,
         "mem" : "700G",
         "time": "23:59:59",
         "part": "normal,express,long",
@@ -78,7 +78,7 @@
     "spades_all" :
     {
         "name" : "minia-all",
-        "c" : 64,
+        "c" : 62,
         "mem" : "700G",
         "time": "23:59:59",
         "part": "normal,express,long",
@@ -86,7 +86,7 @@
     "minia_all" :
     {
         "name" : "minia-all",
-        "c" : 64,
+        "c" : 62,
         "mem" : "700G",
         "time": "23:59:59",
         "part": "normal,express,long",
@@ -114,6 +114,14 @@
         "mem" : "20G",
         "time": "5:59:59",
         "part": "normal,express",
+    },
+    "pamir_assemble_full_new":
+    {
+        "name" : "mrsfast",
+        "c" : 62,
+        "mem" : "700G",
+        "time": "5:59:59",
+        "part": "normal,express,long",
     },
     "mrsfast_oea_unmapped_contig_map_cropped":{
         "name" : "mrsfast",
