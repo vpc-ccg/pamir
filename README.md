@@ -62,9 +62,9 @@ pamir$ mv pamir.sh /usr/bin/
 Pamir is designed to detect novel sequence insertions based on one-end anchors (OEA) and orphans from paired-end Whole Genome Sequencing (WGS) reads. A .yaml configuration file with the following fields.
 
 1. path: full path to your project working directory
-2. raw-data: Where are the crams(bams) are stored relative to the path(1)
-3. analysis-base: Where intermediate files should be stored relative to the path(1)
-4. results-base: Where final results should be stored relative to the path(1)
+2. raw-data: Location of the input files (crams or bams) relative to the project path(1)
+3. analysis-base: Location of intermediate files relative to the path(1)
+4. results-base: Location of final results relative to the path(1)
 5. population: population name/id
 6. reference: Whole genome reference path
 7. min\_contig\_len: Minimum contig length from the external assembler to use (Should be same as read length)
