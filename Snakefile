@@ -5,8 +5,11 @@ def cfg_default( key, val):
         config[key] = val
 
 def cfg_mandatory( key):
+    
     assert key in config, "{} is a mandatory field in config".format(key)
     
+
+assembler_binaries = {"minia":"minia","abyss":"abyss-pe","spades":"spades.py"}
 
 cfg_mandatory("path")
 cfg_mandatory("read_length")
@@ -20,7 +23,6 @@ cfg_mandatory("population")
 
 
 cfg_default("pamir_partition_per_thread",1000)
-#cfg_default("pamir_segment_count",16)
 cfg_default("analysis-base","/analysis")
 cfg_default("results-base","/results")
 
@@ -39,15 +41,10 @@ def tool_exists(name):
     from shutil import which
     return which(name) is not None
 
-assembler_binaries = {"minia":"minia","abyss":"abyss-pe","spades":"spades.py"}
-#assembler_min_versions = {"minia":"3.2.0", "abyss":"2.0.3" ,"spades":"3.13.1"}
+def assert_tool(tool):
+    assert tool_exists(tool), tool + " not found in the PATH"
 
-assert tool_exists(assembler_binaries[config["assembler"]]), assembler_binaries[config["assembler"]] + " not found in the PATH"
-
-
-
-
-
+assert_tool(assembler_binaries[config["assembler"]])
 
 def get_cram_name(wildcards):
     cram_name = config["input"][wildcards.sample][0]
@@ -67,7 +64,9 @@ rule make_results:
         fa=expand("{results}/events.fa",results=config["results"]),
         fai=expand("{results}/events.fa.fai",results=config["results"]),
 
- 
+
+
+
 rule print_event_xml:
     input:
         bam=config["analysis"]+"/vis/{sample}/final.bam",
@@ -262,18 +261,6 @@ rule all_vis_table:
                 print( "{}\t{}".format(cnt,"\t".join(details)), file=hand)
 
 
-"""
-rule copy_vcf_to_results:
-    input:
-        bam=config["analysis"]+"/vis/{sample}/final.bam",
-        vcf=config["analysis"]+"/pamir/genotyping/{sample}/insertions.named.no_centro.vcf",
-    output:
-        config["analysis"]+"/vis/{sample}/final.vcf"
-    shell:
-        "cp {input.vcf} {output}"
-
-#            print("\n".join(xml_lines),file=out_hand)
-"""
 rule get_final_bam:
     input:
         bam=config["analysis"]+"/vis/bams/{sample}.bam",
@@ -552,67 +539,6 @@ rule make_vis_fasta:
                 print(">{}\n{}".format(ins_id,seq.rstrip()),file=fast_hand)
                 print("{}\t{}\t{}\t{}".format(ins_id,mid,mid+len(ins),fields[7]),file=bed_hand)
 
-"""          
-rule merge_relevant_bams:
-    input:
-        expand(config["analysis"]+"/pamir/genotyping/{sample}/relevant.bam",sample=[x[0][0:x[0].find(".")] for x in config["input"].values()]) 
-    output:
-        config["analysis"]+"/pamir/genotyping/all.bam",
-    threads:
-        config["other_threads"]
-    shell:
-        "samtools merge {output} {input} -@ {threads}"
-
-rule get_relevant_mappings:
-    input:
-        bed=config["analysis"]+"/pamir/genotyping/relevant.bed",
-        cram=get_cram_name,
-        index=get_cram_index,
-    output:
-        bam=config["analysis"]+"/pamir/genotyping/{sample}/relevant.bam",
-    params:
-        ref=config["reference"],
-    shell:
-        "samtools view -T {params.ref} {input.cram} -L {input.bed} -hb -o {output.bam}"
-
-rule get_relevant_bed:
-    input:
-        table=config["analysis"]+"/pamir/genotyping/table.tsv"
-    output:
-        config["analysis"]+"/pamir/genotyping/relevant.bed",
-    shell:
-       "cat {input.table} | cut -f 2 | tr '-' '\t' | cut -f 1,2 | sort | uniq |awk 'BEGIN{{OFS=\"\t\";}}{{myval=0;if(myval<$2-1000){{myval=$2-1000;}}print $1,myval,$2+1000;}}' | grep -v 'HLA' > {output}"
-
-
-rule all_genotyped_table:
-    input:
-        expand(config["analysis"]+"/pamir/genotyping/{sample}/insertions.named.no_centro.vcf",sample=[x[0][0:x[0].find(".")] for x in config["input"].values()]) 
-    output:
-        config["analysis"]+"/pamir/genotyping/table.tsv"
-    run:
-        event_details = {}
-        events = {}
-        total_count = len(input)
-        for vcf in input:
-            my_id = vcf.split("/")[-2]
-            with open( vcf , 'r') as hand:
-                for line in hand:
-                    if line[0] == "#":
-                        continue
-                    fields = line.rstrip().split("\t")
-                    event_id = fields[2]
-                    if event_id not in events:
-                        events[event_id] = []
-                        event_details[event_id] = ((fields[2],fields[4][1:]))
-                    if fields[-1] != "0/0" and fields[6] == "PASS":
-                        events[event_id].append((my_id,fields[-1]))
-        with open( output[0], 'w') as hand:
-            for event,patients in events.items():
-                details = event_details[event]
-                cnt = float(len(patients))
-                print( "{}\t{}".format(cnt/total_count,"\t".join(details)), file=hand)
-
-"""
 
 rule all_filtered_vcf:
     input:
@@ -820,7 +746,7 @@ if config["assembler"] == "minia":
         threads:
             config["assembly_threads"]
         shell:
-           "cd {params.dr} && minia  -in {input} -kmer-size {params.k} -abundance-min {params.min_abundance} -max-memory {params.max_memory} -nb-cores {threads} && mv reads.contigs.fa contigs.fasta"
+           "cd {params.dr} && minia  -verbose 0 -in {input} -kmer-size {params.k} -abundance-min {params.min_abundance} -max-memory {params.max_memory} -nb-cores {threads} && mv reads.contigs.fa contigs.fasta"
 elif config["assembler"] == "spades": 
     rule spades_all:
         input:     
@@ -851,70 +777,6 @@ elif config["assembler"] == "abyss":
         shell:
             "cd {params.dr} && abyss-pe name=temp in='{input}' k={params.k} && mv temp-contigs.fa contigs.fasta"
 
-
-"""
-def genlogs(wildcards):
-    with open("{}/pamir/partition/{}/cc".format(config["analysis"],wildcards.sample),'r') as hand:
-        for line in hand:
-            value = int(line.rstrip())
-            break
-    t = int(config["pamir_segment_count"])
-    jump = int(value/t)+1
-    l =  [ "{}/pamir/assembly/{}/QQ{}-{}QQ.log".format(config["analysis"],wildcards.sample,x-1,x+jump-1) for x in range(1,value,jump)]
-    *_, last = range(1,value,jump)
-    if( last + jump -1 < value):
-        l.append("{}/pamir/assembly/{}/QQ{}-{}QQ.log".format(wildcards.sample,last+jump-1,value))
-    return l
-
-def genos(wildcards):
-    with open("{}/pamir/partition/{}/cc".format(config["analysis"],wildcards.sample),'r') as hand:
-        for line in hand:
-            value = int(line.rstrip())
-            break
-    t = int(config["pamir_segment_count"])
-    jump = int(value/t)+1
-    l =  [ "{}/pamir/assembly/{}/QQ{}-{}QQ.vcf".format(config["analysis"],wildcards.sample,x-1,x+jump-1) for x in range(1,value,jump)]
-    *_, last = range(1,value,jump)
-    if( last + jump -1 < value):
-        l.append("{}/pamir/assembly/{}/QQ{}-{}QQ.vcf".format(wildcards.sample,last+jump-1,value))
-    return l
-
-def replace_last(string, pattern, replacement):
-    index = string.rfind(pattern)
-    return string[:index] + replacement + string[index+len(pattern):]
-
-def genos_lq(wildcards):
-    return ( replace_last(x,".vcf","_LOW_QUAL.vcf") for x in genos(wildcards))
-
-
-rule pamir_assemble_full:
-    input:
-        cluster_count=config["analysis"]+"/pamir/partition/{sample}/cc",
-        parts=genos,
-        parts_lq=genos_lq,
-        logs=genlogs,
-    output:
-        vcf=config["analysis"]+"/pamir/assembly/{sample}/all.vcf",
-        vcf_lq=config["analysis"]+"/pamir/assembly/{sample}/all_LOW_QUAL.vcf",
-        logs=config["analysis"]+"/pamir/assembly/{sample}/all.log",
-    shell:
-        "cat {input.parts} > {output.vcf} && cat {input.logs} > {output.logs} && cat {input.parts_lq} > {output.vcf_lq}"
-
-rule pamir_assemble_part:
-    input:
-        partition=config["analysis"]+"/pamir/partition/{sample}/partition",
-    output:
-       vcf=temp(config["analysis"]+"/pamir/assembly/{sample}/QQ{segment}QQ.vcf"),
-       logs=temp(config["analysis"]+"/pamir/assembly/{sample}/QQ{segment}QQ.log"),
-       lq=temp(config["analysis"]+"/pamir/assembly/{sample}/QQ{segment}QQ_LOW_QUAL.vcf"),
-       dels=temp(config["analysis"]+"/pamir/assembly/{sample}/QQ{segment}QQ_DELS.vcf"),
-    params:
-        ref=config["reference"],
-        read_length=config["read_length"],
-        wd=config["analysis"]+"/pamir/assembly",
-    shell:
-        "./pamir assemble {input.partition} {params.ref} {wildcards.segment} QQ{wildcards.segment}QQ 30000 {params.read_length} {params.wd}/{wildcards.sample} > {output.logs}"
-"""
 
 rule pamir_assemble_full_new:
     input:
