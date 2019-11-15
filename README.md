@@ -111,15 +111,15 @@ Pamir generates a [VCF file](https://samtools.github.io/hts-specs/VCFv4.2.pdf) f
 
 Your project will be in the following structure
 
-[path] ->  | -> [raw-data] -> |-> A.cram
-           |                  |-> B.cram
-           |                  |-> C.cram
-           |
-           | -> [analysis-base] ->  [population] -> [...Intermediate Files...]
-           |
-           | -> [results-base]  -> [population] -> |-> ind  ------>|->A ----|->events.bam
-                                                   |-> events.ref  |->B ..  |->events.vcf                         
-                                                                   |->C ..  |->events.bed
+    [path] ->  | -> [raw-data] -> |-> A.cram
+               |                  |-> B.cram
+               |                  |-> C.cram
+               |
+               | -> [analysis-base] ->  [population] -> [...Intermediate Files...]
+               |
+               | -> [results-base]  -> [population] -> |-> ind  ------>|->A ----|->events.bam
+                                                       |-> events.ref  |->B ..  |->events.vcf                         
+                                                                       |->C ..  |->events.bed
 
 events.vcf contains genotyped insertions calls.
 events.fa  is the reference build from called insertions + flanking regions from the genome
