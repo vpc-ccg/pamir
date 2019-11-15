@@ -110,7 +110,15 @@ Now Pamir only accepts WGS datasets in which two mates of all reads are of **equ
 Pamir generates a [VCF file](https://samtools.github.io/hts-specs/VCFv4.2.pdf) for detected novel sequence insertions. You can run genotyping for each sample after obtaining the VCF file by:
 
 Your project will be in the following structure
-
+```
+path
+├── analysis-base
+├── raw-data
+│   ├── A.cram
+│   ├── B.cram
+│   └── C.cram
+└── result-base
+```
     [path] ->  | -> [raw-data] -> |-> A.cram
                |                  |-> B.cram
                |                  |-> C.cram
