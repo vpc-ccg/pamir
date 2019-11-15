@@ -571,7 +571,7 @@ rule rename_events:
                     print(line.rstrip(), file=ohand)
                     continue
                 fields = line.rstrip().split("\t")
-                ho = hashlib.md5(fields[4].encode())
+                ho = hashlib.md5(fields[4].encode())[:4]
                 fields[2] = "-".join([fields[0],fields[1],ho.hexdigest()])
                 print( "\t".join(fields), file=ohand)
                 
@@ -821,7 +821,7 @@ rule pamir_assemble_full_new:
                 tids.append(tid+1)            
                 procs.append(subprocess.Popen(cmd, shell=True))
                 index = cc
-            print("Processing partitions between {} and {} with {} threads".format(first_index,index,threads,file=stderr)
+            print("Processing partitions between {} and {} with {} threads".format(first_index,index,threads,file=stderr))
             for proc in procs:
                 proc.communicate()
             vcfs = [ "{}/{}/T{}.vcf".format(params.wd,wildcards.sample,tid) for tid in tids]
