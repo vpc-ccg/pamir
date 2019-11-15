@@ -111,13 +111,13 @@ Pamir generates a [VCF file](https://samtools.github.io/hts-specs/VCFv4.2.pdf) f
 
 Your project will be in the following structure
 ```
-path
-├── analysis-base
-├── raw-data
+[path]
+├── [raw-data]
 │   ├── A.cram
 │   ├── B.cram
 │   └── C.cram
-└── result-base
+├── [analysis-base]
+└── [result-base]
 ```
     [path] ->  | -> [raw-data] -> |-> A.cram
                |                  |-> B.cram
