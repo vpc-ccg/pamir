@@ -63,9 +63,7 @@ rule make_results:
         vcf=expand("{results}/ind/{sample}/events.vcf",results=config["results"],sample=config["input"].keys()),
         fa=expand("{results}/events.fa",results=config["results"]),
         fai=expand("{results}/events.fa.fai",results=config["results"]),
-
-
-
+        
 
 rule print_event_xml:
     input:
@@ -220,17 +218,43 @@ rule make_summary_js:
     output:
         config["results"]+"/summary.js"
     run:
+        def sumall(l):
+            sm = 0
+            for i in l:
+                sm+=i
+            return sm
+
         import sys
         import json
+        length2counts = {}
+        
         with open(output[0],'w') as ohand, open(input[0],'r') as ihand:
             print("var cohort_request=\"{}\"".format(config["population"]),file=ohand)
             print("var cohort_size={}".format(len(config["input"].keys())),file=ohand)
             print("var table_summary_file =[",file=ohand)
             for line in ihand:
-                temp_line=line.rstrip().split("\t")
-                print(json.dumps({"event" : temp_line[1], "count" : str(temp_line[0]) }) + ",",file=ohand)
+                fields=line.rstrip().split("\t")
+                print(json.dumps({"event" : fields[1], "count" : str(fields[0]) }) + ",",file=ohand)
+                
+                length = len(fields[2])
+                count = int(float(fields[0]))
+                if length not in length2counts:
+                    length2counts[length] = []
+                length2counts[length].append(count)
+            print("];",file=ohand)
+            sorted_lens = sorted(length2counts.keys())
+            print("var length_labels = [",file=ohand)
+            print( ", ".join([str(x) for x in sorted_lens]),file=ohand)
             print("];",file=ohand)
 
+
+            print("var unique_counts = [",file=ohand)
+            print( ", ".join([ str(len(length2counts[x])) for x in sorted_lens]),file=ohand)
+            print("];",file=ohand)
+
+            print("var total_counts = [",file=ohand)
+            print( ", ".join([ str(sumall(length2counts[x])) for x in sorted_lens]),file=ohand)
+            print("];",file=ohand)
 
 rule all_vis_table:
     input:
@@ -571,8 +595,8 @@ rule rename_events:
                     print(line.rstrip(), file=ohand)
                     continue
                 fields = line.rstrip().split("\t")
-                ho = hashlib.md5(fields[4].encode())[:4]
-                fields[2] = "-".join([fields[0],fields[1],ho.hexdigest()])
+                ho = hashlib.md5(fields[4].encode())
+                fields[2] = "-".join([fields[0],fields[1],ho.hexdigest()[:4]])
                 print( "\t".join(fields), file=ohand)
                 
 '''
@@ -821,7 +845,7 @@ rule pamir_assemble_full_new:
                 tids.append(tid+1)            
                 procs.append(subprocess.Popen(cmd, shell=True))
                 index = cc
-            print("Processing partitions between {} and {} with {} threads".format(first_index,index,threads,file=stderr))
+            print("Processing partitions between {} and {} with {} threads".format(first_index,index,threads,file=sys.stderr))
             for proc in procs:
                 proc.communicate()
             vcfs = [ "{}/{}/T{}.vcf".format(params.wd,wildcards.sample,tid) for tid in tids]
