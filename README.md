@@ -90,7 +90,6 @@ input:
 
 Pamir can be run with the following commands, this version of pamir requires 2 steps to be run in order. Where first command create the partition files, and second command genotypes the insertions.
 ```
-pamir.sh  --configfile /path/to/config.yaml   [path]/[analysis-base]/[population]/pamir/partition/done
 pamir.sh  --configfile /path/to/config.yaml
 ```
 
@@ -132,7 +131,6 @@ events.bed is the bed file showing the insertion positions on events.fa
     curl -L https://ndownloader.figshare.com/files/18706463?private_link=42900675d70a9a2282e8 --output small-example.tar.gz
     tar xzvf small-example.tar.gz
     cd small-example; ./configure.sh
-    pamir.sh -j16 --configfile config.yaml $(pwd)/analysis/sim/pamir/partition/done
     pamir.sh -j16 --configfile config.yaml
 
 ## Publications
