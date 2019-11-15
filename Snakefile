@@ -22,7 +22,7 @@ cfg_mandatory("population")
 
 
 
-cfg_default("pamir_partition_per_thread",1000)
+cfg_default("pamir_partition_per_thread",10)
 cfg_default("analysis-base","/analysis")
 cfg_default("results-base","/results")
 
@@ -803,6 +803,7 @@ rule pamir_assemble_full_new:
         while index + params.pppt <= cc:
             tids = []
             procs = []
+            first_index = index
             for tid in range(threads):
                 start = index
                 end = index + params.pppt
@@ -819,6 +820,8 @@ rule pamir_assemble_full_new:
                 cmd = cmd_template.format(start,end,tid+1)
                 tids.append(tid+1)            
                 procs.append(subprocess.Popen(cmd, shell=True))
+                index = cc
+            print("Processing partitions between {} and {} with {} threads".format(first_index,index,threads,file=stderr)
             for proc in procs:
                 proc.communicate()
             vcfs = [ "{}/{}/T{}.vcf".format(params.wd,wildcards.sample,tid) for tid in tids]
