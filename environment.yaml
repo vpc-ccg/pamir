@@ -1,7 +1,7 @@
 name: pamir-deps
 channels:
   - bioconda
-  - anaconda
+  - conda-forge
 dependencies:
   - samtools  >= 1.9
   - mrsfast   >= 3.4.0
