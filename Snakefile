@@ -22,7 +22,7 @@ cfg_mandatory("population")
 
 
 
-cfg_default("pamir_partition_per_thread",10)
+cfg_default("pamir_partition_per_thread",50)
 cfg_default("analysis-base","/analysis")
 cfg_default("results-base","/results")
 
@@ -59,7 +59,7 @@ rule make_results:
         data_js=config["results"]+"/data.js",
         summary_js=config["results"]+"/summary.js",
         bams=expand("{results}/ind/{sample}/events.bam",results=config["results"],sample=config["input"].keys()),
-        bams=expand("{results}/ind/{sample}/events.bam.bai",results=config["results"],sample=config["input"].keys()),
+        bais=expand("{results}/ind/{sample}/events.bam.bai",results=config["results"],sample=config["input"].keys()),
         bed=expand("{results}/ind/{sample}/events.bed",results=config["results"],sample=config["input"].keys()),
         vcf=expand("{results}/ind/{sample}/events.vcf",results=config["results"],sample=config["input"].keys()),
         fa=expand("{results}/events.fa",results=config["results"]),
@@ -829,7 +829,7 @@ rule pamir_assemble_full_new:
             tids = []
             procs = []
             first_index = index
-            for tid in range(threads):
+            for tid in range(threads-1):
                 start = index
                 end = index + params.pppt
                 cmd = cmd_template.format(start,end,tid)
@@ -838,17 +838,34 @@ rule pamir_assemble_full_new:
                 index = end
                 if index + params.pppt > cc:
                     break
-            
-            if index < cc:
-                start = index
-                end =  cc
-                cmd = cmd_template.format(start,end,tid+1)
-                tids.append(tid+1)            
-                procs.append(subprocess.Popen(cmd, shell=True))
-                index = cc
-            print("Processing partitions between {} and {} with {} threads".format(first_index,index,threads,file=sys.stderr))
+            print("Processing partitions between {} and {} with {} threads".format(first_index,index,len(procs),file=sys.stderr))
             for proc in procs:
                 proc.communicate()
+            vcfs = [ "{}/{}/T{}.vcf".format(params.wd,wildcards.sample,tid) for tid in tids]
+            lqvs = [ "{}/{}/T{}_LOW_QUAL.vcf".format(params.wd,wildcards.sample,tid) for tid in tids]
+            logs = [ "{}/{}/T{}.log".format(params.wd,wildcards.sample,tid) for tid in tids]
+            
+
+            catcmd = "cat " + " ".join(vcfs) + " >> " + output.vcf
+            vcf_p  = subprocess.Popen(catcmd,shell=True)
+            catcmd = "cat " + " ".join(lqvs) + " >> " + output.vcf_lq
+            low_p  = subprocess.Popen(catcmd,shell=True)
+            catcmd = "cat " + " ".join(logs) + " >> " + output.logs
+            log_p  = subprocess.Popen(catcmd,shell=True)
+
+            vcf_p.communicate()
+            low_p.communicate()
+            log_p.communicate()
+        
+        if index < cc:
+            print("Processing remaining {} partitions with a single thread".format(cc-index),file=sys.stderr)
+            start = index
+            end =  cc
+            cmd = cmd_template.format(start,end,0)
+            tids = [0]            
+            proc = subprocess.Popen(cmd, shell=True)
+            index = cc
+
             vcfs = [ "{}/{}/T{}.vcf".format(params.wd,wildcards.sample,tid) for tid in tids]
             lqvs = [ "{}/{}/T{}_LOW_QUAL.vcf".format(params.wd,wildcards.sample,tid) for tid in tids]
             logs = [ "{}/{}/T{}.log".format(params.wd,wildcards.sample,tid) for tid in tids]
