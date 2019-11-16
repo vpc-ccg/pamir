@@ -13,8 +13,8 @@ SCRIPT_SOURCE = scripts
 SCRIPT_PATH = $(BIN_PATH)/scripts
 SRC_EXT = cc
 
-SOURCE_FILES =  pamir.cc aligner.cc bam_parser.cc common.cc genome.cc logger.cc partition.cc record.cc assembler.cc sam_parser.cc sort.cc extractor.cc 
-UTIL_SRC_FILES = extract_support.cc smoother.cc clean_megablast.cc recalibrate.cc
+SOURCE_FILES =  pamir.cc aligner.cc bam_parser.cc common.cc genome.cc logger.cc partition.cc assembler.cc sam_parser.cc sort.cc extractor.cc
+UTIL_SRC_FILES = extract_support.cc smoother.cc recalibrate.cc
 TAMIR_SRC_FILES = process_reads.cc process_orphans.cc process_range.cc edlib.cc sam_processing.cc
 
 SCRIPT_FILES = merge_refs.py contig_graph.py  filter_by_setcover.py  filtering.py  generate_setcover_input.py  genotyping.py  prep-ctgs.py  remove_contaminations.py  sort_vcf.py  version_check.py
