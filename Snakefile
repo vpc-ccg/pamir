@@ -59,6 +59,7 @@ rule make_results:
         data_js=config["results"]+"/data.js",
         summary_js=config["results"]+"/summary.js",
         bams=expand("{results}/ind/{sample}/events.bam",results=config["results"],sample=config["input"].keys()),
+        bams=expand("{results}/ind/{sample}/events.bam.bai",results=config["results"],sample=config["input"].keys()),
         bed=expand("{results}/ind/{sample}/events.bed",results=config["results"],sample=config["input"].keys()),
         vcf=expand("{results}/ind/{sample}/events.vcf",results=config["results"],sample=config["input"].keys()),
         fa=expand("{results}/events.fa",results=config["results"]),
