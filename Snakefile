@@ -199,8 +199,8 @@ rule make_data_js:
                         variant = {}
 
                         variant["id"] = fields[2]        
-                        variant["q"] = fields[5]        
-                        variant["g"] = fields[9]        
+                        variant["q"] = "{:.1f}".format(float(fields[5]))  
+                        variant["g"] = fields[10]        
                         info = fields[7].split(";")
                         for i in info:
                             parts = i.split("=")
@@ -434,8 +434,8 @@ rule fetch_concordants_for_vis:
                     print("GLeft={}".format(left),end=";",file=vcfhand)
                     print("GRight={}".format(right),end=";",file=vcfhand)
                     print("GRef={}".format(ref),end=";",file=vcfhand)
-                    print("GLRatio={}".format(left_ratio),end=";",file=vcfhand)
-                    print("GRRatio={}".format(left_ratio),end=";",file=vcfhand)
+                    print("GLRatio={:.3f}".format(left_ratio),end=";",file=vcfhand)
+                    print("GRRatio={:.3f}".format(right_ratio),end=";",file=vcfhand)
                     print("Sample={}".format(wildcards.sample),end="\t",file=vcfhand)
                     print("\t".join(v[8:]),file=vcfhand,end="\t")
                     print("GT\t{}".format(genotype),file=vcfhand)
