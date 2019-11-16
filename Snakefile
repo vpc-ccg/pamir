@@ -833,13 +833,15 @@ rule pamir_assemble_full_new:
             first_index = index
             for tid in range(threads-1):
                 start = index
-                end = index + params.pppt
+                if index + params.pppt > cc:
+                    end = cc
+                else:
+                    end = index + params.pppt
                 cmd = cmd_template.format(start,end,tid)
                 procs.append(subprocess.Popen(cmd, shell=True))
                 tids.append(tid)
                 index = end
-                if index + params.pppt > cc:
-                    break
+
             print("Processing partitions between {} and {} with {} threads".format(first_index,index,len(procs),file=sys.stderr))
             for proc in procs:
                 proc.communicate()
@@ -858,31 +860,7 @@ rule pamir_assemble_full_new:
             vcf_p.communicate()
             low_p.communicate()
             log_p.communicate()
-        
-        if index < cc:
-            print("Processing remaining {} partitions with a single thread".format(cc-index),file=sys.stderr)
-            start = index
-            end =  cc
-            cmd = cmd_template.format(start,end,0)
-            tids = [0]            
-            proc = subprocess.Popen(cmd, shell=True)
-            index = cc
 
-            vcfs = [ "{}/{}/T{}.vcf".format(params.wd,wildcards.sample,tid) for tid in tids]
-            lqvs = [ "{}/{}/T{}_LOW_QUAL.vcf".format(params.wd,wildcards.sample,tid) for tid in tids]
-            logs = [ "{}/{}/T{}.log".format(params.wd,wildcards.sample,tid) for tid in tids]
-            
-
-            catcmd = "cat " + " ".join(vcfs) + " >> " + output.vcf
-            vcf_p  = subprocess.Popen(catcmd,shell=True)
-            catcmd = "cat " + " ".join(lqvs) + " >> " + output.vcf_lq
-            low_p  = subprocess.Popen(catcmd,shell=True)
-            catcmd = "cat " + " ".join(logs) + " >> " + output.logs
-            log_p  = subprocess.Popen(catcmd,shell=True)
-
-            vcf_p.communicate()
-            low_p.communicate()
-            log_p.communicate()
 
 rule recalibrate_oea_to_orphan:
     input:
