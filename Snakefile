@@ -37,6 +37,8 @@ cfg_default("assembly_threads",64)
 cfg_default("aligner_threads", 16)
 cfg_default("other_threads",16)
 
+print(config["analysis"])
+print(config["results"])
 def tool_exists(name):
     from shutil import which
     return which(name) is not None
@@ -59,7 +61,6 @@ rule make_results:
         data_js=config["results"]+"/data.js",
         summary_js=config["results"]+"/summary.js",
         bams=expand("{results}/ind/{sample}/events.bam",results=config["results"],sample=config["input"].keys()),
-        bams=expand("{results}/ind/{sample}/events.bam.bai",results=config["results"],sample=config["input"].keys()),
         bed=expand("{results}/ind/{sample}/events.bed",results=config["results"],sample=config["input"].keys()),
         vcf=expand("{results}/ind/{sample}/events.vcf",results=config["results"],sample=config["input"].keys()),
         fa=expand("{results}/events.fa",results=config["results"]),
@@ -179,7 +180,9 @@ rule make_data_js:
         import sys
         populations = {}
         cohort = config["population"]
+        sn = {"uuid" :"id","qual" :"q","genotype" :"g","Cluster" :"c","Support" :"p","FLSUP" :"flp","FRSUP" :"frp","FSUP" :"fsp","GLeft" :"gl","GRight" :"gt","GRef" :"gr","GLRatio" :"glr","GRRatio" :"grr","Sample" :"s"}
         with open(output[0], 'w') as ohand:
+            print("/*\nid uuid\nq qual\ng genotype\nc Cluster\np Support\nflp FLSUP\nfrp FRSUP\nfsp FSUP\ngl GLeft\ngt GRight\ngr GRef\nglr GLRatio\ngrr GRRatio\ns Sample\n*/",file=ohand)
             print("var mut_data = ",file=ohand)
             for invcf in input:
                 sampleid = invcf.split("/")[-2]
@@ -196,21 +199,21 @@ rule make_data_js:
                         fields = line.rstrip().split("\t")
                         variant = {}
 
-                        variant["uuid"] = fields[2]        
-                        variant["qual"] = fields[5]        
-                        variant["genotype"] = fields[9]        
+                        variant["id"] = fields[2]        
+                        variant["q"] = fields[5]        
+                        variant["g"] = fields[9]        
                         info = fields[7].split(";")
                         for i in info:
                             parts = i.split("=")
                             if len(parts) == 2:
-                                variant[parts[0]] = parts[1]
+                                variant[sn[parts[0]]] = parts[1]
                             else:
                                 variant[parts[0]] = ""
-                
+
                         variants.append(variant)
                 populations[cohort]["individuals"][sampleid]["events"] = variants
                 
-            ohand.write(json.dumps(populations,indent=4))
+            ohand.write(json.dumps(populations))
             ohand.write(";")
 
 rule make_summary_js:
@@ -235,9 +238,10 @@ rule make_summary_js:
             print("var table_summary_file =[",file=ohand)
             for line in ihand:
                 fields=line.rstrip().split("\t")
-                print(json.dumps({"event" : fields[1], "count" : str(fields[0]) }) + ",",file=ohand)
+                print(json.dumps({"event" : fields[1], "count" : str(fields[0]) }),file=ohand,end=",")
                 
-                length = len(fields[2])
+                length = int(len(fields[2])/40+1) 
+		
                 count = int(float(fields[0]))
                 if length not in length2counts:
                     length2counts[length] = []
@@ -245,16 +249,16 @@ rule make_summary_js:
             print("];",file=ohand)
             sorted_lens = sorted(length2counts.keys())
             print("var length_labels = [",file=ohand)
-            print( ", ".join([str(x) for x in sorted_lens]),file=ohand)
+            print( ", ".join([str(x) for x in sorted_lens]),file=ohand,end=",")
             print("];",file=ohand)
 
 
             print("var unique_counts = [",file=ohand)
-            print( ", ".join([ str(len(length2counts[x])) for x in sorted_lens]),file=ohand)
+            print( ", ".join([ str(len(length2counts[x])) for x in sorted_lens]),file=ohand,end=",")
             print("];",file=ohand)
 
             print("var total_counts = [",file=ohand)
-            print( ", ".join([ str(sumall(length2counts[x])) for x in sorted_lens]),file=ohand)
+            print( ", ".join([ str(sumall(length2counts[x])) for x in sorted_lens]),file=ohand,end=",")
             print("];",file=ohand)
 
 rule all_vis_table:
@@ -307,7 +311,7 @@ rule convert_vis_sam_to_bam:
         16
     shell:
         "cat {input.header} {input.sam} | samtools sort -m6G -@ {threads} > {output}"
-        
+
 rule make_rg_lines_for_header:
     output:
         temp(config["analysis"]+"/vis/rg.head"),
@@ -322,9 +326,6 @@ rule make_rg_lines_for_header:
             categories = categories + [ "DIS-{}".format(x) for x in categories]
             for cat in categories:
                 print("@RG\tID:{0}\tLB:{0}".format(cat),file=hand)
-            
-            
-        
 
 rule fetch_concordants_for_vis:
     input:
