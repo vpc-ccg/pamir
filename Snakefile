@@ -37,8 +37,6 @@ cfg_default("assembly_threads",64)
 cfg_default("aligner_threads", 16)
 cfg_default("other_threads",16)
 
-print(config["analysis"])
-print(config["results"])
 def tool_exists(name):
     from shutil import which
     return which(name) is not None
@@ -843,7 +841,7 @@ rule pamir_assemble_full_new:
                 index = end
 
             print("Processing partitions between {} and {} with {} threads".format(first_index,index,len(procs),file=sys.stderr))
-            for proc in procs:
+            for i,proc in enumerate(procs):
                 proc.communicate()
             vcfs = [ "{}/{}/T{}.vcf".format(params.wd,wildcards.sample,tid) for tid in tids]
             lqvs = [ "{}/{}/T{}_LOW_QUAL.vcf".format(params.wd,wildcards.sample,tid) for tid in tids]
