@@ -118,7 +118,7 @@
     "pamir_assemble_full_new":
     {
         "name" : "pamir_assemble",
-        "c" : 62,
+        "c" : 64,
         "mem" : "700G",
         "time": "5:59:59",
         "part": "normal,express,long",
