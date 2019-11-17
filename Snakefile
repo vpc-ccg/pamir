@@ -22,7 +22,7 @@ cfg_mandatory("population")
 
 
 
-cfg_default("pamir_partition_per_thread",50)
+cfg_default("pamir_partition_per_thread",1000)
 cfg_default("analysis-base","/analysis")
 cfg_default("results-base","/results")
 
@@ -33,7 +33,7 @@ cfg_default("linked-data", config["analysis"] + "/linked-data")
 cfg_default("assembler","minia")
 cfg_default("assembler_k", 64)
 cfg_default("pamir_min_contig_len", config["read_length"])
-cfg_default("assembly_threads",64)
+cfg_default("assembly_threads",62)
 cfg_default("aligner_threads", 16)
 cfg_default("other_threads",16)
 

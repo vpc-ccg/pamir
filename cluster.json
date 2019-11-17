@@ -118,9 +118,9 @@
     "pamir_assemble_full_new":
     {
         "name" : "pamir_assemble",
-        "c" : 64,
+        "c" : 62,
         "mem" : "700G",
-        "time": "5:59:59",
+        "time": "23:59:59",
         "part": "normal,express,long",
     },
     "mrsfast_oea_unmapped_contig_map_cropped":{
