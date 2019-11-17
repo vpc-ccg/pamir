@@ -450,8 +450,13 @@ void assemble (const string &partition_file, const string &reference, const stri
 			break;
 		
 		// cluster has too many or too few reads
-		if ( p.size() > 7000 || p.size() <= 2 ) 
-			continue;
+		if ( p.size() > 7000 || p.size() <= 2 ) {
+            log("-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");
+            log(" + Cluster ID      : %d\n", pt.get_cluster_id());
+            log(" + Reads Count     : %lu\n", p.size());
+            log("INFO: Skipped Processing - Too few or Too many reads\n");
+            continue;
+        }
 		string chrName  = pt.get_reference();
 		int cluster_id  = pt.get_cluster_id();
 		int pt_start    = pt.get_start();
