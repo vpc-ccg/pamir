@@ -123,7 +123,7 @@ rule make_html:
     output:
         config["results"]+"/index.html",
     shell:
-        "touch {output}"
+        "cp scripts/index.html {output}"
 
 rule move_bams:
     input:
