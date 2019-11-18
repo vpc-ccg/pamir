@@ -326,7 +326,7 @@ rule make_rg_lines_for_header:
             for cat in categories:
                 print("@RG\tID:{0}\tLB:{0}".format(cat),file=hand)
 
-rule fetch_concordants_for_vis:
+rule genotype_vis:
     input:
         cram=get_cram_name,
         cram_index=get_cram_index,
@@ -848,17 +848,30 @@ rule pamir_assemble_full_new:
             logs = [ "{}/{}/T{}.log".format(params.wd,wildcards.sample,tid) for tid in tids]
             
 
-            catcmd = "cat " + " ".join(vcfs) + " >> " + output.vcf
+            catcmd = "cat " + " ".join(vcfs) + " >> " + output.vcf + ".tmp"
             vcf_p  = subprocess.Popen(catcmd,shell=True)
-            catcmd = "cat " + " ".join(lqvs) + " >> " + output.vcf_lq
+            catcmd = "cat " + " ".join(lqvs) + " >> " + output.vcf_lq + ".tmp"
             low_p  = subprocess.Popen(catcmd,shell=True)
-            catcmd = "cat " + " ".join(logs) + " >> " + output.logs
+            catcmd = "cat " + " ".join(logs) + " >> " + output.logs + ".tmp"
             log_p  = subprocess.Popen(catcmd,shell=True)
 
             vcf_p.communicate()
             low_p.communicate()
             log_p.communicate()
+  
+        mvcmd = "mv " +  output.vcf + ".tmp " + output.vcf
+        vcf_p  = subprocess.Popen(mvcmd,shell=True)
 
+        mvcmd = "mv " +  output.vcf_lq + ".tmp " + output.vcf_lq
+        low_p  = subprocess.Popen(mvcmd,shell=True)
+
+        mvcmd = "mv " +  output.logs + ".tmp " + output.logs
+        log_p  = subprocess.Popen(mvcmd,shell=True)
+
+        vcf_p.communicate()
+        low_p.communicate()
+        log_p.communicate()
+  
 
 rule recalibrate_oea_to_orphan:
     input:
