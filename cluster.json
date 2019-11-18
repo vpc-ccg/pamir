@@ -35,7 +35,7 @@
         "part": "normal,express,long",
 
     },
-    "fetch_concordants_for_vis" :
+    "genotype_vis" :
     {
         "name" : "fetchconc",
         "c" : 62,
