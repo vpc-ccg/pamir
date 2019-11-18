@@ -36,6 +36,7 @@ cfg_default("pamir_min_contig_len", config["read_length"])
 cfg_default("assembly_threads",62)
 cfg_default("aligner_threads", 16)
 cfg_default("other_threads",16)
+cfg_default("minia_min_abundance",5)
 
 def tool_exists(name):
     from shutil import which
@@ -765,7 +766,7 @@ if config["assembler"] == "minia":
             config["analysis"]+"/minia/contigs.fasta"
         params:
             k=config["assembler_k"],
-            min_abundance=10,
+            min_abundance=config["minia_min_abundance"],
             max_memory=250000,
             dr=config["analysis"]+"/minia/",
         threads:
