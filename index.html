@@ -25,11 +25,17 @@
         body {
             font-family: 'Open Sans', sans-serif;
             padding-top: 70px;
-        }
     </style>
 </head>
 
-<body class="container-fluid">
+<body class="container">
+
+<div class="row">
+<div class="input-group input-group-lg col-md-12">
+  <input type="text" class="form-control" aria-label="Remote-Path" placeholder="Remote Path for data on server"  aria-describedby="inputGroup-sizing-sm" id="remote-path" value="">
+</div>
+</div>
+
 <div class="row">
     <div class="col-md-8">
         <h4><span id="cohort"></span> Cohort Summary </h4>
@@ -46,35 +52,30 @@
     </div>
     <div class="col-md-4" style="padding-top:70px;">
         <canvas id="dist"></canvas>
-    </div>
-
-    <div class="col-md-4" style="padding-top:70px;">
         <canvas id="ins-length-dist"></canvas>
     </div>
 </div>
+
 <div class="row">
     <div class="col-md-12">
         <table id="table_mut" data-pagination="true" data-striped="true" data-show-refresh="true" data-page-size="15"
-               data-search="true " data-query-params="queryParams">
+               data-search="true " data-query-params="queryParams" data-show-columns="true">
             <thead>
             <tr>
                 <th data-field="id" data-sortable="true">Event</th>
-                <th data-field="x" data-formatter="actionFormatter">Visualise Me</th>
                 <th data-field="s" data-sortable="true">SampleId</th>
                 <th data-field="g" data-sortable="true">Genotype</th>
                 <th data-field="q" data-sortable="true">Qual</th>
                 <th data-field="c" data-sortable="true">ClusterId</th>
-                <th data-field="p" data-sortable="true">SupportNo</th>
-                <th data-field="flp" data-sortable="true">FLSUP</th>
-                <th data-field="frp" data-sortable="true">FRSUP</th>
-                <th data-field="fsp" data-sortable="true">FSUP</th>
-                <th data-field="gt" data-sortable="true">GRight</th>
-                <th data-field="gr" data-sortable="true">GREF</th>
+                <th data-field="gt" data-sortable="true">Right Flank</th>
+                <th data-field="gt" data-sortable="true">Left Flank</th>
+                <th data-field="gr" data-sortable="true">Reference</th>
                 <th data-field="glr" data-sortable="true">GLRatio</th>
-		<th data-field="grr" data-sortable="true">GRRation</th>
+		<th data-field="grr" data-sortable="true">GRRatio</th>
+                <th data-field="x" data-formatter="actionFormatter">Actions</th>
 
             </tr>
-            i</thead>
+            </thead>
         </table>
     </div>
 </div>
@@ -117,6 +118,9 @@
     var path = full.substr(0, full.lastIndexOf("/"));
 
     function actionFormatter(value, row, id) {
+	pp = $("#remote-path").val();
+	if (pp!=="")
+		path = pp;
         return '<a target="_blank" href="http://localhost:60151/load?file=' + path
             + '/ind/' + row.s + '/events.bed,' +
             path + '/ind/' + row.s + '/events.bam&genome=' + path + '/events.fa&locus=' +
