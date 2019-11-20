@@ -23,7 +23,8 @@ Pamir relies on specific version of the following tools:
 6. [bedtools](https://bedtools.readthedocs.io/en/latest/) >= 2.26.0
 7. [bwa](https://github.com/lh3/bwa) >= 0.7.17
 8. [snakemake](https://snakemake.readthedocs.io/en/stable/) >= 5.3.0
-9. Assembler
+9. [RepeatMasker](http://www.repeatmasker.org/) >= 4.0.9
+10. Assembler
 * [minia](https://github.com/GATB/minia) >= 3.2.0 Or
 * [abyss](https://github.com/bcgsc/abyss) >= 2.2.3 Or
 * [spades](https://github.com/ablab/spades) >= 3.13.1
