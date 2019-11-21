@@ -6,6 +6,8 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "logger.h"
+
 using namespace std;
 //using namespace boost::heap;
 
@@ -42,7 +44,9 @@ ostream& operator<<(ostream& os, const cluster& cl) {
 //void set_cover (auto &clusters, auto &reads) 
 void set_cover (vector<cluster>& clusters, vector<Xread>& reads) 
 {
-	FiboHeap<cluster*> heap;
+	
+	Logger &log = Logger::instance();
+    FiboHeap<cluster*> heap;
 	unordered_map<int, Node<cluster*>* > heap_handles;
 
 	// inserting them all
@@ -113,11 +117,11 @@ void set_cover (vector<cluster>& clusters, vector<Xread>& reads)
 	int i = 0, rx = 0;
 	for (auto &c: clusters) {
 		if (c.reads.size() == 0) {
-			L("Removed: %d %s\n", c.orig_id, c.name.c_str());
+			log.info("Removed: %d %s\n", c.orig_id, c.name.c_str());
 			continue;
 		}
 
-		L("%d %lu %s\n", c.orig_id, c.reads.size(), c.name.c_str());
+		log.info("%d %lu %s\n", c.orig_id, c.reads.size(), c.name.c_str());
 		for (auto &r: c.reads) {
 			//L("{}", read_names[r]);
 		}
@@ -130,7 +134,8 @@ void set_cover (vector<cluster>& clusters, vector<Xread>& reads)
 
 int main (int argc, char **argv) 
 {
-	freopen(argv[1], "r", stdin);
+	Logger &log = Logger::instance();
+    freopen(argv[1], "r", stdin);
 
 	vector<cluster> clusters;
 	vector<Xread> reads;
@@ -162,10 +167,10 @@ int main (int argc, char **argv)
 
 		if (clusters.size() % 1000 == 1) {
 			auto p = 100 * ftell(fi) / fsz;
-			E("\r %f\n", p);
+			log.error("\r %f\n", p);
 		}
 	}
-	E("\n");
+	log.error("\n");
 
 	for (auto &c: clusters) {
 		auto s = unordered_set<int>(c.reads.begin(), c.reads.end());
@@ -179,8 +184,8 @@ int main (int argc, char **argv)
 		c.support = c.reads.size() - c.unresolved;
 	}
 
-	E("%lu clusters\n", clusters.size());
-	E("%lu reads\n", reads.size());
+	log.error("%lu clusters\n", clusters.size());
+	log.error("%lu reads\n", reads.size());
 
 	set_cover(clusters, reads);
 
@@ -190,7 +195,7 @@ int main (int argc, char **argv)
 	// 	}
 	// }
 
-	E("done\n");
+	log.error("done\n");
 
 	return 0;
 }

@@ -829,7 +829,7 @@ elif config["assembler"] == "abyss":
 rule pamir_assemble_full_new:
     input:
         partition=config["analysis"]+"/pamir/partition/{sample}/partition",
-        cluster_count=config["analysis"]+"/pamir/partition/{sample}/cc",
+        cluster_count=config["analysis"]+"/pamir/partition/{sample}/partition.count",
     output:
         vcf=config["analysis"]+"/pamir/assembly/{sample}/all.vcf",
         vcf_lq=config["analysis"]+"/pamir/assembly/{sample}/all_LOW_QUAL.vcf",
@@ -913,11 +913,11 @@ rule pamir_partition:
         contigs=config["analysis"]+"/"+config["assembler"]+"/reads.contigs.filtered.clean.fa",
     output:
         partition=config["analysis"]+"/pamir/partition/{sample}/partition",
-        cluster_count=config["analysis"]+"/pamir/partition/{sample}/cc",
+        cluster_count=config["analysis"]+"/pamir/partition/{sample}/partition.count",
     params:
         rang=1000,
     shell:
-        "./pamir partition {input.sam} {output.partition} {params.rang} {input.contigs} {input.oea2orphan} {input.oea_unmapped} > {output.cluster_count}"
+        "./pamir partition {input.sam} {output.partition} {params.rang} {input.contigs} {input.oea2orphan} {input.oea_unmapped}"
 
 
 rule merge_contigs:
