@@ -601,10 +601,9 @@ int main(int argc, char **argv)
 		else if (mode == "partition") {
 			if ( 6 == argc )
             {
-
-				log_path = argv[5]; log_path += "_partitionprocessor.log";
-
-				log_init( log_path );
+                log_path = argv[3];
+                log_path+=".log";
+                Logger::instance().set_info(log_path.c_str());
                 partify(argv[2], argv[3], atoi(argv[4]), argv[5]);
 
 
@@ -614,10 +613,7 @@ int main(int argc, char **argv)
 			    log_path = argv[3];
 			    log_path+=".log";
                 Logger::instance().set_info(log_path.c_str());
-				//log_path = argv[5]; log_path += "_partitionprocessor.log";
-				//log_init( log_path );
 				partify_orphan(argv[2], argv[3], atoi(argv[4]), argv[5], argv[6], argv[7]);
-				//log_close();
 			}
 			else{ throw "Usage:\tpamir partition [read-file] [output-file] [threshold] [ [orphan-contig] [oea2orphan] ] [mate_file]"; }
 		}
