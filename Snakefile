@@ -360,6 +360,7 @@ rule genotype_vis:
         sam=config["analysis"]+"/vis/bams/{sample}.sam",
         vcf=config["analysis"]+"/vis/{sample}/final.vcf",
         head=config["analysis"]+"/vis/bams/{sample}.header",
+        bed  =config["analysis"]+"/vis/{sample}/events_ins_pos.bed",
     params:
         ref=config["reference"],
         rang=config["genotyping_flank_size"],
@@ -377,7 +378,7 @@ rule genotype_vis:
         view_cmd="samtools view -T {} {}".format(params.ref,input.cram)
         sort_cmd = "samtools sort -n | samtools view"
         in_house_cmd = "./util/process range {} {} {} {} {} {} {}"
-        with open(input.vcf,"r") as hand , open( output.sam, "w") as samhand, open(output.vcf, "w") as vcfhand:
+        with open(input.vcf,"r") as hand , open( output.sam, "w") as samhand, open(output.vcf, "w") as vcfhand, open(output.bed, "w") as bedhand:
 
 
 
@@ -393,6 +394,7 @@ rule genotype_vis:
                 ps = []
                 pm = [] 
                 vcfs = []
+                beds = []
                 for tid in range(threads):
                     while line and fields[6] != "PASS":
                         line = hand.readline()
@@ -404,7 +406,7 @@ rule genotype_vis:
                     end   = pos + params.rang - 1
                     seq = fields[4][1:]
                     vcfs.append(fields)
-                    fasta_cmd="cat  {} | grep {} -A1 | tail -n1".format(input.fasta, fields[2])
+                    fasta_cmd="cat  {} | grep {} -A1".format(input.fasta, fields[2])
                     ps.append( subprocess.Popen(fasta_cmd, shell=True, stdout=subprocess.PIPE))
                     pm.append(view_cmd + " {}:{}-{}".format(fields[0],start+params.rl,end-params.rl) + "|" + in_house_cmd.format(pos,len(seq),params.rang,params.min_frag,params.max_frag,fields[2],"{}"))
                     line = hand.readline()
@@ -413,9 +415,12 @@ rule genotype_vis:
                 for p,m in zip(ps,pm):
                     stdout,stderr = p.communicate()
                     fasta = stdout.decode('utf-8').splitlines()
+                    bedinfo = fasta[0].split(" ")
+
+                    beds.append("{}\t{}\t{}".format(bedinfo[0][1:],bedinfo[1],int(bedinfo[1]) + int(bedinfo[2])))
                     if(fasta == []):
                         continue
-                    pf.append(m.format(fasta[0]))
+                    pf.append(m.format(fasta[1]))
 
                     
 
@@ -424,13 +429,14 @@ rule genotype_vis:
                     processes.append(subprocess.Popen(f, shell=True,stdout=subprocess.PIPE))
 
 
-                for v,process in zip(vcfs,processes):
+                for bed,v,process in zip(beds,vcfs,processes):
                     stdout,stderr = process.communicate()
                     samlines = stdout.decode('utf-8').splitlines()
 
                     for l in samlines[1:]:
                         print(l,file=samhand)
                     print("\t".join(v[:8]),end=";",file=vcfhand)
+
                     #print(samlines[0])
                     left,right,ref = [int(x) for x in samlines[0].split("\t")]
                     
@@ -453,13 +459,18 @@ rule genotype_vis:
                             lg.append(1)
                     
                     genotype = genotype_dic[min(lg)]
- 
-                    print("GLeft={}".format(left),end=";",file=vcfhand)
-                    print("GRight={}".format(right),end=";",file=vcfhand)
-                    print("GRef={}".format(ref),end=";",file=vcfhand)
-                    print("GLRatio={:.3f}".format(left_ratio),end=";",file=vcfhand)
-                    print("GRRatio={:.3f}".format(right_ratio),end=";",file=vcfhand)
-                    print("Sample={}".format(wildcards.sample),end="\t",file=vcfhand)
+
+                    infoformat="GLeft={};GRight={};GRef={};GLRatio={:.2f};GRRatio={:.2f};Sample={}"
+
+                    print( infoformat.format(left,right,ref,left_ratio,right_ratio,wildcards.sample),end="\t",file=vcfhand)
+                    print( bed,end="\t",file=bedhand)
+                    print( infoformat.format(left,right,ref,left_ratio,right_ratio,wildcards.sample),end="\n",file=bedhand)
+                    #print("GLeft={}".format(left),end=";",file=vcfhand)
+                    #print("GRight={}".format(right),end=";",file=vcfhand)
+                    #print("GRef={}".format(ref),end=";",file=vcfhand)
+                    #print("GLRatio={:.3f}".format(left_ratio),end=";",file=vcfhand)
+                    #print("GRRatio={:.3f}".format(right_ratio),end=";",file=vcfhand)
+                    #print("Sample={}".format(wildcards.sample),end="\t",file=vcfhand)
                     print("\t".join(v[8:]),file=vcfhand,end="\t")
                     print("GT\t{}".format(genotype),file=vcfhand)
                     #stdout = stdout.decode('utf-8').splitlines()
@@ -542,7 +553,6 @@ rule make_vis_fasta:
         vcf=config["analysis"]+"/pamir/annotation/{sample}/annotated.named.no_centro.vcf",
     output:
         fasta=temp(config["analysis"]+"/vis/{sample}/events_ref.fa"),
-        bed  =config["analysis"]+"/vis/{sample}/events_ins_pos.bed",
     params:
         ref=config["reference"],
         flank=config["genotyping_flank_size"],
@@ -553,7 +563,7 @@ rule make_vis_fasta:
             for line in fasta_index:
                 fields = line.split("\t")
                 contig_sizes[fields[0]] = int(fields[1])
-        with open(input['vcf'],'r') as hand, open(output["fasta"],"w+") as fast_hand, open(output["bed"],"w+") as bed_hand:
+        with open(input['vcf'],'r') as hand, open(output["fasta"],"w+") as fast_hand:
             for line in hand:
                 if line[0] == "#":
                     continue
@@ -584,8 +594,7 @@ rule make_vis_fasta:
                 #print("{}\t{}".format(cmd,fields[2]))
                 seq = stdout[-1]
                 seq = seq[:mid] + ins + seq[mid:]
-                print(">{}\n{}".format(ins_id,seq.rstrip()),file=fast_hand)
-                print("{}\t{}\t{}\t{}".format(ins_id,mid,mid+len(ins),fields[7]),file=bed_hand)
+                print(">{} {} {} {}\n{}".format(ins_id, mid, len(ins), end - len(ins),seq.rstrip()),file=fast_hand)
 
 
 rule all_filtered_vcf:
