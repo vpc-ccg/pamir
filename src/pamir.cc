@@ -170,7 +170,9 @@ void partify_orphan (const string &read_file, const string &out, int threshold,
 		fwrite(&i, 1, sizeof(size_t), fidx);
 		fc++;
 	}
-	fprintf(stdout, "%d\n",fc-1);
+	FILE *foc = fopen((out + ".count").c_str(), "w");
+	fprintf(foc, "%d\n",fc-1);
+	fclose(foc);
 	fclose(fin);
 	fclose(fo);
 	fclose(fidx);

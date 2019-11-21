@@ -59,7 +59,7 @@ int genome_partition::load_orphan( const string &orphan_contig, const string &oe
 		map_cont[rstr] = cstr;
 	}
 	fclose(fin);
-	ERROR("Loading orphan contig file\n");
+    Logger::instance().info("Loading orphan contig file\n");
 	
 	fin = fopen( oea2orphan.c_str(), "r");
 	while( NULL != fgets( readline, MAX_CHAR, fin ) )
@@ -93,7 +93,7 @@ int genome_partition::load_orphan( const string &orphan_contig, const string &oe
 		}
 	}
 	fclose(fin);
-	ERROR("Updating OEA contigs\n");
+    Logger::instance().info("Updating OEA contigs\n");
 	return 0;
 }
 
