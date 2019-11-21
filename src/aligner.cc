@@ -352,7 +352,7 @@ int aligner::extract_calls( const int &cluster_id, vector<tuple<string, int, int
 					//if( insertion_content.length() > 0 )
 					if( insertion_content.length() > 0 && ( left_anchor > 5 && right_anchor > 5 ) && ( left_anchor > 16 || right_anchor > 16 ) )
 					{
-						log("(-) %d\t%d\t%s\t%d (-)\n", insertion_start_loc, insertion_content.length(), insertion_content.c_str(), contig_support);
+                        Logger::instance().info("(-) %d\t%d\t%s\t%d (-)\n", insertion_start_loc, insertion_content.length(), insertion_content.c_str(), contig_support);
 						reports.push_back(tuple<string, int, int, string, int, float>("INS", insertion_start_loc, insertion_content.length(), insertion_content, contig_support, fwdIden ) );
 						mapped = 1;
 					}
