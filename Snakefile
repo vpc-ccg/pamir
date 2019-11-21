@@ -66,7 +66,7 @@ rule make_results:
         vcf=expand("{results}/ind/{sample}/events.vcf",results=config["results"],sample=config["input"].keys()),
         fa=expand("{results}/events.fa",results=config["results"]),
         fai=expand("{results}/events.fa.fai",results=config["results"]),
-        rm=expand("{results}/events.repeat.gff",results=config["results"]),
+        rm=expand("{results}/events.repeat.bed6",results=config["results"]),
         
 
 rule print_event_xml:
@@ -176,9 +176,9 @@ rule format_repeat_masking:
     input:
         "{sample}.fa.out"
     output:
-        "{sample}.bed6"
+        "{sample}.repeat.bed6"
     shell:
-        "cat {input} | awk 'BEGIN{OFS=\"\\t\";}NR>3{gsub(\"C\",\"-\",$9);print $5,$6,$7,$10\"::\"$11,0,$9;} > {output}"
+        "cat {input} | awk 'BEGIN{{OFS=\"\\t\";}}NR>3{{gsub(\"C\",\"-\",$9);print $5,$6,$7,$10\"::\"$11,0,$9;}}' > {output}"
 
 rule make_repeat_mask_gff:
     input:
