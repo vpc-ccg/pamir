@@ -622,10 +622,7 @@ int main(int argc, char **argv)
 		}
 		else if (mode == "assemble") {
 			if (argc != 9) throw "Usage:10 parameters needed\tpamir assemble [partition-file] [reference] [range] [output-file-vcf] [max-len] [read-length] dir_prefix";
-			log_path = argv[5]; log_path += ".log";
-			log_init( "" );	//log_init( log_path );
 			assemble(argv[2], argv[3], argv[4], argv[5], atoi(argv[6]), atoi(argv[7]), argv[8]);
-			log_close();
 		}
 		else if (mode == "get_cluster") {
 			if (argc != 4) throw "Usage:\tpamir get_cluster [partition-file] [range]";
