@@ -451,10 +451,10 @@ void assemble (const string &partition_file, const string &reference, const stri
 		
 		// cluster has too many or too few reads
 		if ( p.size() > 7000 || p.size() <= 2 ) {
-            log("-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");
-            log(" + Cluster ID      : %d\n", pt.get_cluster_id());
-            log(" + Reads Count     : %lu\n", p.size());
-            log("INFO: Skipped Processing - Too few or Too many reads\n");
+            Logger::instance().info("-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");
+            Logger::instance().info(" + Cluster ID      : %d\n", pt.get_cluster_id());
+            Logger::instance().info(" + Reads Count     : %lu\n", p.size());
+            Logger::instance().info("INFO: Skipped Processing - Too few or Too many reads\n");
             continue;
         }
 		string chrName  = pt.get_reference();
@@ -464,12 +464,12 @@ void assemble (const string &partition_file, const string &reference, const stri
 		int ref_start   = pt_start - LENFLAG;
 		int ref_end     = pt_end   + LENFLAG;
 		string ref_part = ref.extract(chrName, ref_start, ref_end);
-		log("-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");
-		log(" + Cluster ID      : %d\n", cluster_id);
-		log(" + Reads Count     : %lu\n", p.size());
-		log(" + Spanning Range  : %s:%d-%d\n", chrName.c_str(), pt_start, pt_end);
-		log(" + Discovery Range : %s:%d-%d\n", chrName.c_str(), ref_start, ref_end);
-		log(" + Reference       : %s\n\n", ref_part.c_str());
+        Logger::instance().info("-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");
+        Logger::instance().info(" + Cluster ID      : %d\n", cluster_id);
+        Logger::instance().info(" + Reads Count     : %lu\n", p.size());
+        Logger::instance().info(" + Spanning Range  : %s:%d-%d\n", chrName.c_str(), pt_start, pt_end);
+        Logger::instance().info(" + Discovery Range : %s:%d-%d\n", chrName.c_str(), ref_start, ref_end);
+        Logger::instance().info(" + Reference       : %s\n\n", ref_part.c_str());
 		// if the genomic region is too big
 		if (ref_end - ref_start > MAX_REF_LEN) 
 			continue;
@@ -489,10 +489,10 @@ void assemble (const string &partition_file, const string &reference, const stri
 			int contig_support		= contig.read_information.size();
 			int con_len 			= contig.data.length();
 			if( check_AT_GC(contig.data, MAX_AT_GC) == 0 || (con_len <= read_length && contig_support <= 1) || con_len > max_len + 400 ) continue;
-		
-			log("\n\n>>>>> Length: %d Support: %d Contig: %s\n", con_len, contig_support, contig.data.c_str());
+
+            Logger::instance().info("\n\n>>>>> Length: %d Support: %d Contig: %s\n", con_len, contig_support, contig.data.c_str());
 			for(int z=0;z<contig.read_information.size();z++)
-				log("%s %s %d %d\n", 
+                Logger::instance().info("%s %s %d %d\n",
 					contig.read_information[z].name.c_str(),
 					contig.read_information[z].seq.c_str(),
 					contig.read_information[z].location, 
