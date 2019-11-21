@@ -171,7 +171,6 @@ rule move_fai:
         "cp {input} {output}"
 
 
-rule 
 
 rule format_repeat_masking:
     input:
@@ -260,7 +259,7 @@ rule make_summary_js:
             print("var table_summary_file =[",file=ohand)
             for line in ihand:
                 fields=line.rstrip().split("\t")
-                print(json.dumps({"e" : fields[1], "c" : str(int(float(fields[0]))), "l":len(fields[3])}),file=ohand,end=",")
+                print(json.dumps({"e" : fields[1], "c" : str(int(float(fields[0]))), "l":len(fields[2])}),file=ohand,end=",")
                 
                 length = int(len(fields[2])/5)*5
                 count = int(float(fields[0]))
