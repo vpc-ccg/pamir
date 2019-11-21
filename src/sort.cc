@@ -89,7 +89,7 @@ static char *buffer;
 static size_t bufsz;
 
 size_t mergeSort (file **f, size_t fsz, file *fo, char *buffer, size_t bufsz) {
-	LOG("Merging %lu files ...", fsz);
+    Logger::instance().info("Merging %lu files ...", fsz);
 	size_t cnt = 0;
 	size_t bsz = bufsz / fsz;
 	vector<size_t> counts(fsz, 1);
@@ -243,8 +243,8 @@ void sortFile (const string &path, const string &pathNew, size_t memLimit) {
 		//ZAMAN_END("FLUSH");
 
 		memmove(buffer, buffer + i, offset = sz - i);
-		
-		LOG("Created %s with %'lu records", fn, nodes.size());
+
+        Logger::instance().info("Created %s with %'lu records", fn, nodes.size());
 		nodes.resize(0);
 	}
 
@@ -281,7 +281,7 @@ void sortFile (const string &path, const string &pathNew, size_t memLimit) {
 			nf.push_back(f);
 			nfn.push_back(fn);
 
-			//LOG("> %s ... %d", fn, sz);
+			//Logger::instance().info("> %s ... %d", fn, sz);
 		}
 		for (int i = 0; i < files.size(); i++) {
 			files[i]->close();

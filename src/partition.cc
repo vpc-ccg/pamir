@@ -202,19 +202,19 @@ size_t genome_partition::dump (const vector<pair<pair<string, string>, pair<int,
 	orphan_info.reserve(20000);
 	
 	map<string, vector<int> >::iterator mit;
-	log("CLUSTER ID: %d\n", fc);
+    Logger::instance().info("CLUSTER ID: %d\n", fc);
 	for (mit=myset.begin(); mit!=myset.end(); mit++)
 	{
 		string revcontent;
 		//fprintf(flog,"readNum: %d\tcontigname: %s\tleft: %d\tright: %d\tforward: %d\treverse: %d\n", nReads, (*mit).first.c_str(), myset[(*mit).first][2], myset[(*mit).first][3], myset[(*mit).first][0], myset[(*mit).first][1]);
-		log("readNum: %d\tcontigname: %s\tleft: %d\tright: %d\tforward: %d\treverse: %d\n", nReads, (*mit).first.c_str(), myset[(*mit).first][2], myset[(*mit).first][3], myset[(*mit).first][0], myset[(*mit).first][1]);
+        Logger::instance().info("readNum: %d\tcontigname: %s\tleft: %d\tright: %d\tforward: %d\treverse: %d\n", nReads, (*mit).first.c_str(), myset[(*mit).first][2], myset[(*mit).first][3], myset[(*mit).first][0], myset[(*mit).first][1]);
 		
 		int contiglen = map_cont[(*mit).first].length(); 
 		if(contiglen <= INSSIZE)
 		{
 			if( 0 == myset[(*mit).first][2] )
 			{
-				log( "Short contig and no left or right flank supporters\n");
+			    Logger::instance().info("Short contig and no left or right flank supporters\n");
 				continue;
 			}
 		}
@@ -222,7 +222,7 @@ size_t genome_partition::dump (const vector<pair<pair<string, string>, pair<int,
 		{
 			if((myset[(*mit).first][2]==0|| myset[(*mit).first][3]==0) && myset[(*mit).first][2] +myset[(*mit).first][3] < 0.3*nReads )
 			{
-				log("either no OEAs mapping on left or right flank and not enough left + right flank support < 30%%\n");
+                Logger::instance().info("either no OEAs mapping on left or right flank and not enough left + right flank support < 30%%\n");
 				continue;
 			}
 		}
@@ -250,7 +250,7 @@ size_t genome_partition::dump (const vector<pair<pair<string, string>, pair<int,
 			acceptedContigNum ++;
 		}
 	}
-	if ( tie ) { log( "Forward and reverse were in tie condition : %d times.\n", tie);}
+	if ( tie ) { Logger::instance().info("Forward and reverse were in tie condition : %d times.\n", tie);}
 
 	// Actual Partiton Content 
 	size_t pos = ftell(fo);
