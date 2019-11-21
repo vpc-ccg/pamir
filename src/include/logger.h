@@ -50,28 +50,6 @@ private:
         }
     }
 
-    Logger(const std::string &error_str, const std::string &info_str) : debugf(stderr) {
-        errorf = fopen(error_str.c_str(), "w+");
-        if (errorf == NULL) {
-            fputs("Could not the open error stream\n", stderr);
-            exit(-1);
-        }
-        infof = fopen(info_str.c_str(), "w+");
-
-        if (infof == NULL) {
-            fputs("Could not open the info stream\n", stderr);
-            exit(-1);
-        }
-    }
-
-    Logger(const std::string &error_str, const std::string &info_str, const std::string &debug_str) : Logger(error_str,
-                                                                                                             info_str) {
-        debugf = fopen(debug_str.c_str(), "w+");
-        if (debugf == NULL) {
-            fputs("Could not open the debug stream\n", stderr);
-            exit(-1);
-        }
-    }
 
     Logger() : debugf(stderr), infof(stdout), errorf(stderr) {}
 

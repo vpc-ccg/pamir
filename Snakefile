@@ -29,6 +29,7 @@ cfg_default("results-base","/results")
 cfg_default("analysis","{}{}/{}".format(config["path"],config["analysis-base"],config["population"]))
 cfg_default("results","{}{}/{}".format(config["path"],config["results-base"],config["population"]))
 
+cfg_default("genotyping_flank_size",1000)
 cfg_default("linked-data", config["analysis"] + "/linked-data")
 cfg_default("assembler","minia")
 cfg_default("assembler_k", 64)
@@ -170,15 +171,25 @@ rule move_fai:
         "cp {input} {output}"
 
 
+rule 
+
+rule format_repeat_masking:
+    input:
+        "{sample}.fa.out"
+    output:
+        "{sample}.bed6"
+    shell:
+        "cat {input} | awk 'BEGIN{OFS=\"\\t\";}NR>3{gsub(\"C\",\"-\",$9);print $5,$6,$7,$10\"::\"$11,0,$9;} > {output}"
+
 rule make_repeat_mask_gff:
     input:
         config["results"]+"/events.fa" 
     output: 
-        config["results"]+"/events.repeat.gff" 
+        config["results"]+"/events.fa.out" 
     threads:
         config["other_threads"]
     shell:
-        "RepeatMasker -species human -gff -pa {threads} {input} && mv {input}.out.gff {output}"
+        "RepeatMasker -species human -pa {threads} {input}"
 
 rule make_data_js:
     input:
@@ -350,7 +361,7 @@ rule genotype_vis:
         head=config["analysis"]+"/vis/bams/{sample}.header",
     params:
         ref=config["reference"],
-        rang=1000,
+        rang=config["genotyping_flank_size"],
         min_frag=454,
         max_frag=546,
         rl=config["read_length"],
@@ -533,7 +544,7 @@ rule make_vis_fasta:
         bed  =config["analysis"]+"/vis/{sample}/events_ins_pos.bed",
     params:
         ref=config["reference"],
-        flank=1000,
+        flank=config["genotyping_flank_size"],
     run:
         import subprocess
         contig_sizes = {}
