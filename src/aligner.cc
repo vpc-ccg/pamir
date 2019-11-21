@@ -1,12 +1,13 @@
-#include<iostream>
-#include<string>
-#include<algorithm>
-#include<cmath>
-#include<vector>
-#include "aligner.h"
+#include <iostream>
+#include <string>
+#include <algorithm>
+#include <vector>
 #include <tuple>
-#include <time.h>
+#include <cmath>
+#include <ctime>
+#include "aligner.h"
 #include "common.h"
+
 using namespace std;
 
 aligner::aligner(int reflen)
@@ -45,33 +46,33 @@ aligner::~aligner()
 		delete score[i];
 		delete gapa[i];
 		delete gapb[i];
-	}	
+	}
 	delete score;
 }
 /*********************************************************/
 void aligner::print_matrix(string name, const string &a, const string &b, int **matrix)
 {
-	fprintf(stdout, "=================================\n");
-	fprintf(stdout, "Matrix: %s\n", name.c_str());
-	fprintf(stdout, "=================================\n");
-	fprintf(stdout,"       -");
+    Logger::instance().info("=================================\n");
+    Logger::instance().info("Matrix: %s\n", name.c_str());
+    Logger::instance().info("=================================\n");
+    Logger::instance().info("       -");
 	for (int i=0; i<a.length();i++)
-		fprintf(stdout, "%4c", a[i]);
-	fprintf(stdout, "\n");
+        Logger::instance().info("%4c", a[i]);
+    Logger::instance().info("\n");
 	for (int j=0; j<=b.length(); j++)
 	{
-		if (j>0) fprintf(stdout,"%4c", b[j-1]);
-		else fprintf(stdout, "   -");
+		if (j>0) Logger::instance().info("%4c", b[j-1]);
+		else Logger::instance().info("   -");
 		for (int i=0; i<=a.length();i++)
 		{
 			if (matrix[i][j] <= -100000)
-				fprintf(stdout, "   N");
-			else 
-				fprintf(stdout,"%4d", matrix[i][j]);
+                Logger::instance().info("   N");
+			else
+                Logger::instance().info("%4d", matrix[i][j]);
 		}
-		fprintf(stdout, "\n");
+        Logger::instance().info("\n");
 	}
-	fprintf(stdout, "=================================\n");
+    Logger::instance().info("=================================\n");
 }
 /**************************************************/
 void aligner::clear(int a, int b)
@@ -83,13 +84,13 @@ void aligner::clear(int a, int b)
 			score[i][j]=0;
 
 	for (int i=0; i<b; i++)
-	{	
+	{
 		gapa[0][i]=-100000;
 		for (int j=1;j<a;j++)
 			gapa[j][i]=0;
 	}
 	for (int j=0; j<a; j++)
-	{	
+	{
 		gapb[j][0]=-100000;
 		for (int i=1;i<b;i++)
 			gapb[j][i]=0;
@@ -100,7 +101,7 @@ void aligner::align(const string &ref, const string &ass)
 {
 	int len = ass.length();
 
-	int tmp;		
+	int tmp;
 	for (int i=1; i<=ref.length();i++)
 	{
 		for (int j=1; j<= len;j++)
@@ -111,7 +112,7 @@ void aligner::align(const string &ref, const string &ass)
 			score[i][j] = max33(score[i-1][j-1], gapa[i-1][j-1], gapb[i-1][j-1]) + tmp;
 		}
 	}
-	
+
 	//backtracking
 	int max = score[1][len];
 	int pi = 1;
@@ -137,7 +138,7 @@ void aligner::align(const string &ref, const string &ass)
 	int cur = 0;
 
 	int match = 0, mismatch = 0, indel = 0;
-	
+
 	while ( pi >0 && pj > 0 )
 	{
 		if ( cur == 0 )
@@ -150,12 +151,12 @@ void aligner::align(const string &ref, const string &ass)
 			b += ass[pj-1];
 			c += ((tmp>0)?'|':' ');
 
-			if (gapa[pi-1][pj-1] + tmp  == score[pi][pj]) 
+			if (gapa[pi-1][pj-1] + tmp  == score[pi][pj])
 			{
 				indel++;
 				cur = 1;
 			}
-			else if (gapb[pi-1][pj-1] + tmp  == score[pi][pj]) 
+			else if (gapb[pi-1][pj-1] + tmp  == score[pi][pj])
 			{
 				indel++;
 				cur = 2;
@@ -182,7 +183,7 @@ void aligner::align(const string &ref, const string &ass)
 				cur = 0;
 			pi--;
 		}
-		else 
+		else
 		{
 			//a = '-' + a;
 			//b = ass[pj-1] + b;
@@ -326,7 +327,7 @@ int aligner::extract_calls( const int &cluster_id, vector<tuple<string, int, int
 					if( a[p] == '-' )
 					{
 						insertion_start_loc = p;
-					
+
 
                         ins_len = 1;
                         break;
@@ -380,8 +381,7 @@ void aligner::dump(string direction)
 		else
 			cnt+=' ';
 	}
-	log("\n%s I:%6.2f   %s\nG(%10d): %s\n               %s\nA(%10d): %s\n", direction.c_str(), get_identity(), cnt.c_str(), ref_abs_start,a.c_str(), c.c_str(), 1,b.c_str());
-	//fprintf(fo, "   %s\nG: %s\n   %s\nA: %s\n",cnt.c_str(), a.c_str(), c.c_str(), b.c_str()); 
+    Logger::instance().info("\n%s I:%6.2f   %s\nG(%10d): %s\n               %s\nA(%10d): %s\n", direction.c_str(), get_identity(), cnt.c_str(), ref_abs_start,a.c_str(), c.c_str(), 1,b.c_str());
 }
 /********************************************************************************/
 int aligner::get_start()
