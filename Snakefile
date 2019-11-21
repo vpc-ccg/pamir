@@ -243,13 +243,13 @@ rule make_summary_js:
         length2counts = {}
         
         with open(output[0],'w') as ohand, open(input[0],'r') as ihand:
-            print("/* event\te\ncount\tc\n*/",file=ohand)
+            print("/*event\te\ncount\tc\nlength\tl\n*/",file=ohand)
             print("var cohort_request=\"{}\"".format(config["population"]),file=ohand)
             print("var cohort_size={}".format(len(config["input"].keys())),file=ohand)
             print("var table_summary_file =[",file=ohand)
             for line in ihand:
                 fields=line.rstrip().split("\t")
-                print(json.dumps({"e" : fields[1], "c" : str(int(float(fields[0]))) }),file=ohand,end=",")
+                print(json.dumps({"e" : fields[1], "c" : str(int(float(fields[0]))), "l":len(fields[3])}),file=ohand,end=",")
                 
                 length = int(len(fields[2])/5)*5
                 count = int(float(fields[0]))
@@ -297,6 +297,8 @@ rule all_vis_table:
             for event,patients in events.items():
                 details = event_details[event]
                 cnt = float(len(patients))
+                if cnt < 1:
+                    continue
                 print( "{}\t{}".format(cnt,"\t".join(details)), file=hand)
 
 
