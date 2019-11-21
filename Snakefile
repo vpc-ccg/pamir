@@ -36,6 +36,7 @@ cfg_default("pamir_min_contig_len", config["read_length"])
 cfg_default("assembly_threads",62)
 cfg_default("aligner_threads", 16)
 cfg_default("other_threads",16)
+cfg_default("minia_min_abundance",5)
 
 def tool_exists(name):
     from shutil import which
@@ -64,6 +65,7 @@ rule make_results:
         vcf=expand("{results}/ind/{sample}/events.vcf",results=config["results"],sample=config["input"].keys()),
         fa=expand("{results}/events.fa",results=config["results"]),
         fai=expand("{results}/events.fa.fai",results=config["results"]),
+        rm=expand("{results}/events.repeat.gff",results=config["results"]),
         
 
 rule print_event_xml:
@@ -168,6 +170,15 @@ rule move_fai:
         "cp {input} {output}"
 
 
+rule make_repeat_mask_gff:
+    input:
+        config["results"]+"/events.fa" 
+    output: 
+        config["results"]+"/events.repeat.gff" 
+    threads:
+        config["other_threads"]
+    shell:
+        "RepeatMasker -species human -gff -pa {threads} {input} && mv {input}.out.gff {output}"
 
 rule make_data_js:
     input:
@@ -179,9 +190,9 @@ rule make_data_js:
         import sys
         populations = {}
         cohort = config["population"]
-        sn = {"uuid" :"id","qual" :"q","genotype" :"g","Cluster" :"c","Support" :"p","FLSUP" :"flp","FRSUP" :"frp","FSUP" :"fsp","GLeft" :"gl","GRight" :"gt","GRef" :"gr","GLRatio" :"glr","GRRatio" :"grr","Sample" :"s"}
+        sn = {"uuid" :"id","qual" :"q","genotype" :"g","Cluster" :"c","Support" :"p","FLSUP" :"flp","FRSUP" :"frp","FSUP" :"fsp","GLeft" :"gl","GRight" :"gt","GRef" :"gr","GLRatio" :"glr","GRRatio" :"gtr","Sample" :"s"}
         with open(output[0], 'w') as ohand:
-            print("/*\nid uuid\nq qual\ng genotype\nc Cluster\np Support\nflp FLSUP\nfrp FRSUP\nfsp FSUP\ngl GLeft\ngt GRight\ngr GRef\nglr GLRatio\ngrr GRRatio\ns Sample\n*/",file=ohand)
+            print("/*\nid uuid\nq qual\ng genotype\nc Cluster\np Support\nflp FLSUP\nfrp FRSUP\nfsp FSUP\ngl GLeft\ngt GRight\ngr GRef\nglr GLRatio\ngtr GRRatio\ns Sample\n*/",file=ohand)
             print("var mut_data = ",file=ohand)
             for invcf in input:
                 sampleid = invcf.split("/")[-2]
@@ -232,15 +243,15 @@ rule make_summary_js:
         length2counts = {}
         
         with open(output[0],'w') as ohand, open(input[0],'r') as ihand:
+            print("/* event\te\ncount\tc\n*/",file=ohand)
             print("var cohort_request=\"{}\"".format(config["population"]),file=ohand)
             print("var cohort_size={}".format(len(config["input"].keys())),file=ohand)
             print("var table_summary_file =[",file=ohand)
             for line in ihand:
                 fields=line.rstrip().split("\t")
-                print(json.dumps({"event" : fields[1], "count" : str(fields[0]) }),file=ohand,end=",")
+                print(json.dumps({"e" : fields[1], "c" : str(int(float(fields[0]))) }),file=ohand,end=",")
                 
-                length = int(len(fields[2])/40+1) 
-		
+                length = int(len(fields[2])/5)*5
                 count = int(float(fields[0]))
                 if length not in length2counts:
                     length2counts[length] = []
@@ -765,7 +776,7 @@ if config["assembler"] == "minia":
             config["analysis"]+"/minia/contigs.fasta"
         params:
             k=config["assembler_k"],
-            min_abundance=10,
+            min_abundance=config["minia_min_abundance"],
             max_memory=250000,
             dr=config["analysis"]+"/minia/",
         threads:

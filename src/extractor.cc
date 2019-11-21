@@ -681,8 +681,10 @@ extractor::extractor(string filename, string output_prefix, int ftype, int oea, 
 	fprintf(f_stat, "%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n", count/2, md_concordant, md_oea , md_orphan + n_orphan/2 + n_chimeric/2, n_oea/2, n_orphan/2, md_oea, md_orphan, n_chimeric/2, min_length);
 	//fprintf(f_stat, "%d\t%d\n", dummy, dummy_1);
 	fclose( f_stat);
-	
-	fprintf(stdout, "%lu\t%lu\n", map_orphan.size(), map_read.size());
+
+
+    Logger::instance().info("%lu\t%lu\n", map_orphan.size(), map_read.size());
+    fprintf(stdout, "%lu\t%lu\n", map_orphan.size(), map_read.size());
 	//
 	if ( 0 < map_orphan.size())
 	{
