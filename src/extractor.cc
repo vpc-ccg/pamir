@@ -1,6 +1,7 @@
 #include <string>
 #include <map>
 #include <zlib.h>
+#include <algorithm>
 #include "common.h"
 #include "extractor.h"
 #include "record.h"
@@ -468,7 +469,7 @@ int examine_mapping( const Record &rc, map<string, Record > &map_read, FILE *f_m
 		result=3;
 		if ( 0 < r1 && 0 < r2 )
 		{
-			if ( ( 0x2 != ( 0x2 &flag1) ) || ( clip_ratio >= ( m1 + m2 )*1.0/( r1 + r2 ) ) )
+			if ( ( 0x2 != ( 0x2 &flag1) ) || ( clip_ratio >= std::min(m1, m2)*2.0/( r1 + r2 ) ) )
 			//if ( ( 0x2 != ( 0x2 &flag1) ) || ( clip_ratio > ( md1 + md2 )*1.0/( r1 + r2 ) ) )
 			{
 				if ( (clip_ratio >= m1*1.0/r1) && (clip_ratio >= m2*1.0/r2) )
