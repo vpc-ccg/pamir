@@ -66,8 +66,8 @@ rule make_results:
         vcf=expand("{results}/ind/{sample}/events.vcf",results=config["results"],sample=config["input"].keys()),
         fa=expand("{results}/events.fa",results=config["results"]),
         fai=expand("{results}/events.fa.fai",results=config["results"]),
-        rm=expand("{results}/events.repeat.bed6",results=config["results"]),
-        repeats=expand("{results}/ind/{sample}/events.repeats.bed",results=config["results"],sample=config["input"].keys()),
+     #   rm=expand("{results}/events.repeat.bed",results=config["results"]),
+        repeats=expand("{results}/ind/{sample}/events.repeat.bed",results=config["results"],sample=config["input"].keys()),
 rule print_event_xml:
     input:
         bam=config["analysis"]+"/vis/{sample}/final.bam",
@@ -172,7 +172,7 @@ rule move_repeat_bed:
     input:
         config["analysis"]+"/vis/{sample}/events_ins_pos_and_repeat.bed",
     output:
-        config["results"]+"/ind/{sample}/events.repeats.bed" 
+        config["results"]+"/ind/{sample}/events.repeat.bed" 
     shell:
         "cp {input} {output}"
 
@@ -181,7 +181,7 @@ rule move_repeat_bed:
 rule intersect_bed_and_repeats:
     input:
         bed=config["analysis"]+"/vis/{sample}/events_ins_pos.bed",
-        rpt=config["analysis"]+"/vis/events_ref.repeat.bed6"
+        rpt=config["analysis"]+"/vis/events_ref.repeat.bed",
     output:
         bed=config["analysis"]+"/vis/{sample}/events_ins_pos_and_repeat.bed",
     shell:
@@ -189,7 +189,7 @@ rule intersect_bed_and_repeats:
 
 rule make_unique_repeats:
     input:
-        config["analysis"]+"/vis/events_ref.repeat.bed6"
+        config["analysis"]+"/vis/events_ref.repeat.bed"
     output: 
         config["analysis"]+"/vis/unique_repeats.tsv"
     shell:
@@ -199,7 +199,7 @@ rule format_repeat_masking:
     input:
         "{sample}.fa.out"
     output:
-        "{sample}.repeat.bed6"
+        "{sample}.repeat.bed"
     shell:
         "cat {input} | awk 'BEGIN{{OFS=\"\\t\";}}NR>3{{gsub(\"C\",\"-\",$9);print $5,$6,$7,$10\"::\"$11,0,$9;}}' > {output}"
 
@@ -225,7 +225,7 @@ rule make_data_js:
         import sys
         populations = {}
         cohort = config["population"]
-        sn = {"uuid" :"id","qual" :"q","genotype" :"g","Cluster" :"c","Support" :"p","FLSUP" :"flp","FRSUP" :"frp","FSUP" :"fsp","GLeft" :"gl","GRight" :"gt","GRef" :"gr","GLRatio" :"glr","GRRatio" :"gtr","Sample" :"s"}
+        sn = {"uuid" :"id","qual" :"q","genotype" :"g","Cluster" :"c","Support" :"p","FLSUP" :"flp","FRSUP" :"frp","FSUP" :"fsp","GLeft" :"gl","GRight" :"gt","GRef" :"gr","GLRatio" :"glr","GRRatio" :"gtr","Sample" :"s", "RMContent": "rmc"}
         with open(output[0], 'w') as ohand:
             print("/*\nid uuid\nq qual\ng genotype\nc Cluster\np Support\nflp FLSUP\nfrp FRSUP\nfsp FSUP\ngl GLeft\ngt GRight\ngr GRef\nglr GLRatio\ngtr GRRatio\ns Sample\n*/",file=ohand)
             print("var mut_data = ",file=ohand)
@@ -279,13 +279,13 @@ rule make_summary_js:
         length2counts = {}
         
         with open(output[0],'w') as ohand, open(input.table,'r') as ihand, open(input.repeats, 'r') as rhand:
-            print("/*event\te\ncount\tc\nlength\tl\n*/",file=ohand)
+            print("/*event\te\ncount\tc\nlength\tl\nrepeat_type\tr\n*/",file=ohand)
             print("var cohort_request=\"{}\"".format(config["population"]),file=ohand)
             print("var cohort_size={}".format(len(config["input"].keys())),file=ohand)
             print("var table_summary_file =[",file=ohand)
             for line in ihand:
                 fields=line.rstrip().split("\t")
-                print(json.dumps({"e" : fields[1], "c" : str(int(float(fields[0]))), "l":len(fields[2])}),file=ohand,end=",")
+                print(json.dumps({"e" : fields[1], "c" : str(int(float(fields[0]))), "l":len(fields[2]), "r":fields[3]}),file=ohand,end=",")
                 
                 length = int(len(fields[2])/5)*5
                 count = int(float(fields[0]))
@@ -315,6 +315,37 @@ rule make_summary_js:
             print(", ".join(reps),end="",file=ohand)
             print("];",file=ohand)
 
+rule annotate_repeats_in_vcf:
+    input:
+        bed=config["analysis"]+"/vis/{sample}/events_ins_pos_and_repeat.bed",
+        vcf=config["analysis"]+"/vis/{sample}/genotyped.vcf",
+    output:
+        vcf=config["analysis"]+"/vis/{sample}/final.vcf",
+    run:
+        with open(input.vcf , 'r') as vhand, open(input.bed, 'r') as bhand, open(output.vcf, 'w') as ohand:
+            bedln = bhand.readline()
+            vcfln = vhand.readline()
+
+            while(bedln and vcfln):
+                while(vcfln[0] == "#"):
+                    print(vcfln,end="",file=ohand)
+                    vcfln = vhand.readline()
+               
+                vcffields = vcfln.rstrip().split("\t")
+                bedfields = bedln.rstrip().split("\t")
+
+                print("\t".join(vcffields[:8]),end="",file=ohand)
+                print(";RMContent=",end="",file=ohand)
+                if( bedfields[8] == "-1"):
+                    print("None",end="\t",file=ohand)
+                else:
+                    print(bedfields[8].split("::")[1],end="\t",file=ohand)
+                print("\t".join(vcffields[8:]),file=ohand) 
+                bedln = bhand.readline()
+                vcfln = vhand.readline()
+
+                
+
 rule all_vis_table:
     input:
         expand(config["analysis"]+"/vis/{sample}/final.vcf",sample=[x[0][0:x[0].find(".")] for x in config["input"].values()]) 
@@ -331,10 +362,19 @@ rule all_vis_table:
                     if line[0] == "#":
                         continue
                     fields = line.rstrip().split("\t")
+                    infocol = fields[7].split(";")
+                    info = {}
+                    for fi in infocol:
+                        parts = fi.split("=")
+                        if len(parts) == 1:
+                            info[parts[0]] = ""
+                        else:
+                            info[parts[0]] = parts[1]
+                    #print(info)
                     event_id = fields[2]
                     if event_id not in events:
                         events[event_id] = []
-                        event_details[event_id] = ((fields[2],fields[4][1:]))
+                        event_details[event_id] = ((fields[2],fields[4][1:],info["RMContent"]))
                     if fields[-1] != "0/0" and fields[6] == "PASS":
                         events[event_id].append((my_id,fields[-1]))
         with open( output[0], 'w') as hand:
@@ -392,7 +432,7 @@ rule genotype_vis:
         fasta=config["analysis"]+"/vis/events_ref.fa",
     output:
         sam=config["analysis"]+"/vis/bams/{sample}.sam",
-        vcf=config["analysis"]+"/vis/{sample}/final.vcf",
+        vcf=config["analysis"]+"/vis/{sample}/genotyped.vcf",
         head=config["analysis"]+"/vis/bams/{sample}.header",
         bed  =config["analysis"]+"/vis/{sample}/events_ins_pos.bed",
     params:
@@ -777,12 +817,12 @@ rule generate_vcf_header:
                         "##INFO=<ID=FLSUP,Number=1,Type=Integer,Description=\"Number of left supporting reads in filtering\">\n",
                         "##INFO=<ID=FLRSUP,Number=1,Type=Integer,Description=\"Number of right supporting reads in filtering\">\n",
                         "##INFO=<ID=FSUP,Number=1,Type=Integer,Description=\"Number of total supporting reads in filtering\">\n",       
-                        "##INFO=<ID=GLeft,Number=1,Type=Float,Description=\"Number of reads passing through the left breakpoint on template INS sequence\">\n",
-                        "##INFO=<ID=GRight,Number=1,Type=Float,Description=\"Number of reads passing through the right breakpoint on template INS sequence)\">\n",
-                        "##INFO=<ID=GRef,Number=1,Type=Float,Description=\"Number of reads passing through the breakpoint on template REF sequence)\">\n",
+                        "##INFO=<ID=GLeft,Number=1,Type=Integer,Description=\"Number of reads passing through the left breakpoint on template INS sequence\">\n",
+                        "##INFO=<ID=GRight,Number=1,Type=Integer,Description=\"Number of reads passing through the right breakpoint on template INS sequence)\">\n",
+                        "##INFO=<ID=GRef,Number=1,Type=Integer,Description=\"Number of reads passing through the breakpoint on template REF sequence)\">\n",
                         "##INFO=<ID=GRRatio,Number=1,Type=Float,Description=\"Ratio between GRight and GRef\">\n",
                         "##INFO=<ID=GLRatio,Number=1,Type=Float,Description=\"Ratio between GLeft and GRef \">\n",
-                        "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">\n",
+                        "##INFO=<ID=RMContent,Number=1,Type=String,Description=\"Repeat content overlapping with the eveRepeat content overlapping with the event\">\n",##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">\n",
                         "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tGENOTYPE\n"])
         with open(output[0],'w') as hand:
             print(header_info, file=hand, end="")
