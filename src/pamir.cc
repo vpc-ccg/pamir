@@ -245,31 +245,6 @@ reset:
 	return num_cluster;
 }
 /******************************************************************/
-void print_calls(string chrName, const string &reference, vector< tuple< string, int, int, string, int, float > > &reports, FILE *fo_vcf, const int &clusterId)
-{
-	for(int r=0;r<reports.size();r++)
-	{
-		if(get<0>(reports[r])== "INS"){
-			fprintf(fo_vcf, "%s\t",	 			chrName.c_str());
-			fprintf(fo_vcf, "%d\t", 			get<1>(reports[r]));
-		//	fprintf(fo_vcf, "%d\t", 			get<2>(reports[r]));
-			fprintf(fo_vcf, ".\t");
-			fprintf(fo_vcf, "%c\t",reference.at(r));
-			fprintf(fo_vcf, "<INS>\t");
-		//	fprintf(fo_vcf, "%s\t",				get<3>(reports[r]).c_str());
-		//	fprintf(fo_vcf, "%f\t", 			-10*log(1-get<5>(reports[r])));
-			fprintf(fo_vcf, "%f\t", 			get<5>(reports[r]));
-			fprintf(fo_vcf, "PASS\tSVTYPE=INS;");
-			fprintf(fo_vcf,	"SVLEN=%d;",  		get<2>(reports[r]));
-			fprintf(fo_vcf, "END=%d;",  		get<1>(reports[r]) + get<2>(reports[r])-1);
-			fprintf(fo_vcf, "Cluster=%d;", 		clusterId);
-			fprintf(fo_vcf, "Support=%d;", 		get<4>(reports[r]));
-		//	fprintf(fo_vcf, "Identity=%f\t", 	get<5>(reports[r])); 
-			fprintf(fo_vcf, "SEQ=%s\n", 		get<3>(reports[r]).c_str()); 
-		}
-	}
-}
-/******************************************************************/
 void append_vcf(const string &chrName, const string &reference, const vector< tuple< string, int, int, string, int, float > > &reports, const int &clusterId, string &vcf_str, string &vcf_str_del )
 {
 	for(int r=0;r<reports.size();r++)
