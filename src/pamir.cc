@@ -29,13 +29,6 @@ inline string space (int i)
 {
 	return string(i, ' ');
 }
-/********************************************************************/
-inline string itoa (int i)
-{
-	char c[50];
-	sprintf(c, "%d", i);
-	return string(c);
-}
 /*******************************************************************/
 void mask (const string &repeats, const string &path, const string &result, int pad = 0, bool invert = false)
 {
