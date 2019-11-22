@@ -67,8 +67,7 @@ rule make_results:
         fa=expand("{results}/events.fa",results=config["results"]),
         fai=expand("{results}/events.fa.fai",results=config["results"]),
         rm=expand("{results}/events.repeat.bed6",results=config["results"]),
-        
-
+        repeats=expand("{results}/ind/{sample}/events.repeats.bed",results=config["results"],sample=config["input"].keys()),
 rule print_event_xml:
     input:
         bam=config["analysis"]+"/vis/{sample}/final.bam",
@@ -161,7 +160,6 @@ rule move_fa:
     shell:
         "cp {input} {output}"
 
-
 rule move_fai:
     input:
         config["analysis"]+"/vis/events_ref.fa.fai" 
@@ -170,7 +168,32 @@ rule move_fai:
     shell:
         "cp {input} {output}"
 
+rule move_repeat_bed:
+    input:
+        config["analysis"]+"/vis/{sample}/events_ins_pos_and_repeat.bed",
+    output:
+        config["results"]+"/ind/{sample}/events.repeats.bed" 
+    shell:
+        "cp {input} {output}"
 
+#chr13-69551766-747f     1000    1050    Cluster=1087545;Support=4;FLSUP=6;FRSUP=8;FSUP=14       chr13-69551766-747f     1006    1084    (TA)n::Simple_repeat    0       +
+
+rule intersect_bed_and_repeats:
+    input:
+        bed=config["analysis"]+"/vis/{sample}/events_ins_pos.bed",
+        rpt=config["analysis"]+"/vis/events_ref.repeat.bed6"
+    output:
+        bed=config["analysis"]+"/vis/{sample}/events_ins_pos_and_repeat.bed",
+    shell:
+        "bedtools intersect -b {input.rpt} -a {input.bed} -r -f 0.5 -loj > {output}"
+
+rule make_unique_repeats:
+    input:
+        config["analysis"]+"/vis/events_ref.repeat.bed6"
+    output: 
+        config["analysis"]+"/vis/unique_repeats.tsv"
+    shell:
+        "cat {input} | cut -f 4 | sed 's/::/\\t/g' | cut -f 2 |  sort | uniq -c > {output}"
 
 rule format_repeat_masking:
     input:
@@ -182,9 +205,11 @@ rule format_repeat_masking:
 
 rule make_repeat_mask_gff:
     input:
-        config["results"]+"/events.fa" 
-    output: 
-        config["results"]+"/events.fa.out" 
+        config["analysis"]+"/vis/events_ref.fa"
+        #config["results"]+"/events.fa" 
+    output:
+        config["analysis"]+"/vis/events_ref.fa.out"
+        #config["results"]+"/events.fa.out" 
     threads:
         config["other_threads"]
     shell:
@@ -238,7 +263,8 @@ rule make_data_js:
 
 rule make_summary_js:
     input:
-        config["analysis"]+"/vis/table.tsv"
+        table=config["analysis"]+"/vis/table.tsv",
+        repeats=config["analysis"]+"/vis/unique_repeats.tsv",
     output:
         config["results"]+"/summary.js"
     run:
@@ -252,7 +278,7 @@ rule make_summary_js:
         import json
         length2counts = {}
         
-        with open(output[0],'w') as ohand, open(input[0],'r') as ihand:
+        with open(output[0],'w') as ohand, open(input.table,'r') as ihand, open(input.repeats, 'r') as rhand:
             print("/*event\te\ncount\tc\nlength\tl\n*/",file=ohand)
             print("var cohort_request=\"{}\"".format(config["population"]),file=ohand)
             print("var cohort_size={}".format(len(config["input"].keys())),file=ohand)
@@ -279,6 +305,14 @@ rule make_summary_js:
 
             print("var total_counts = [",file=ohand)
             print( ", ".join([ str(sumall(length2counts[x])) for x in sorted_lens]),file=ohand,end=",")
+            print("];",file=ohand)
+            
+
+            print("var repeat_types = [",file=ohand)
+            reps = []
+            for line in rhand:
+                reps.append("\"{}\"".format(line.rstrip().split()[1]))
+            print(", ".join(reps),end="",file=ohand)
             print("];",file=ohand)
 
 rule all_vis_table:
