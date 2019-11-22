@@ -29,6 +29,7 @@ cfg_default("results-base","/results")
 cfg_default("analysis","{}{}/{}".format(config["path"],config["analysis-base"],config["population"]))
 cfg_default("results","{}{}/{}".format(config["path"],config["results-base"],config["population"]))
 
+cfg_default("genotyping_flank_size",1000)
 cfg_default("linked-data", config["analysis"] + "/linked-data")
 cfg_default("assembler","minia")
 cfg_default("assembler_k", 64)
@@ -36,6 +37,7 @@ cfg_default("pamir_min_contig_len", config["read_length"])
 cfg_default("assembly_threads",62)
 cfg_default("aligner_threads", 16)
 cfg_default("other_threads",16)
+cfg_default("minia_min_abundance",5)
 
 def tool_exists(name):
     from shutil import which
@@ -64,8 +66,8 @@ rule make_results:
         vcf=expand("{results}/ind/{sample}/events.vcf",results=config["results"],sample=config["input"].keys()),
         fa=expand("{results}/events.fa",results=config["results"]),
         fai=expand("{results}/events.fa.fai",results=config["results"]),
-        
-
+     #   rm=expand("{results}/events.repeat.bed",results=config["results"]),
+        repeats=expand("{results}/ind/{sample}/events.repeat.bed",results=config["results"],sample=config["input"].keys()),
 rule print_event_xml:
     input:
         bam=config["analysis"]+"/vis/{sample}/final.bam",
@@ -123,7 +125,7 @@ rule make_html:
     output:
         config["results"]+"/index.html",
     shell:
-        "touch {output}"
+        "cp scripts/index.html {output}"
 
 rule move_bams:
     input:
@@ -158,7 +160,6 @@ rule move_fa:
     shell:
         "cp {input} {output}"
 
-
 rule move_fai:
     input:
         config["analysis"]+"/vis/events_ref.fa.fai" 
@@ -167,7 +168,52 @@ rule move_fai:
     shell:
         "cp {input} {output}"
 
+rule move_repeat_bed:
+    input:
+        config["analysis"]+"/vis/{sample}/events_ins_pos_and_repeat.bed",
+    output:
+        config["results"]+"/ind/{sample}/events.repeat.bed" 
+    shell:
+        "cp {input} {output}"
 
+#chr13-69551766-747f     1000    1050    Cluster=1087545;Support=4;FLSUP=6;FRSUP=8;FSUP=14       chr13-69551766-747f     1006    1084    (TA)n::Simple_repeat    0       +
+
+rule intersect_bed_and_repeats:
+    input:
+        bed=config["analysis"]+"/vis/{sample}/events_ins_pos.bed",
+        rpt=config["analysis"]+"/vis/events_ref.repeat.bed",
+    output:
+        bed=config["analysis"]+"/vis/{sample}/events_ins_pos_and_repeat.bed",
+    shell:
+        "bedtools intersect -b {input.rpt} -a {input.bed} -r -f 0.5 -loj > {output}"
+
+rule make_unique_repeats:
+    input:
+        config["analysis"]+"/vis/events_ref.repeat.bed"
+    output: 
+        config["analysis"]+"/vis/unique_repeats.tsv"
+    shell:
+        "cat {input} | cut -f 4 | sed 's/::/\\t/g' | cut -f 2 |  sort | uniq -c > {output}"
+
+rule format_repeat_masking:
+    input:
+        "{sample}.fa.out"
+    output:
+        "{sample}.repeat.bed"
+    shell:
+        "cat {input} | awk 'BEGIN{{OFS=\"\\t\";}}NR>3{{gsub(\"C\",\"-\",$9);print $5,$6,$7,$10\"::\"$11,0,$9;}}' > {output}"
+
+rule make_repeat_mask_gff:
+    input:
+        config["analysis"]+"/vis/events_ref.fa"
+        #config["results"]+"/events.fa" 
+    output:
+        config["analysis"]+"/vis/events_ref.fa.out"
+        #config["results"]+"/events.fa.out" 
+    threads:
+        config["other_threads"]
+    shell:
+        "RepeatMasker -species human -pa {threads} {input}"
 
 rule make_data_js:
     input:
@@ -179,9 +225,9 @@ rule make_data_js:
         import sys
         populations = {}
         cohort = config["population"]
-        sn = {"uuid" :"id","qual" :"q","genotype" :"g","Cluster" :"c","Support" :"p","FLSUP" :"flp","FRSUP" :"frp","FSUP" :"fsp","GLeft" :"gl","GRight" :"gt","GRef" :"gr","GLRatio" :"glr","GRRatio" :"grr","Sample" :"s"}
+        sn = {"uuid" :"id","qual" :"q","genotype" :"g","Cluster" :"c","Support" :"p","FLSUP" :"flp","FRSUP" :"frp","FSUP" :"fsp","GLeft" :"gl","GRight" :"gt","GRef" :"gr","GLRatio" :"glr","GRRatio" :"gtr","Sample" :"s", "RMContent": "rmc"}
         with open(output[0], 'w') as ohand:
-            print("/*\nid uuid\nq qual\ng genotype\nc Cluster\np Support\nflp FLSUP\nfrp FRSUP\nfsp FSUP\ngl GLeft\ngt GRight\ngr GRef\nglr GLRatio\ngrr GRRatio\ns Sample\n*/",file=ohand)
+            print("/*\nid uuid\nq qual\ng genotype\nc Cluster\np Support\nflp FLSUP\nfrp FRSUP\nfsp FSUP\ngl GLeft\ngt GRight\ngr GRef\nglr GLRatio\ngtr GRRatio\ns Sample\n*/",file=ohand)
             print("var mut_data = ",file=ohand)
             for invcf in input:
                 sampleid = invcf.split("/")[-2]
@@ -217,7 +263,8 @@ rule make_data_js:
 
 rule make_summary_js:
     input:
-        config["analysis"]+"/vis/table.tsv"
+        table=config["analysis"]+"/vis/table.tsv",
+        repeats=config["analysis"]+"/vis/unique_repeats.tsv",
     output:
         config["results"]+"/summary.js"
     run:
@@ -231,16 +278,16 @@ rule make_summary_js:
         import json
         length2counts = {}
         
-        with open(output[0],'w') as ohand, open(input[0],'r') as ihand:
+        with open(output[0],'w') as ohand, open(input.table,'r') as ihand, open(input.repeats, 'r') as rhand:
+            print("/*event\te\ncount\tc\nlength\tl\nrepeat_type\tr\n*/",file=ohand)
             print("var cohort_request=\"{}\"".format(config["population"]),file=ohand)
             print("var cohort_size={}".format(len(config["input"].keys())),file=ohand)
             print("var table_summary_file =[",file=ohand)
             for line in ihand:
                 fields=line.rstrip().split("\t")
-                print(json.dumps({"event" : fields[1], "count" : str(fields[0]) }),file=ohand,end=",")
+                print(json.dumps({"e" : fields[1], "c" : str(int(float(fields[0]))), "l":len(fields[2]), "r":fields[3]}),file=ohand,end=",")
                 
-                length = int(len(fields[2])/40+1) 
-		
+                length = int(len(fields[2])/5)*5
                 count = int(float(fields[0]))
                 if length not in length2counts:
                     length2counts[length] = []
@@ -259,6 +306,45 @@ rule make_summary_js:
             print("var total_counts = [",file=ohand)
             print( ", ".join([ str(sumall(length2counts[x])) for x in sorted_lens]),file=ohand,end=",")
             print("];",file=ohand)
+            
+
+            print("var repeat_types = [",file=ohand)
+            reps = []
+            for line in rhand:
+                reps.append("\"{}\"".format(line.rstrip().split()[1]))
+            print(", ".join(reps),end="",file=ohand)
+            print("];",file=ohand)
+
+rule annotate_repeats_in_vcf:
+    input:
+        bed=config["analysis"]+"/vis/{sample}/events_ins_pos_and_repeat.bed",
+        vcf=config["analysis"]+"/vis/{sample}/genotyped.vcf",
+    output:
+        vcf=config["analysis"]+"/vis/{sample}/final.vcf",
+    run:
+        with open(input.vcf , 'r') as vhand, open(input.bed, 'r') as bhand, open(output.vcf, 'w') as ohand:
+            bedln = bhand.readline()
+            vcfln = vhand.readline()
+
+            while(bedln and vcfln):
+                while(vcfln[0] == "#"):
+                    print(vcfln,end="",file=ohand)
+                    vcfln = vhand.readline()
+               
+                vcffields = vcfln.rstrip().split("\t")
+                bedfields = bedln.rstrip().split("\t")
+
+                print("\t".join(vcffields[:8]),end="",file=ohand)
+                print(";RMContent=",end="",file=ohand)
+                if( bedfields[8] == "-1"):
+                    print("None",end="\t",file=ohand)
+                else:
+                    print(bedfields[8].split("::")[1],end="\t",file=ohand)
+                print("\t".join(vcffields[8:]),file=ohand) 
+                bedln = bhand.readline()
+                vcfln = vhand.readline()
+
+                
 
 rule all_vis_table:
     input:
@@ -276,16 +362,27 @@ rule all_vis_table:
                     if line[0] == "#":
                         continue
                     fields = line.rstrip().split("\t")
+                    infocol = fields[7].split(";")
+                    info = {}
+                    for fi in infocol:
+                        parts = fi.split("=")
+                        if len(parts) == 1:
+                            info[parts[0]] = ""
+                        else:
+                            info[parts[0]] = parts[1]
+                    #print(info)
                     event_id = fields[2]
                     if event_id not in events:
                         events[event_id] = []
-                        event_details[event_id] = ((fields[2],fields[4][1:]))
+                        event_details[event_id] = ((fields[2],fields[4][1:],info["RMContent"]))
                     if fields[-1] != "0/0" and fields[6] == "PASS":
                         events[event_id].append((my_id,fields[-1]))
         with open( output[0], 'w') as hand:
             for event,patients in events.items():
                 details = event_details[event]
                 cnt = float(len(patients))
+                if cnt < 1:
+                    continue
                 print( "{}\t{}".format(cnt,"\t".join(details)), file=hand)
 
 
@@ -326,7 +423,7 @@ rule make_rg_lines_for_header:
             for cat in categories:
                 print("@RG\tID:{0}\tLB:{0}".format(cat),file=hand)
 
-rule fetch_concordants_for_vis:
+rule genotype_vis:
     input:
         cram=get_cram_name,
         cram_index=get_cram_index,
@@ -335,11 +432,12 @@ rule fetch_concordants_for_vis:
         fasta=config["analysis"]+"/vis/events_ref.fa",
     output:
         sam=config["analysis"]+"/vis/bams/{sample}.sam",
-        vcf=config["analysis"]+"/vis/{sample}/final.vcf",
+        vcf=config["analysis"]+"/vis/{sample}/genotyped.vcf",
         head=config["analysis"]+"/vis/bams/{sample}.header",
+        bed  =config["analysis"]+"/vis/{sample}/events_ins_pos.bed",
     params:
         ref=config["reference"],
-        rang=1000,
+        rang=config["genotyping_flank_size"],
         min_frag=454,
         max_frag=546,
         rl=config["read_length"],
@@ -354,7 +452,7 @@ rule fetch_concordants_for_vis:
         view_cmd="samtools view -T {} {}".format(params.ref,input.cram)
         sort_cmd = "samtools sort -n | samtools view"
         in_house_cmd = "./util/process range {} {} {} {} {} {} {}"
-        with open(input.vcf,"r") as hand , open( output.sam, "w") as samhand, open(output.vcf, "w") as vcfhand:
+        with open(input.vcf,"r") as hand , open( output.sam, "w") as samhand, open(output.vcf, "w") as vcfhand, open(output.bed, "w") as bedhand:
 
 
 
@@ -370,6 +468,7 @@ rule fetch_concordants_for_vis:
                 ps = []
                 pm = [] 
                 vcfs = []
+                beds = []
                 for tid in range(threads):
                     while line and fields[6] != "PASS":
                         line = hand.readline()
@@ -381,7 +480,7 @@ rule fetch_concordants_for_vis:
                     end   = pos + params.rang - 1
                     seq = fields[4][1:]
                     vcfs.append(fields)
-                    fasta_cmd="cat  {} | grep {} -A1 | tail -n1".format(input.fasta, fields[2])
+                    fasta_cmd="cat  {} | grep {} -A1".format(input.fasta, fields[2])
                     ps.append( subprocess.Popen(fasta_cmd, shell=True, stdout=subprocess.PIPE))
                     pm.append(view_cmd + " {}:{}-{}".format(fields[0],start+params.rl,end-params.rl) + "|" + in_house_cmd.format(pos,len(seq),params.rang,params.min_frag,params.max_frag,fields[2],"{}"))
                     line = hand.readline()
@@ -390,9 +489,12 @@ rule fetch_concordants_for_vis:
                 for p,m in zip(ps,pm):
                     stdout,stderr = p.communicate()
                     fasta = stdout.decode('utf-8').splitlines()
+                    bedinfo = fasta[0].split(" ")
+
+                    beds.append("{}\t{}\t{}".format(bedinfo[0][1:],bedinfo[1],int(bedinfo[1]) + int(bedinfo[2])))
                     if(fasta == []):
                         continue
-                    pf.append(m.format(fasta[0]))
+                    pf.append(m.format(fasta[1]))
 
                     
 
@@ -401,13 +503,14 @@ rule fetch_concordants_for_vis:
                     processes.append(subprocess.Popen(f, shell=True,stdout=subprocess.PIPE))
 
 
-                for v,process in zip(vcfs,processes):
+                for bed,v,process in zip(beds,vcfs,processes):
                     stdout,stderr = process.communicate()
                     samlines = stdout.decode('utf-8').splitlines()
 
                     for l in samlines[1:]:
                         print(l,file=samhand)
                     print("\t".join(v[:8]),end=";",file=vcfhand)
+
                     #print(samlines[0])
                     left,right,ref = [int(x) for x in samlines[0].split("\t")]
                     
@@ -430,13 +533,18 @@ rule fetch_concordants_for_vis:
                             lg.append(1)
                     
                     genotype = genotype_dic[min(lg)]
- 
-                    print("GLeft={}".format(left),end=";",file=vcfhand)
-                    print("GRight={}".format(right),end=";",file=vcfhand)
-                    print("GRef={}".format(ref),end=";",file=vcfhand)
-                    print("GLRatio={:.3f}".format(left_ratio),end=";",file=vcfhand)
-                    print("GRRatio={:.3f}".format(right_ratio),end=";",file=vcfhand)
-                    print("Sample={}".format(wildcards.sample),end="\t",file=vcfhand)
+
+                    infoformat="GLeft={};GRight={};GRef={};GLRatio={:.2f};GRRatio={:.2f};Sample={}"
+
+                    print( infoformat.format(left,right,ref,left_ratio,right_ratio,wildcards.sample),end="\t",file=vcfhand)
+                    print( bed,end="\t",file=bedhand)
+                    print( infoformat.format(left,right,ref,left_ratio,right_ratio,wildcards.sample),end="\n",file=bedhand)
+                    #print("GLeft={}".format(left),end=";",file=vcfhand)
+                    #print("GRight={}".format(right),end=";",file=vcfhand)
+                    #print("GRef={}".format(ref),end=";",file=vcfhand)
+                    #print("GLRatio={:.3f}".format(left_ratio),end=";",file=vcfhand)
+                    #print("GRRatio={:.3f}".format(right_ratio),end=";",file=vcfhand)
+                    #print("Sample={}".format(wildcards.sample),end="\t",file=vcfhand)
                     print("\t".join(v[8:]),file=vcfhand,end="\t")
                     print("GT\t{}".format(genotype),file=vcfhand)
                     #stdout = stdout.decode('utf-8').splitlines()
@@ -519,10 +627,9 @@ rule make_vis_fasta:
         vcf=config["analysis"]+"/pamir/annotation/{sample}/annotated.named.no_centro.vcf",
     output:
         fasta=temp(config["analysis"]+"/vis/{sample}/events_ref.fa"),
-        bed  =config["analysis"]+"/vis/{sample}/events_ins_pos.bed",
     params:
         ref=config["reference"],
-        flank=1000,
+        flank=config["genotyping_flank_size"],
     run:
         import subprocess
         contig_sizes = {}
@@ -530,7 +637,7 @@ rule make_vis_fasta:
             for line in fasta_index:
                 fields = line.split("\t")
                 contig_sizes[fields[0]] = int(fields[1])
-        with open(input['vcf'],'r') as hand, open(output["fasta"],"w+") as fast_hand, open(output["bed"],"w+") as bed_hand:
+        with open(input['vcf'],'r') as hand, open(output["fasta"],"w+") as fast_hand:
             for line in hand:
                 if line[0] == "#":
                     continue
@@ -561,8 +668,7 @@ rule make_vis_fasta:
                 #print("{}\t{}".format(cmd,fields[2]))
                 seq = stdout[-1]
                 seq = seq[:mid] + ins + seq[mid:]
-                print(">{}\n{}".format(ins_id,seq.rstrip()),file=fast_hand)
-                print("{}\t{}\t{}\t{}".format(ins_id,mid,mid+len(ins),fields[7]),file=bed_hand)
+                print(">{} {} {} {}\n{}".format(ins_id, mid, len(ins), end - len(ins),seq.rstrip()),file=fast_hand)
 
 
 rule all_filtered_vcf:
@@ -711,12 +817,12 @@ rule generate_vcf_header:
                         "##INFO=<ID=FLSUP,Number=1,Type=Integer,Description=\"Number of left supporting reads in filtering\">\n",
                         "##INFO=<ID=FLRSUP,Number=1,Type=Integer,Description=\"Number of right supporting reads in filtering\">\n",
                         "##INFO=<ID=FSUP,Number=1,Type=Integer,Description=\"Number of total supporting reads in filtering\">\n",       
-                        "##INFO=<ID=GLeft,Number=1,Type=Float,Description=\"Number of reads passing through the left breakpoint on template INS sequence\">\n",
-                        "##INFO=<ID=GRight,Number=1,Type=Float,Description=\"Number of reads passing through the right breakpoint on template INS sequence)\">\n",
-                        "##INFO=<ID=GRef,Number=1,Type=Float,Description=\"Number of reads passing through the breakpoint on template REF sequence)\">\n",
+                        "##INFO=<ID=GLeft,Number=1,Type=Integer,Description=\"Number of reads passing through the left breakpoint on template INS sequence\">\n",
+                        "##INFO=<ID=GRight,Number=1,Type=Integer,Description=\"Number of reads passing through the right breakpoint on template INS sequence)\">\n",
+                        "##INFO=<ID=GRef,Number=1,Type=Integer,Description=\"Number of reads passing through the breakpoint on template REF sequence)\">\n",
                         "##INFO=<ID=GRRatio,Number=1,Type=Float,Description=\"Ratio between GRight and GRef\">\n",
                         "##INFO=<ID=GLRatio,Number=1,Type=Float,Description=\"Ratio between GLeft and GRef \">\n",
-                        "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">\n",
+                        "##INFO=<ID=RMContent,Number=1,Type=String,Description=\"Repeat content overlapping with the eveRepeat content overlapping with the event\">\n",##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">\n",
                         "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tGENOTYPE\n"])
         with open(output[0],'w') as hand:
             print(header_info, file=hand, end="")
@@ -765,7 +871,7 @@ if config["assembler"] == "minia":
             config["analysis"]+"/minia/contigs.fasta"
         params:
             k=config["assembler_k"],
-            min_abundance=10,
+            min_abundance=config["minia_min_abundance"],
             max_memory=250000,
             dr=config["analysis"]+"/minia/",
         threads:
@@ -806,7 +912,7 @@ elif config["assembler"] == "abyss":
 rule pamir_assemble_full_new:
     input:
         partition=config["analysis"]+"/pamir/partition/{sample}/partition",
-        cluster_count=config["analysis"]+"/pamir/partition/{sample}/cc",
+        cluster_count=config["analysis"]+"/pamir/partition/{sample}/partition.count",
     output:
         vcf=config["analysis"]+"/pamir/assembly/{sample}/all.vcf",
         vcf_lq=config["analysis"]+"/pamir/assembly/{sample}/all_LOW_QUAL.vcf",
@@ -848,17 +954,30 @@ rule pamir_assemble_full_new:
             logs = [ "{}/{}/T{}.log".format(params.wd,wildcards.sample,tid) for tid in tids]
             
 
-            catcmd = "cat " + " ".join(vcfs) + " >> " + output.vcf
+            catcmd = "cat " + " ".join(vcfs) + " >> " + output.vcf + ".tmp"
             vcf_p  = subprocess.Popen(catcmd,shell=True)
-            catcmd = "cat " + " ".join(lqvs) + " >> " + output.vcf_lq
+            catcmd = "cat " + " ".join(lqvs) + " >> " + output.vcf_lq + ".tmp"
             low_p  = subprocess.Popen(catcmd,shell=True)
-            catcmd = "cat " + " ".join(logs) + " >> " + output.logs
+            catcmd = "cat " + " ".join(logs) + " >> " + output.logs + ".tmp"
             log_p  = subprocess.Popen(catcmd,shell=True)
 
             vcf_p.communicate()
             low_p.communicate()
             log_p.communicate()
+  
+        mvcmd = "mv " +  output.vcf + ".tmp " + output.vcf
+        vcf_p  = subprocess.Popen(mvcmd,shell=True)
 
+        mvcmd = "mv " +  output.vcf_lq + ".tmp " + output.vcf_lq
+        low_p  = subprocess.Popen(mvcmd,shell=True)
+
+        mvcmd = "mv " +  output.logs + ".tmp " + output.logs
+        log_p  = subprocess.Popen(mvcmd,shell=True)
+
+        vcf_p.communicate()
+        low_p.communicate()
+        log_p.communicate()
+  
 
 rule recalibrate_oea_to_orphan:
     input:
@@ -877,11 +996,11 @@ rule pamir_partition:
         contigs=config["analysis"]+"/"+config["assembler"]+"/reads.contigs.filtered.clean.fa",
     output:
         partition=config["analysis"]+"/pamir/partition/{sample}/partition",
-        cluster_count=config["analysis"]+"/pamir/partition/{sample}/cc",
+        cluster_count=config["analysis"]+"/pamir/partition/{sample}/partition.count",
     params:
         rang=1000,
     shell:
-        "./pamir partition {input.sam} {output.partition} {params.rang} {input.contigs} {input.oea2orphan} {input.oea_unmapped} > {output.cluster_count}"
+        "./pamir partition {input.sam} {output.partition} {params.rang} {input.contigs} {input.oea2orphan} {input.oea_unmapped}"
 
 
 rule merge_contigs:

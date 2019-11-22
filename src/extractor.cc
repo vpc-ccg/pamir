@@ -1,6 +1,7 @@
 #include <string>
 #include <map>
 #include <zlib.h>
+#include <algorithm>
 #include "common.h"
 #include "extractor.h"
 #include "record.h"
@@ -468,7 +469,7 @@ int examine_mapping( const Record &rc, map<string, Record > &map_read, FILE *f_m
 		result=3;
 		if ( 0 < r1 && 0 < r2 )
 		{
-			if ( ( 0x2 != ( 0x2 &flag1) ) || ( clip_ratio >= ( m1 + m2 )*1.0/( r1 + r2 ) ) )
+			if ( ( 0x2 != ( 0x2 &flag1) ) || ( clip_ratio >= std::min(m1, m2)*2.0/( r1 + r2 ) ) )
 			//if ( ( 0x2 != ( 0x2 &flag1) ) || ( clip_ratio > ( md1 + md2 )*1.0/( r1 + r2 ) ) )
 			{
 				if ( (clip_ratio >= m1*1.0/r1) && (clip_ratio >= m2*1.0/r2) )
@@ -681,26 +682,33 @@ extractor::extractor(string filename, string output_prefix, int ftype, int oea, 
 	fprintf(f_stat, "%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n", count/2, md_concordant, md_oea , md_orphan + n_orphan/2 + n_chimeric/2, n_oea/2, n_orphan/2, md_oea, md_orphan, n_chimeric/2, min_length);
 	//fprintf(f_stat, "%d\t%d\n", dummy, dummy_1);
 	fclose( f_stat);
-	
-	fprintf(stdout, "%lu\t%lu\n", map_orphan.size(), map_read.size());
+
+
+    Logger::instance().info("%lu\t%lu\n", map_orphan.size(), map_read.size());
+  //  fprintf(stdout, "%lu\t%lu\n", map_orphan.size(), map_read.size());
 	//
 	if ( 0 < map_orphan.size())
 	{
 		map<string, Record >::iterator it;
-		fprintf(stdout, ">>>> orphan\n" );//, it.getReadName());
+
+        Logger::instance().error(">>>> orphan\n" );//, it.getReadName());
+	//	fprintf(stdout, ">>>> orphan\n" );//, it.getReadName());
 		for (it = map_orphan.begin(); it!= map_orphan.end(); it++)
 		{
-			fprintf(stdout, "%s\n", it->second.getReadName());
+            Logger::instance().error("%s\n", it->second.getReadName());
+	//		fprintf(stdout, "%s\n", it->second.getReadName());
 		}
 			
 	}
 	if ( 0 < map_read.size())
 	{
 		map<string, Record >::iterator it;
-		fprintf(stdout, ">>>> read\n" );//, it.getReadName());
+        Logger::instance().error(">>>> read\n");
+	//	fprintf(stdout, ">>>> read\n" );//, it.getReadName());
 		for (it = map_read.begin(); it!= map_read.end(); it++)
 		{
-			fprintf(stdout, "%s\n", it->second.getReadName());
+            Logger::instance().error("%s\n", it->second.getReadName());
+			//fprintf(stdout, "%s\n", it->second.getReadName());
 		}
 			
 	}

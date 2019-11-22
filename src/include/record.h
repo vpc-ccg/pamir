@@ -123,7 +123,7 @@ public:
 	}
 
 	void testRecords() const {
-		LOG(
+        Logger::instance().info(
 			"%s %d %s %zu %d %s %s %zu %d %s %s %s\n",
 			getReadName(),
 			getMappingFlag(),

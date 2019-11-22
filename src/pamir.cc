@@ -29,13 +29,6 @@ inline string space (int i)
 {
 	return string(i, ' ');
 }
-/********************************************************************/
-inline string itoa (int i)
-{
-	char c[50];
-	sprintf(c, "%d", i);
-	return string(c);
-}
 /*******************************************************************/
 void mask (const string &repeats, const string &path, const string &result, int pad = 0, bool invert = false)
 {
@@ -112,36 +105,7 @@ void mask (const string &repeats, const string &path, const string &result, int 
 	delete[] x;
 }
 /**************************************************************/
-void partify (const string &read_file, const string &out, int threshold, const string &mate_file) 
-{
-	FILE *fin = fopen(mate_file.c_str(), "r");
-	unordered_map<string, string> mymap;
-	const int MAXB = 259072;
-	char name[MAXB], read[MAXB], tmp[MAXB];
-	while (fgets(name, MAXB, fin)) {
-		fgets(read, MAXB, fin);
-		fgets(tmp, MAXB, fin);
-		fgets(tmp, MAXB, fin);
-		if (strlen(name)>2 && name[strlen(name) - 3] == '/')
-			name[strlen(name)-3]='\0';
-		read[strlen(read)-1]='\0';
-		mymap[string(name+1)] = read;
-	}
-	genome_partition pt(read_file, threshold, mymap);
-	int fc = 1;
-	FILE *fo = fopen(out.c_str(), "wb");
-	FILE *fidx = fopen((out + ".idx").c_str(), "wb");
-	while (pt.has_next()) {
-		auto p = pt.get_next();
-		size_t i = pt.dump(p, fo, fc);
-		fwrite(&i, 1, sizeof(size_t), fidx);
-		fc++;
-	}
-	fclose(fin);
-	fclose(fo);
-	fclose(fidx);
-}
-void partify_orphan (const string &read_file, const string &out, int threshold, 
+void partify (const string &read_file, const string &out, int threshold,
 	const string &contig_file, const string &oea2orphan,const string &mate_file) 
 {
 	FILE *fin = fopen(mate_file.c_str(), "r");
@@ -170,7 +134,9 @@ void partify_orphan (const string &read_file, const string &out, int threshold,
 		fwrite(&i, 1, sizeof(size_t), fidx);
 		fc++;
 	}
-	fprintf(stdout, "%d\n",fc-1);
+	FILE *foc = fopen((out + ".count").c_str(), "w");
+	fprintf(foc, "%d\n",fc-1);
+	fclose(foc);
 	fclose(fin);
 	fclose(fo);
 	fclose(fidx);
@@ -277,31 +243,6 @@ reset:
 	if ( num_read == 0)
 		goto reset;
 	return num_cluster;
-}
-/******************************************************************/
-void print_calls(string chrName, const string &reference, vector< tuple< string, int, int, string, int, float > > &reports, FILE *fo_vcf, const int &clusterId)
-{
-	for(int r=0;r<reports.size();r++)
-	{
-		if(get<0>(reports[r])== "INS"){
-			fprintf(fo_vcf, "%s\t",	 			chrName.c_str());
-			fprintf(fo_vcf, "%d\t", 			get<1>(reports[r]));
-		//	fprintf(fo_vcf, "%d\t", 			get<2>(reports[r]));
-			fprintf(fo_vcf, ".\t");
-			fprintf(fo_vcf, "%c\t",reference.at(r));
-			fprintf(fo_vcf, "<INS>\t");
-		//	fprintf(fo_vcf, "%s\t",				get<3>(reports[r]).c_str());
-		//	fprintf(fo_vcf, "%f\t", 			-10*log(1-get<5>(reports[r])));
-			fprintf(fo_vcf, "%f\t", 			get<5>(reports[r]));
-			fprintf(fo_vcf, "PASS\tSVTYPE=INS;");
-			fprintf(fo_vcf,	"SVLEN=%d;",  		get<2>(reports[r]));
-			fprintf(fo_vcf, "END=%d;",  		get<1>(reports[r]) + get<2>(reports[r])-1);
-			fprintf(fo_vcf, "Cluster=%d;", 		clusterId);
-			fprintf(fo_vcf, "Support=%d;", 		get<4>(reports[r]));
-		//	fprintf(fo_vcf, "Identity=%f\t", 	get<5>(reports[r])); 
-			fprintf(fo_vcf, "SEQ=%s\n", 		get<3>(reports[r]).c_str()); 
-		}
-	}
 }
 /******************************************************************/
 void append_vcf(const string &chrName, const string &reference, const vector< tuple< string, int, int, string, int, float > > &reports, const int &clusterId, string &vcf_str, string &vcf_str_del )
@@ -450,8 +391,13 @@ void assemble (const string &partition_file, const string &reference, const stri
 			break;
 		
 		// cluster has too many or too few reads
-		if ( p.size() > 7000 || p.size() <= 2 ) 
-			continue;
+		if ( p.size() > 7000 || p.size() <= 2 ) {
+            Logger::instance().info("-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");
+            Logger::instance().info(" + Cluster ID      : %d\n", pt.get_cluster_id());
+            Logger::instance().info(" + Reads Count     : %lu\n", p.size());
+            Logger::instance().info("INFO: Skipped Processing - Too few or Too many reads\n");
+            continue;
+        }
 		string chrName  = pt.get_reference();
 		int cluster_id  = pt.get_cluster_id();
 		int pt_start    = pt.get_start();
@@ -459,12 +405,12 @@ void assemble (const string &partition_file, const string &reference, const stri
 		int ref_start   = pt_start - LENFLAG;
 		int ref_end     = pt_end   + LENFLAG;
 		string ref_part = ref.extract(chrName, ref_start, ref_end);
-		log("-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");
-		log(" + Cluster ID      : %d\n", cluster_id);
-		log(" + Reads Count     : %lu\n", p.size());
-		log(" + Spanning Range  : %s:%d-%d\n", chrName.c_str(), pt_start, pt_end);
-		log(" + Discovery Range : %s:%d-%d\n", chrName.c_str(), ref_start, ref_end);
-		log(" + Reference       : %s\n\n", ref_part.c_str());
+        Logger::instance().info("-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");
+        Logger::instance().info(" + Cluster ID      : %d\n", cluster_id);
+        Logger::instance().info(" + Reads Count     : %lu\n", p.size());
+        Logger::instance().info(" + Spanning Range  : %s:%d-%d\n", chrName.c_str(), pt_start, pt_end);
+        Logger::instance().info(" + Discovery Range : %s:%d-%d\n", chrName.c_str(), ref_start, ref_end);
+        Logger::instance().info(" + Reference       : %s\n\n", ref_part.c_str());
 		// if the genomic region is too big
 		if (ref_end - ref_start > MAX_REF_LEN) 
 			continue;
@@ -484,10 +430,10 @@ void assemble (const string &partition_file, const string &reference, const stri
 			int contig_support		= contig.read_information.size();
 			int con_len 			= contig.data.length();
 			if( check_AT_GC(contig.data, MAX_AT_GC) == 0 || (con_len <= read_length && contig_support <= 1) || con_len > max_len + 400 ) continue;
-		
-			log("\n\n>>>>> Length: %d Support: %d Contig: %s\n", con_len, contig_support, contig.data.c_str());
+
+            Logger::instance().info("\n\n>>>>> Length: %d Support: %d Contig: %s\n", con_len, contig_support, contig.data.c_str());
 			for(int z=0;z<contig.read_information.size();z++)
-				log("%s %s %d %d\n", 
+                Logger::instance().info("%s %s %d %d\n",
 					contig.read_information[z].name.c_str(),
 					contig.read_information[z].seq.c_str(),
 					contig.read_information[z].location, 
@@ -592,22 +538,12 @@ int main(int argc, char **argv)
 			sortFile(argv[2], argv[3], 2 * GB);
 		}
 		else if (mode == "partition") {
-			if ( 6 == argc )
-            {
-
-				log_path = argv[5]; log_path += "_partitionprocessor.log";
-
-				log_init( log_path );
-                partify(argv[2], argv[3], atoi(argv[4]), argv[5]);
-
-
-			}
-			else if ( 8 == argc)
+			if ( 8 == argc)
 			{
-				log_path = argv[5]; log_path += "_partitionprocessor.log";
-				log_init( log_path );
-				partify_orphan(argv[2], argv[3], atoi(argv[4]), argv[5], argv[6], argv[7]);
-				log_close();
+			    log_path = argv[3];
+			    log_path+=".log";
+                Logger::instance().set_info(log_path.c_str());
+				partify(argv[2], argv[3], atoi(argv[4]), argv[5], argv[6], argv[7]);
 			}
 			else{ throw "Usage:\tpamir partition [read-file] [output-file] [threshold] [ [orphan-contig] [oea2orphan] ] [mate_file]"; }
 		}
@@ -617,10 +553,7 @@ int main(int argc, char **argv)
 		}
 		else if (mode == "assemble") {
 			if (argc != 9) throw "Usage:10 parameters needed\tpamir assemble [partition-file] [reference] [range] [output-file-vcf] [max-len] [read-length] dir_prefix";
-			log_path = argv[5]; log_path += ".log";
-			log_init( "" );	//log_init( log_path );
 			assemble(argv[2], argv[3], argv[4], argv[5], atoi(argv[6]), atoi(argv[7]), argv[8]);
-			log_close();
 		}
 		else if (mode == "get_cluster") {
 			if (argc != 4) throw "Usage:\tpamir get_cluster [partition-file] [range]";
@@ -628,11 +561,11 @@ int main(int argc, char **argv)
 			pt.output_partition( argv[2], argv[3]);
 		}
 		else if (mode == "index_log") {
-			if (argc != 3) throw "Usage:\tpamir index_log [log-file]";
+			if (argc != 3) throw "Usage:\tpamir index_log [log-file]\n\tIndexing the log file of assemble subcommand for fast random access. Required for running subcommand output_log.";
 			log_idx( argv[2]);
 		}
 		else if (mode == "output_log") {
-			if (argc != 4) throw "Usage:\tpamir log_idx [log-file] [range]";
+			if (argc != 4) throw "Usage:\tpamir log_idx [log-file] [range]\n\tRandom access to the log file of assemble subcommand. The index file generated by index_log subcommand is required, and the range argument x-y corresponds to [x,y). For example, range 10-20 corresponds to clusters from 10 to 19.";
 			output_log( argv[2], argv[3]);
 		}
 		else {
