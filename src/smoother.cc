@@ -9,15 +9,6 @@
 #include "logger.h"
 
 using namespace std;
-//using namespace boost::heap;
-
-#define L(c,...) fprintf(stdout,c,##__VA_ARGS__)
-#define E(c,...) fprintf(stderr,c,##__VA_ARGS__)
-
-//#define E(msg,...)\
-//	fmt::print(stderr, msg"\n", ##__VA_ARGS__)
-//#define L(msg,...)\
-//	fmt::print(stdout, msg"\n", ##__VA_ARGS__)
 
 unordered_map<string, int> read_to_id;
 struct Xread {
@@ -44,8 +35,6 @@ ostream& operator<<(ostream& os, const cluster& cl) {
 //void set_cover (auto &clusters, auto &reads) 
 void set_cover (vector<cluster>& clusters, vector<Xread>& reads) 
 {
-	
-	Logger &log = Logger::instance();
     FiboHeap<cluster*> heap;
 	unordered_map<int, Node<cluster*>* > heap_handles;
 
@@ -117,11 +106,11 @@ void set_cover (vector<cluster>& clusters, vector<Xread>& reads)
 	int i = 0, rx = 0;
 	for (auto &c: clusters) {
 		if (c.reads.size() == 0) {
-			log.info("Removed: %d %s\n", c.orig_id, c.name.c_str());
+			Logger::instance().info("Removed: %d %s\n", c.orig_id, c.name.c_str());
 			continue;
 		}
 
-		log.info("%d %lu %s\n", c.orig_id, c.reads.size(), c.name.c_str());
+		Logger::instance().info("%d %lu %s\n", c.orig_id, c.reads.size(), c.name.c_str());
 		for (auto &r: c.reads) {
 			//L("{}", read_names[r]);
 		}
@@ -129,12 +118,11 @@ void set_cover (vector<cluster>& clusters, vector<Xread>& reads)
 		rx += c.reads.size(), i++;
 	}
 	assert(rx == reads.size());
-	E("%d / %lu sets resolved, %d / %d reads resolved\n", i, clusters.size(), re, rx);
+	Logger::instance().error("%d / %lu sets resolved, %d / %d reads resolved\n", i, clusters.size(), re, rx);
 }
 
 int main (int argc, char **argv) 
 {
-	Logger &log = Logger::instance();
     freopen(argv[1], "r", stdin);
 
 	vector<cluster> clusters;
@@ -167,10 +155,10 @@ int main (int argc, char **argv)
 
 		if (clusters.size() % 1000 == 1) {
 			auto p = 100 * ftell(fi) / fsz;
-			log.error("\r %f\n", p);
+			Logger::instance().error("\r %f\n", p);
 		}
 	}
-	log.error("\n");
+	Logger::instance().error("\n");
 
 	for (auto &c: clusters) {
 		auto s = unordered_set<int>(c.reads.begin(), c.reads.end());
@@ -184,8 +172,8 @@ int main (int argc, char **argv)
 		c.support = c.reads.size() - c.unresolved;
 	}
 
-	log.error("%lu clusters\n", clusters.size());
-	log.error("%lu reads\n", reads.size());
+	Logger::instance().error("%lu clusters\n", clusters.size());
+	Logger::instance().error("%lu reads\n", reads.size());
 
 	set_cover(clusters, reads);
 
@@ -195,7 +183,7 @@ int main (int argc, char **argv)
 	// 	}
 	// }
 
-	log.error("done\n");
+	Logger::instance().error("done\n");
 
 	return 0;
 }
