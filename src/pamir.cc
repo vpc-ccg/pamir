@@ -542,7 +542,7 @@ int main(int argc, char **argv)
 			{
 			    log_path = argv[3];
 			    log_path+=".log";
-                Logger::instance().set_info(log_path.c_str());
+                Logger::instance().info.set_file(log_path.c_str());
 				partify(argv[2], argv[3], atoi(argv[4]), argv[5], argv[6], argv[7]);
 			}
 			else{ throw "Usage:\tpamir partition [read-file] [output-file] [threshold] [ [orphan-contig] [oea2orphan] ] [mate_file]"; }

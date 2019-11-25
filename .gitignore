@@ -1,6 +1,7 @@
 pamir-obj/
 .snakemake/
 pamir/
+src/include/logger.h
 # Prerequisites
 *.d
 

@@ -1,0 +1,3 @@
+[submodule "ext/util-logger"]
+	path = ext/util-logger
+	url = https://github.com/vpc-ccg/util-logger.git
