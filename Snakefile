@@ -339,7 +339,7 @@ rule annotate_repeats_in_vcf:
 
                 print("\t".join(vcffields[:8]),end="",file=ohand)
                 print(";RMContent=",end="",file=ohand)
-                if( bedfields[7] == "-1"):
+                if( bedfields[7] == "."):
                     print("None",end="\t",file=ohand)
                 else:
                     print(bedfields[7].split("::")[1],end="\t",file=ohand)
