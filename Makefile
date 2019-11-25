@@ -10,9 +10,15 @@ BUILD_PATH = pamir-obj
 BIN_PATH = pamir
 UTIL_PATH = $(BIN_PATH)/util
 
-LOGGER_PATH = $(EXT_PATH)/util-logger/include/logger.h
-LOGGER_INC  = $(SRC_PATH)/include/logger.h
+LOGGER_EXT_PATH = $(EXT_PATH)/util-logger/include/logger.h
+LOGGER_HED_PATH  = $(SRC_PATH)/include/logger.h
 
+
+EDLIB_EXT_HED_PATH = $(EXT_PATH)/edlib/edlib/include/edlib.h
+EDLIB_EXT_SRC_PATH = $(EXT_PATH)/edlib/edlib/src/edlib.cpp
+
+EDLIB_SRC_PATH = $(SRC_PATH)/edlib.cc
+EDLIB_HED_PATH = $(SRC_PATH)/include/edlib.h
 
 SCRIPT_SOURCE = scripts
 SCRIPT_PATH = $(BIN_PATH)/scripts
@@ -119,14 +125,27 @@ $(COPIED_SCRIPTS): dirs $(SCRIPTS)
 
 -include $(DEPS)
 
-$(LOGGER_PATH): 
+$(LOGGER_EXT_PATH): 
 	@echo Please clone the repository with --recursive option!; exit 1;
 
-$(LOGGER_INC): $(LOGGER_PATH)
-	@cp $(LOGGER_PATH) $(LOGGER_INC)
+$(EDLIB_EXT_SRC_PATH):
+	@echo Please clone the repository with --recursive option!; exit 1;
+
+$(EDLIB_EXT_HED_PATH):
+	@echo Please clone the repository with --recursive option!; exit 1;
+
+$(LOGGER_HED_PATH): $(LOGGER_EXT_PATH)
+	@cp $(LOGGER_EXT_PATH) $(LOGGER_HED_PATH)
+
+$(EDLIB_SRC_PATH): $(EDLIB_EXT_SRC_PATH)
+	@cp $(EDLIB_EXT_SRC_PATH) $(EDLIB_SRC_PATH)
+
+$(EDLIB_HED_PATH): $(EDLIB_EXT_HED_PATH)
+	@cp $(EDLIB_EXT_HED_PATH) $(EDLIB_HED_PATH)
+
 
 .PHONY: all
-all:  $(LOGGER_INC) $(BIN_PATH)/$(EXE) $(UTIL_EXE) $(UTIL_PATH)/$(PROCESSING_EXE) $(COPIED_SCRIPTS)
+all: $(EDLIB_HED_PATH) $(EDLIB_SRC_PATH) $(LOGGER_HED_PATH) $(BIN_PATH)/$(EXE) $(UTIL_EXE) $(UTIL_PATH)/$(PROCESSING_EXE) $(COPIED_SCRIPTS)
 
 .PHONY: install_helper
 
