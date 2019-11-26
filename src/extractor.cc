@@ -667,7 +667,7 @@ extractor::extractor(string filename, string output_prefix, int ftype, int oea, 
 	
 	delete parser;
 	
-	ERROR("");
+	Logger::instance().error("");
 	//ERROR( "\nMax %d %d %d \n", max_size, max_orphan, max_oea);
 	//ERROR( "\nFinal %u %u %u \n", map_read.size(), map_orphan.size(), map_oea.size() );
 	//fclose(ftest);
