@@ -4,10 +4,21 @@ RELEASE_OPT = -O2
 DEBUG_OPT = -g -O0
 PROFILE_OPT = -O2 -pg -g
 
+EXT_PATH = ext
 SRC_PATH = src
 BUILD_PATH = pamir-obj
 BIN_PATH = pamir
 UTIL_PATH = $(BIN_PATH)/util
+
+LOGGER_EXT_PATH = $(EXT_PATH)/util-logger/include/logger.h
+LOGGER_HED_PATH  = $(SRC_PATH)/include/logger.h
+
+
+EDLIB_EXT_HED_PATH = $(EXT_PATH)/edlib/edlib/include/edlib.h
+EDLIB_EXT_SRC_PATH = $(EXT_PATH)/edlib/edlib/src/edlib.cpp
+
+EDLIB_SRC_PATH = $(SRC_PATH)/edlib.cc
+EDLIB_HED_PATH = $(SRC_PATH)/include/edlib.h
 
 SCRIPT_SOURCE = scripts
 SCRIPT_PATH = $(BIN_PATH)/scripts
@@ -15,7 +26,7 @@ SRC_EXT = cc
 
 SOURCE_FILES =  pamir.cc aligner.cc bam_parser.cc common.cc genome.cc partition.cc assembler.cc sam_parser.cc sort.cc extractor.cc
 UTIL_SRC_FILES = extract_support.cc smoother.cc recalibrate.cc
-TAMIR_SRC_FILES = process_reads.cc process_orphans.cc process_range.cc edlib.cc sam_processing.cc
+PROCESSING_SRC_FILES = process_reads.cc process_orphans.cc process_range.cc edlib.cc sam_processing.cc
 
 SCRIPT_FILES = merge_refs.py contig_graph.py  filter_by_setcover.py  filtering.py  generate_setcover_input.py  genotyping.py  prep-ctgs.py  remove_contaminations.py  sort_vcf.py  version_check.py
 
@@ -29,8 +40,8 @@ UTIL_OBJ = $(UTIL_SRC:$(SRC_PATH)/%.$(SRC_EXT)=$(BUILD_PATH)/%.o)
 
 .SECONDARY: $(UTIL_OBJ)
 
-TAMIR_SRC = $(patsubst %, $(SRC_PATH)/%, $(TAMIR_SRC_FILES))
-TAMIR_OBJ = $(TAMIR_SRC:$(SRC_PATH)/%.$(SRC_EXT)=$(BUILD_PATH)/%.o)
+PROCESSING_SRC = $(patsubst %, $(SRC_PATH)/%, $(PROCESSING_SRC_FILES))
+PROCESSING_OBJ = $(PROCESSING_SRC:$(SRC_PATH)/%.$(SRC_EXT)=$(BUILD_PATH)/%.o)
 
 
 SCRIPTS = $(patsubst %, $(SCRIPT_SOURCE)/%, $(SCRIPT_FILES))
@@ -38,14 +49,14 @@ COPIED_SCRIPTS = $(patsubst %, $(SCRIPT_PATH)/%, $(SCRIPT_FILES))
 
 
 EXE=pamir
-TAMIR_EXE=process
+PROCESSING_EXE=process
 UTIL_EXE = $(UTIL_SRC_FILES:%.cc=$(UTIL_PATH)/%)
 
 
-DEPS = $(OBJECTS:.o=.d) $(UTIL_OBJ:.o=.d) $(TAMIR_OBJ:.o=.d)
+DEPS = $(OBJECTS:.o=.d) $(UTIL_OBJ:.o=.d) $(PROCESSING_OBJ:.o=.d)
 
 COMPILE_FLAGS = -std=c++14 #-Wall -Wextra #Removed because pamir gives way too many warnings 
-INCLUDES = -I $(SRC_PATH)/include/
+INCLUDES = -I $(SRC_PATH)/include/  
 
 LFLAGS = $(LDFLAGS) -lm -lz
 
@@ -91,7 +102,7 @@ clean: build_clean bin_clean
 build_clean:
 	@$(RM)  $(OBJECTS)
 	@$(RM)  $(UTIL_OBJ)
-	@$(RM)  $(TAMIR_OBJ)
+	@$(RM)  $(PROCESSING_OBJ)
 	@$(RM)  $(DEPS)
 	@$(RM) -d $(BUILD_PATH)
 
@@ -102,7 +113,7 @@ bin_clean:
 	$(RM)  $(BIN_PATH)/$(EXE)
 	$(RM)	$(BIN_PATH)/.snakemake/ -r	
 	$(RM)  $(BIN_PATH)/Snakefile
-	$(RM)  $(UTIL_PATH)/$(TAMIR_EXE)
+	$(RM)  $(UTIL_PATH)/$(PROCESSING_EXE)
 	$(RM) -d $(UTIL_PATH)
 	$(RM) -dr $(SCRIPT_PATH)
 	$(RM) -d $(BIN_PATH)
@@ -114,13 +125,31 @@ $(COPIED_SCRIPTS): dirs $(SCRIPTS)
 
 -include $(DEPS)
 
+$(LOGGER_EXT_PATH): 
+	@echo Please clone the repository with --recursive option!; exit 1;
+
+$(EDLIB_EXT_SRC_PATH):
+	@echo Please clone the repository with --recursive option!; exit 1;
+
+$(EDLIB_EXT_HED_PATH):
+	@echo Please clone the repository with --recursive option!; exit 1;
+
+$(LOGGER_HED_PATH): $(LOGGER_EXT_PATH)
+	@cp $(LOGGER_EXT_PATH) $(LOGGER_HED_PATH)
+
+$(EDLIB_SRC_PATH): $(EDLIB_EXT_SRC_PATH)
+	@cp $(EDLIB_EXT_SRC_PATH) $(EDLIB_SRC_PATH)
+
+$(EDLIB_HED_PATH): $(EDLIB_EXT_HED_PATH)
+	@cp $(EDLIB_EXT_HED_PATH) $(EDLIB_HED_PATH)
+
 
 .PHONY: all
-all: $(BIN_PATH)/$(EXE) $(UTIL_EXE) $(UTIL_PATH)/$(TAMIR_EXE) $(COPIED_SCRIPTS)
+all: $(EDLIB_HED_PATH) $(EDLIB_SRC_PATH) $(LOGGER_HED_PATH) $(BIN_PATH)/$(EXE) $(UTIL_EXE) $(UTIL_PATH)/$(PROCESSING_EXE) $(COPIED_SCRIPTS)
 
 .PHONY: install_helper
 
-install_helper: $(BIN_PATH)/$(EXE) $(UTIL_EXE) $(UTIL_PATH)/$(TAMIR_EXE) $(COPIED_SCRIPTS)
+install_helper: $(BIN_PATH)/$(EXE) $(UTIL_EXE) $(UTIL_PATH)/$(PROCESSING_EXE) $(COPIED_SCRIPTS)
 	@echo -e "\nPlease add `pwd` to your path;\n\nOR\n\nmv pamir.sh /usr/bin\nmv pamir /usr/bin\n"
 
 $(BIN_PATH)/$(EXE): $(OBJECTS)
@@ -129,8 +158,8 @@ $(BIN_PATH)/$(EXE): $(OBJECTS)
 $(UTIL_PATH)/%: $(BUILD_PATH)/%.o $(BUILD_PATH)/common.o
 	$(CXX) $(CXXFLAGS) $(LFLAGS) -o $@ $< $(BUILD_PATH)/common.o
 
-$(UTIL_PATH)/$(TAMIR_EXE): $(TAMIR_OBJ)
-	$(CXX)  $(LFAGS) -o $@ $(TAMIR_OBJ)
+$(UTIL_PATH)/$(PROCESSING_EXE): $(PROCESSING_OBJ)
+	$(CXX)  $(LFAGS) -o $@ $(PROCESSING_OBJ)
 
 $(BUILD_PATH)/%.o: $(SRC_PATH)/%.$(SRC_EXT)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -MP -MMD -c $< -o $@

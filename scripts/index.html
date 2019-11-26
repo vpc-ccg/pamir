@@ -49,6 +49,7 @@
                 <th data-field="l" data-sortable="true">Insertion Length</th>
                 <th data-field="c" data-sortable="true" data-formatter="percFormatter">Percentage</th>
                 <th data-field="r" data-sortable="true">Repeat-Type</th>
+
             </tr>
             </thead>
         </table>
@@ -128,8 +129,10 @@
 
     function percFormatter(value, row, id) {
 
+
         return ('<progress value="' + value + '" max="' + cohort_size + '"></progress>&nbsp;<span>'
             + Math.trunc((value / cohort_size) * 10000) / 100 + '</span>');
+
     }
 
     function my_filter(value) {
@@ -238,6 +241,7 @@
         mydata.push(table_summary_file[mut]);
     }
     summary_table.bootstrapTable({data: mydata});
+
 
     // Make a table for Repeat Modal //
     repeat_type_box = '<div class="row">';

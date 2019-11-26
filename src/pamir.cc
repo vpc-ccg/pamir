@@ -404,7 +404,7 @@ void assemble (const string &partition_file, const string &reference, const stri
 		int pt_end      = pt.get_end();
 		int ref_start   = pt_start - LENFLAG;
 		int ref_end     = pt_end   + LENFLAG;
-		string ref_part = ref.extract(chrName, ref_start, ref_end);
+		string ref_part = ref.get_bases_at(chrName, ref_start, ref_end);
         Logger::instance().info("-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");
         Logger::instance().info(" + Cluster ID      : %d\n", cluster_id);
         Logger::instance().info(" + Reads Count     : %lu\n", p.size());
@@ -451,7 +451,7 @@ void assemble (const string &partition_file, const string &reference, const stri
 		for (int j =0; j <reports.size();j++)
 		{
 			int tmp_end = get<1>(reports[j]);
-			tmp_ref += ref.getchar(chrName, tmp_end);
+			tmp_ref += ref.get_base_at(chrName, tmp_end);
 			//tmp_ref += ref.extract(chrName, tmp_end, tmp_end);
 		}
 		
@@ -459,7 +459,7 @@ void assemble (const string &partition_file, const string &reference, const stri
 		for (int j =0; j <reports_lq.size();j++)
 		{
 			int tmp_end = get<1>(reports_lq[j]);
-			tmp_ref_lq += ref.getchar(chrName, tmp_end);
+			tmp_ref_lq += ref.get_base_at(chrName, tmp_end);
 		}
 		append_vcf( chrName, tmp_ref, reports, pt.get_cluster_id(), vcf_info, vcf_info_del);
 		n_buffer++;
@@ -542,7 +542,7 @@ int main(int argc, char **argv)
 			{
 			    log_path = argv[3];
 			    log_path+=".log";
-                Logger::instance().set_info(log_path.c_str());
+                Logger::instance().info.set_file(log_path.c_str());
 				partify(argv[2], argv[3], atoi(argv[4]), argv[5], argv[6], argv[7]);
 			}
 			else{ throw "Usage:\tpamir partition [read-file] [output-file] [threshold] [ [orphan-contig] [oea2orphan] ] [mate_file]"; }
@@ -573,7 +573,7 @@ int main(int argc, char **argv)
 		}
 	}
 	catch (const char *e) {
-		ERROR("Error: %s\n", e);
+		Logger::instance().error("Error: %s\n", e);
 		exit(1);
 	}
 

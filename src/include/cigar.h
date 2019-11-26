@@ -1,5 +1,5 @@
-#ifndef CIGAR_CIGAR
-#define CIGAR_CIGAR
+#ifndef __CIGAR__
+#define __CIGAR__
 #include <string>
 #include <iostream>
 #include <vector>

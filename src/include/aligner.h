@@ -10,18 +10,18 @@ private:
     int REF_LEN = 10000;
     int CON_LEN = 10000;
     int MAX_SIDE = 15000;
-/*	static const int MATCH_SCORE = 20;
-	static const int MISMATCH_SCORE = -20;
-	static const int GAP_OPENING_SCORE = -100;
-	static const int GAP_EXTENSION_SCORE = 0;
-	*/
+
     static const int MATCH_SCORE = 20;
     static const int MISMATCH_SCORE = -1000;
     static const int GAP_OPENING_SCORE = -1000;
     static const int GAP_EXTENSION_SCORE = -1;
+/*
+    static const int MATCH_SCORE = 20;
+	static const int MISMATCH_SCORE = -20;
+	static const int GAP_OPENING_SCORE = -100;
+	static const int GAP_EXTENSION_SCORE = 0;
 
-
-/*	static const int MATCH_SCORE = 1000;
+    static const int MATCH_SCORE = 1000;
 	static const int MISMATCH_SCORE = -1000;
 	static const int GAP_OPENING_SCORE = -1000;
 	static const int GAP_EXTENSION_SCORE = -1;
@@ -70,7 +70,6 @@ public:
     string get_a();
 
     string get_b();
-
 };
 
 #endif

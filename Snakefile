@@ -66,8 +66,8 @@ rule make_results:
         vcf=expand("{results}/ind/{sample}/events.vcf",results=config["results"],sample=config["input"].keys()),
         fa=expand("{results}/events.fa",results=config["results"]),
         fai=expand("{results}/events.fa.fai",results=config["results"]),
-     #   rm=expand("{results}/events.repeat.bed",results=config["results"]),
-        repeats=expand("{results}/ind/{sample}/events.repeat.bed",results=config["results"],sample=config["input"].keys()),
+        rm=expand("{results}/events.repeat.bed",results=config["results"]),
+        #repeats=expand("{results}/ind/{sample}/events.repeat.bed",results=config["results"],sample=config["input"].keys()),
 rule print_event_xml:
     input:
         bam=config["analysis"]+"/vis/{sample}/final.bam",
@@ -170,9 +170,9 @@ rule move_fai:
 
 rule move_repeat_bed:
     input:
-        config["analysis"]+"/vis/{sample}/events_ins_pos_and_repeat.bed",
+        config["analysis"]+"/vis/events_ref.repeat.bed",
     output:
-        config["results"]+"/ind/{sample}/events.repeat.bed" 
+        config["results"]+"/events.repeat.bed" 
     shell:
         "cp {input} {output}"
 
@@ -194,6 +194,9 @@ rule make_unique_repeats:
         config["analysis"]+"/vis/unique_repeats.tsv"
     shell:
         "cat {input} | cut -f 4 | sed 's/::/\\t/g' | cut -f 2 |  sort | uniq -c > {output}"
+
+
+
 
 rule format_repeat_masking:
     input:
@@ -264,7 +267,6 @@ rule make_data_js:
 rule make_summary_js:
     input:
         table=config["analysis"]+"/vis/table.tsv",
-        repeats=config["analysis"]+"/vis/unique_repeats.tsv",
     output:
         config["results"]+"/summary.js"
     run:
@@ -277,8 +279,8 @@ rule make_summary_js:
         import sys
         import json
         length2counts = {}
-        
-        with open(output[0],'w') as ohand, open(input.table,'r') as ihand, open(input.repeats, 'r') as rhand:
+        repeats = {}
+        with open(output[0],'w') as ohand, open(input.table,'r') as ihand:
             print("/*event\te\ncount\tc\nlength\tl\nrepeat_type\tr\n*/",file=ohand)
             print("var cohort_request=\"{}\"".format(config["population"]),file=ohand)
             print("var cohort_size={}".format(len(config["input"].keys())),file=ohand)
@@ -286,7 +288,8 @@ rule make_summary_js:
             for line in ihand:
                 fields=line.rstrip().split("\t")
                 print(json.dumps({"e" : fields[1], "c" : str(int(float(fields[0]))), "l":len(fields[2]), "r":fields[3]}),file=ohand,end=",")
-                
+                if fields[3] not in repeats:
+                    repeats[fields[3]] = 1
                 length = int(len(fields[2])/5)*5
                 count = int(float(fields[0]))
                 if length not in length2counts:
@@ -310,8 +313,8 @@ rule make_summary_js:
 
             print("var repeat_types = [",file=ohand)
             reps = []
-            for line in rhand:
-                reps.append("\"{}\"".format(line.rstrip().split()[1]))
+            for line in repeats.keys():
+                reps.append("\"{}\"".format(line))
             print(", ".join(reps),end="",file=ohand)
             print("];",file=ohand)
 
@@ -336,10 +339,10 @@ rule annotate_repeats_in_vcf:
 
                 print("\t".join(vcffields[:8]),end="",file=ohand)
                 print(";RMContent=",end="",file=ohand)
-                if( bedfields[8] == "-1"):
+                if( bedfields[7] == "."):
                     print("None",end="\t",file=ohand)
                 else:
-                    print(bedfields[8].split("::")[1],end="\t",file=ohand)
+                    print(bedfields[7].split("::")[1],end="\t",file=ohand)
                 print("\t".join(vcffields[8:]),file=ohand) 
                 bedln = bhand.readline()
                 vcfln = vhand.readline()
