@@ -31,9 +31,10 @@
 <body class="container">
 
 <div class="row">
-<div class="input-group input-group-lg col-md-12">
-  <input type="text" class="form-control" aria-label="Remote-Path" placeholder="Remote Path for data on server"  aria-describedby="inputGroup-sizing-sm" id="remote-path" value="">
-</div>
+    <div class="input-group input-group-lg col-md-12">
+        <input type="text" class="form-control" aria-label="Remote-Path" placeholder="Remote Path for data on server"
+               aria-describedby="inputGroup-sizing-sm" id="remote-path" value="">
+    </div>
 </div>
 
 <div class="row">
@@ -47,7 +48,7 @@
                 <th data-field="c" data-sortable="true">Count</th>
                 <th data-field="l" data-sortable="true">Insertion Length</th>
                 <th data-field="c" data-sortable="true" data-formatter="percFormatter">Percentage</th>
-                <th data-field="r" data-sortable="true" >Percentage</th>
+                <th data-field="r" data-sortable="true">Repeat-Type</th>
             </tr>
             </thead>
         </table>
@@ -64,7 +65,8 @@
 </button>
 
 <!-- Modal -->
-<div class="modal fade" id="exampleModalCenter" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle" aria-hidden="true">
+<div class="modal fade" id="exampleModalCenter" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle"
+     aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered" role="document">
         <div class="modal-content">
             <div class="modal-header">
@@ -98,7 +100,7 @@
                 <th data-field="gt" data-sortable="true">Left Flank</th>
                 <th data-field="gr" data-sortable="true">Reference</th>
                 <th data-field="glr" data-sortable="true">GLRatio</th>
-		<th data-field="grr" data-sortable="true">GRRatio</th>
+                <th data-field="grr" data-sortable="true">GRRatio</th>
                 <th data-field="x" data-formatter="actionFormatter">Actions</th>
 
             </tr>
@@ -126,8 +128,8 @@
 
     function percFormatter(value, row, id) {
 
-        return ('<progress value="' + value + '" max="' + cohort_size + '"></progress>&nbsp;<span>' + (value / cohort_size) * 100  + '</span>');
-
+        return ('<progress value="' + value + '" max="' + cohort_size + '"></progress>&nbsp;<span>'
+            + Math.trunc((value / cohort_size) * 10000) / 100 + '</span>');
     }
 
     function my_filter(value) {
@@ -148,9 +150,9 @@
     var path = full.substr(0, full.lastIndexOf("/"));
 
     function actionFormatter(value, row, id) {
-	pp = $("#remote-path").val();
-	if (pp!=="")
-		path = pp;
+        pp = $("#remote-path").val();
+        if (pp !== "")
+            path = pp;
         return '<a target="_blank" href="http://localhost:60151/load?file=' + path
 
             + '/ind/' + row.s + '/events.bed,' + path +
@@ -237,7 +239,14 @@
     }
     summary_table.bootstrapTable({data: mydata});
 
-    document.getElementById('repeat-id').innerHTML = repeat_types;
+    // Make a table for Repeat Modal //
+    repeat_type_box = '<div class="row">';
+    for (i = 1; i <= repeat_types.length; i++) {
+        repeat_type_box += '<div class="col-md-4">' + repeat_types[i - 1] + '</div>';
+        if (i % 3 == 0) repeat_type_box += '</div><div class="row">';
+    }
+    repeat_type_box += '</div>';
+    document.getElementById('repeat-id').innerHTML = repeat_type_box;
 
 </script>
 </html>
