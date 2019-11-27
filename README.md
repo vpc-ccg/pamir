@@ -48,7 +48,7 @@ cd /dir/to/blast/db
 ### Compilation and Configuration
 To install Pamir, you need to first fetch Pamir from our [git repository](https://github.com/vpc-ccg/pamir) or download the corresponding compressed files. 
 ```
-git clone https://github.com/vpc-ccg/pamir.git
+git clone https://github.com/vpc-ccg/pamir.git --recursive
 cd pamir
 ```
 
