@@ -671,7 +671,7 @@ rule make_vis_fasta:
                 #print("{}\t{}".format(cmd,fields[2]))
                 seq = stdout[-1]
                 seq = seq[:mid] + ins + seq[mid:]
-                print(">{} {} {} {}\n{}".format(ins_id, mid, len(ins), end - len(ins),seq.rstrip()),file=fast_hand)
+                print(">{} {} {}\n{}".format(ins_id, mid, len(ins),seq.rstrip()),file=fast_hand)
 
 
 rule all_filtered_vcf:
@@ -706,7 +706,7 @@ rule rename_events:
                     continue
                 fields = line.rstrip().split("\t")
                 ho = hashlib.md5(fields[4].encode())
-                fields[2] = "-".join([fields[0],fields[1],ho.hexdigest()[:4]])
+                fields[2] = "-".join([fields[0],fields[1],ho.hexdigest()[:11]])
                 print( "\t".join(fields), file=ohand)
                 
 '''

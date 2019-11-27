@@ -105,7 +105,9 @@ build_clean:
 	@$(RM)  $(PROCESSING_OBJ)
 	@$(RM)  $(DEPS)
 	@$(RM) -d $(BUILD_PATH)
-
+	@$(RM) $(SRC_PATH)/edlib.cc
+	@$(RM) $(SRC_PATH)/include/edlib.h
+	@$(RM) $(SRC_PATH)/include/logger.h
 .PHONY: build_clean
 
 bin_clean:
