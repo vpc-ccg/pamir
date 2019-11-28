@@ -228,7 +228,8 @@ rule make_data_js:
         import sys
         populations = {}
         cohort = config["population"]
-        sn = {"uuid" :"id","qual" :"q","genotype" :"g","Cluster" :"c","Support" :"p","FLSUP" :"flp","FRSUP" :"frp","FSUP" :"fsp","GLeft" :"gl","GRight" :"gt","GRef" :"gr","GLRatio" :"glr","GRRatio" :"gtr","Sample" :"s", "RMContent": "rmc"}
+        sn = {"uuid" :"id","qual" :"q","genotype" :"g","Cluster" :"c","Support" :"p","FLSUP" :"flp","FRSUP" :"frp","FSUP" :"fsp","GLeft" :"l","GRight" :"r","GRef" :"gr","GLRatio" :"glr","GRRatio" :"gtr","Sample" :"s", "RMContent": "rmc"}
+	unwanted_tag_list=["GRRation","FLSUP","FRSUP","FSUP","GLRatio","GRRatio"]
         with open(output[0], 'w') as ohand:
             print("/*\nid uuid\nq qual\ng genotype\nc Cluster\np Support\nflp FLSUP\nfrp FRSUP\nfsp FSUP\ngl GLeft\ngt GRight\ngr GRef\nglr GLRatio\ngtr GRRatio\ns Sample\n*/",file=ohand)
             print("var mut_data = ",file=ohand)
@@ -254,6 +255,9 @@ rule make_data_js:
                         for i in info:
                             parts = i.split("=")
                             if len(parts) == 2:
+                              if parts[0] in unwanted_tag_list:
+                                continue
+                              else:
                                 variant[sn[parts[0]]] = parts[1]
                             else:
                                 variant[parts[0]] = ""
