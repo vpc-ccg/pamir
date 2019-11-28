@@ -178,6 +178,34 @@ rule move_repeat_bed:
 
 #chr13-69551766-747f     1000    1050    Cluster=1087545;Support=4;FLSUP=6;FRSUP=8;FSUP=14       chr13-69551766-747f     1006    1084    (TA)n::Simple_repeat    0       +
 
+rule merge_repeat_beds:
+    input:
+        uniq=config["analysis"]+"/vis/{sample}/uniq_seq_ins.bed",
+        rep=config["analysis"]+"/vis/{sample}/repeat_overlap_ins.bed",
+    output:
+        config["analysis"]+"/vis/{sample}/events_ins_pos_and_repeat.bed",
+    shell:
+        "cat {input.uniq} {input.rep} | bedtools sort  -i stdin > {output}"
+
+rule non_repeat_bed:
+    input:
+        bed=config["analysis"]+"/vis/{sample}/events_ins_pos.bed",
+        rpt=config["analysis"]+"/vis/events_ref.repeat.bed",
+    output:
+        config["analysis"]+"/vis/{sample}/uniq_seq_ins.bed",
+    shell:
+        "bedtools intersect -b {input.rpt} -a {input.bed} -v  | python scripts/process_unique.py > {output}"
+
+rule repeat_bed:
+    input:
+        bed=config["analysis"]+"/vis/{sample}/events_ins_pos.bed",
+        rpt=config["analysis"]+"/vis/events_ref.repeat.bed",
+    output:
+        config["analysis"]+"/vis/{sample}/repeat_overlap_ins.bed",
+    shell:
+        "bedtools intersect -a {input.rpt} -b {input.bed} -wb | python scripts/process_repeats.py > {output}"
+
+'''
 rule intersect_bed_and_repeats:
     input:
         bed=config["analysis"]+"/vis/{sample}/events_ins_pos.bed",
@@ -186,6 +214,7 @@ rule intersect_bed_and_repeats:
         bed=config["analysis"]+"/vis/{sample}/events_ins_pos_and_repeat.bed",
     shell:
         "bedtools intersect -b {input.rpt} -a {input.bed}  -loj > {output}"
+'''
 
 rule make_unique_repeats:
     input:
@@ -194,8 +223,6 @@ rule make_unique_repeats:
         config["analysis"]+"/vis/unique_repeats.tsv"
     shell:
         "cat {input} | cut -f 4 | sed 's/::/\\t/g' | cut -f 2 |  sort | uniq -c > {output}"
-
-
 
 
 rule format_repeat_masking:
@@ -228,7 +255,7 @@ rule make_data_js:
         import sys
         populations = {}
         cohort = config["population"]
-        sn = {"uuid" :"id","qual" :"q","genotype" :"g","Cluster" :"c","Support" :"p","FLSUP" :"flp","FRSUP" :"frp","FSUP" :"fsp","GLeft" :"L","GRight" :"T","GRef" :"R","GLRatio" :"glr","GRRatio" :"gtr","Sample" :"s", "RMContent": "rmc"}
+        sn = {"uuid" :"id","qual" :"q","genotype" :"g","Cluster" :"c","Support" :"p","FLSUP" :"flp","FRSUP" :"frp","FSUP" :"fsp","GLeft" :"L","GRight" :"T","GRef" :"R","GLRatio" :"glr","GRRatio" :"gtr","Sample" :"s", "unique_content": "uc", "repeat_ranges": "rc" }
         unwanted_tag_list=["FLSUP","FRSUP","FSUP","GLRatio","GRRatio"] 
         with open(output[0], 'w') as ohand:
             print("/*\nid uuid\nq qual\ng genotype\nc Cluster\np Support\nL GLeft\nT GRight\nR GRef\ns Sample\n*/",file=ohand)
@@ -285,13 +312,13 @@ rule make_summary_js:
         length2counts = {}
         repeats = {}
         with open(output[0],'w') as ohand, open(input.table,'r') as ihand:
-            print("/*event\te\ncount\tc\nlength\tl\nrepeat_type\tr\n*/",file=ohand)
+            print("/*event\te\ncount\tc\nlength\tl\nrepeat_type\tr\nunique_content_percentage\tu\n*/",file=ohand)
             print("var cohort_request=\"{}\"".format(config["population"]),file=ohand)
             print("var cohort_size={}".format(len(config["input"].keys())),file=ohand)
             print("var table_summary_file =[",file=ohand)
             for line in ihand:
                 fields=line.rstrip().split("\t")
-                print(json.dumps({"e" : fields[1], "c" : str(int(float(fields[0]))), "l":len(fields[2]), "r":fields[3]}),file=ohand,end=",")
+                print(json.dumps({"e" : fields[1], "c" : str(int(float(fields[0]))), "l":len(fields[2]), "r":fields[3], "u":fields[4]}),file=ohand,end=",")
                 if fields[3] not in repeats:
                     repeats[fields[3]] = 1
                 length = int(len(fields[2])/5)*5
@@ -329,10 +356,12 @@ rule annotate_repeats_in_vcf:
     output:
         vcf=config["analysis"]+"/vis/{sample}/final.vcf",
     run:
+
+        bedl = []
+        vcfl = []
         with open(input.vcf , 'r') as vhand, open(input.bed, 'r') as bhand, open(output.vcf, 'w') as ohand:
             bedln = bhand.readline()
             vcfln = vhand.readline()
-
             while(bedln and vcfln):
                 while(vcfln[0] == "#"):
                     print(vcfln,end="",file=ohand)
@@ -340,18 +369,18 @@ rule annotate_repeats_in_vcf:
                
                 vcffields = vcfln.rstrip().split("\t")
                 bedfields = bedln.rstrip().split("\t")
-
-                print("\t".join(vcffields[:8]),end="",file=ohand)
-                print(";RMContent=",end="",file=ohand)
-                if( bedfields[7] == "."):
-                    print("None",end="\t",file=ohand)
-                else:
-                    print(bedfields[7].split("::")[1],end="\t",file=ohand)
-                print("\t".join(vcffields[8:]),file=ohand) 
+                bedl.append(bedfields)
+                vcfl.append(vcffields)
                 bedln = bhand.readline()
                 vcfln = vhand.readline()
-
                 
+            bedl = sorted(bedl, key=lambda x: x[0])
+            vcfl = sorted(vcfl, key=lambda x: x[2])
+
+            for b,v in zip(bedl,vcfl):
+                print("\t".join(v[:7]),end="\t",file=ohand)
+                print(b[3],file=ohand,end="\t") 
+                print("\t".join(v[8:]),file=ohand)
 
 rule all_vis_table:
     input:
@@ -381,7 +410,7 @@ rule all_vis_table:
                     event_id = fields[2]
                     if event_id not in events:
                         events[event_id] = []
-                        event_details[event_id] = ((fields[2],fields[4][1:],info["RMContent"]))
+                        event_details[event_id] = (fields[2],fields[4][1:],",".join([x.split("(")[0] for x in info["repeat_ranges"].split(":")]), info["unique_content"])
                     if fields[-1] != "0/0" and fields[6] == "PASS":
                         events[event_id].append((my_id,fields[-1]))
         with open( output[0], 'w') as hand:
@@ -936,18 +965,20 @@ rule pamir_assemble_full_new:
             cc = int(chand.readline())
         
         index = 0
-
+        use_threads = threads - 1
+        pppt = min(params.pppt,int(cc/use_threads))
+        
         cmd_template =  "./pamir assemble {0} {1} {{0}}-{{1}} T{{2}} 30000 {2} {3}/{4} > {3}/{4}/T{{2}}.log".format(input.partition, params.ref, params.read_length, params.wd, wildcards.sample)
-        while index + params.pppt <= cc:
+        while index + pppt <= cc:
             tids = []
             procs = []
             first_index = index
-            for tid in range(threads-1):
+            for tid in range(use_threads):
                 start = index
-                if index + params.pppt > cc:
+                if index + pppt > cc:
                     end = cc
                 else:
-                    end = index + params.pppt
+                    end = index + pppt
                 cmd = cmd_template.format(start,end,tid)
                 procs.append(subprocess.Popen(cmd, shell=True))
                 tids.append(tid)
@@ -1039,7 +1070,7 @@ if "blastdb" in config:
         output:
             config["analysis"]+"/"+config["assembler"]+"/reads.contigs.filtered.megablast.tabular",
         shell:
-            "cat {input} | tr '\\n' '\\t' | sed 's/Query=/\\nQuery=/g'  | grep -v \"No hits found\" |awk 'NR>1' | cut -f 1 | awk '{{print $2;}}' >{ output}"
+            "cat {input} | tr '\\n' '\\t' | sed 's/Query=/\\nQuery=/g'  | grep -v \"No hits found\" |awk 'NR>1' | cut -f 1 | awk '{{print $2;}}' >{output}"
     
     rule clean_contigs:
         input:

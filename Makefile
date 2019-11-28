@@ -28,8 +28,7 @@ SOURCE_FILES =  pamir.cc aligner.cc bam_parser.cc common.cc genome.cc partition.
 UTIL_SRC_FILES = extract_support.cc smoother.cc recalibrate.cc
 PROCESSING_SRC_FILES = process_reads.cc process_orphans.cc process_range.cc edlib.cc sam_processing.cc
 
-SCRIPT_FILES = merge_refs.py contig_graph.py  filter_by_setcover.py  filtering.py  generate_setcover_input.py  genotyping.py  prep-ctgs.py  remove_contaminations.py  sort_vcf.py  version_check.py
-
+SCRIPT_FILES = merge_refs.py contig_graph.py  filter_by_setcover.py  filtering.py  generate_setcover_input.py  genotyping.py  prep-ctgs.py  remove_contaminations.py  sort_vcf.py  version_check.py process_repeats.py process_unique.py
 
 SOURCES = $(patsubst %, $(SRC_PATH)/%, $(SOURCE_FILES))
 OBJECTS = $(SOURCES:$(SRC_PATH)/%.$(SRC_EXT)=$(BUILD_PATH)/%.o)
