@@ -58,14 +58,17 @@ pamir$ make -j
 pamir$ mv pamir /usr/bin/
 pamir$ mv pamir.sh /usr/bin/
 ```
+## Project Configuration
+Pamir is designed to detect novel sequence insertions based on one-end anchors (OEA) and orphans from paired-end Whole Genome Sequencing (WGS) reads. A .yaml configuration file with the following fields and their descriptions.
+
 |config-paramater-name | Type | Description|
 |------------------------------|-----------|--------------------------------------------------------------------------------------------------------------------------------------|
-| path                         | Mandatory | full path to project directory |
-| raw-data                     | Mandatory | location of the input files (crams or bams) relative to the project path(1)                                                          |
-| population                   | Mandatory | populuation/cohort id                                                                                                                |
-| reference                    | Mandatory | full path to reference genome                                                                                                        |
-| read_length                  | Mandatory | read length of the input reads                                                                                                       |
-| input                        | Mandatory | a list of input files per individual like shown in an example below. This version of pamir accepts BAM and CRAM files as input.      |
+| path                         | Mandatory | full path to project directory. No default. |
+| raw-data                     | Mandatory | location of the input files (crams or bams) relative to the project path(1). No default.                                                         |
+| population                   | Mandatory | populuation/cohort id. Name cannot contain any space characters. No default.                                                                                                                |
+| reference                    | Mandatory | full path to reference genome. No default.                                                                                                        |
+| read_length                  | Mandatory | read length of the input reads. No default.                                                                                                       |
+| input                        | Mandatory | a list of input files per individual like shown in an example below. This version of pamir accepts BAM and CRAM files as input. No default.      |
 | analysis-base                | Optional  | location of intermediate files relative to the path(1). default: analysis directory will be created under project directory by pamir |
 | results-base                 | Optional  | location of final results relative to the path(1). default: results directory will be created under project directory by pamir       |
 | min_contig_len               | Optional  | minimum contig length from the external assembler to use default: Should be same as read length                                      |
@@ -73,38 +76,28 @@ pamir$ mv pamir.sh /usr/bin/
 | assembler_k                  | Optional  | kmer to use for external assembler. default: 47                                                                                      |
 | pamir_partitition_per_thread | Optional  | number of processes to split the pamir partition work (Higher = more parallelism + more overhead). default: 1000                     |
 | blastdb                      | Optional  | path to blast database to eleminate possible contiminations from the data. default: no db used                                       |
+| centromeres | Optional | full path to the file in bed format that contains centromeres locations. default: no default|
 | align_threads                | Optional  | number of threads to use for alignment jobs. default: 16                                                                             |
 | assembly_threads             | Optional  | number of threads to use for assembly jobs. default: 62                                                                              |
 | other_threads                | Optional  | number of threads to use for other jobs. default: 16                                                                                 |
 | minia_min_abundance          | Optional  | minia's internal assembly parameter. default: 5                                                                                      |
-## Project Configuration
-Pamir is designed to detect novel sequence insertions based on one-end anchors (OEA) and orphans from paired-end Whole Genome Sequencing (WGS) reads. A .yaml configuration file with the following fields.
-
-1. path: full path to your project working directory
-2. raw-data: Location of the input files (crams or bams) relative to the project path(1)
-3. analysis-base: Location of intermediate files relative to the path(1)
-4. results-base: Location of final results relative to the path(1)
-5. population: population name/id
-6. reference: Whole genome reference path
-7. min\_contig\_len: Minimum contig length from the external assembler to use (Should be same as read length)
-8. assembler: external assembler to use (minia, abyss, spades)
-9. assembler\_k: kmer to use for external assembler
-10. assembly\_segmenter\_count: Number of processes to split the pamir partition work (Higher = more parallelism + more overhead) 
-11. blastdb: Path to blast database
-12. read\_length: read length of the input
-13. align\_threads: number of threads to use for alignment jobs
-14. assembly\_threads: number of threads to use for assembly jobs
-15. other\_threads: number of threads to use for other jobs
-16. input: a list of input files per individual like following, where files should be in the (path(1))/(raw-data(4))/. This version of pamir accepts BAM and CRAM files as input.
-
+## Here is an example of minimal config.yaml neccasary to execute pamir 
 ```
+path:
+    /full/path/to/project-directory
+raw-data:
+    /relative/path/to/raw-data
+read_length:
+    100
+reference:
+    /full/path/to/the/reference.fa
+population:
+    name-with-no-space
 input:
-  "A":
-   - A.cram
-  "B":
-   - B.cram
-  "C":
-   - C.cram
+ "0":
+  - 0.cram/bam
+ "1":
+  - 1.cram/bam
 ```
 
 Pamir can be run with the following commands, this version of pamir requires 2 steps to be run in order. Where first command create the partition files, and second command genotypes the insertions.
