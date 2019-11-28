@@ -10,29 +10,46 @@ Pamir detects and genotypes novel sequence insertions in single or multiple data
 4. [Publications](#publications)
 5. [Contact & Support](#contact-and-support)
 
-## Installation
-Source code of Pamir can be downloaded from [GitHub](https://github.com/vpc-ccg/pamir). To begin with, you will need to set up several external tools as described below.
+# Installation
 
-### Prerequisite
-Pamir relies on specific version of the following tools:
-1. g++ >= 5.2.0
-2. Python3
-3. [samtools](http://www.htslib.org/) >= 1.9
-4. [mrsfast](https://github.com/sfu-compbio/mrsfast) >= 3.4.0
-5. [BLAST](ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast\+/LATEST/) >= 2.9.0+
-6. [bedtools](https://bedtools.readthedocs.io/en/latest/) >= 2.26.0
-7. [bwa](https://github.com/lh3/bwa) >= 0.7.17
-8. [snakemake](https://snakemake.readthedocs.io/en/stable/) >= 5.3.0
-9. [RepeatMasker](http://www.repeatmasker.org/) >= 4.0.9
-10. Assembler
-* [minia](https://github.com/GATB/minia) >= 3.2.0 Or
-* [abyss](https://github.com/bcgsc/abyss) >= 2.2.3 Or
-* [spades](https://github.com/ablab/spades) >= 3.13.1
+## Installation from Source
+> *Prerequisite.* You will need g++ 5.2 and higher to compile the source code.
 
-#### Or you can use environment.yaml with conda (Except Assembler)
-    conda env  create -f environment.yaml
-    source activate pamir-deps 
+The first step to install Pamir is to download the source code from our 
+[GitHub](https://github.com/vpc-ccg/pamir) repository. After downloading, 
+change the current directory to the source directory ``pamir`` and run ``make`` in
+terminal to create the necessary binary files. 
 
+```
+git clone https://github.com/vpc-ccg/pamir.git --recursive
+cd pamir
+make
+``` 
+
+# Running Pamir
+Pamir's pipeline requires a number of external program. You can either manually install them or 
+take advantage of pamir's [conda](https://docs.conda.io/en/latest/) ``environment.yaml`` to 
+install all the dependencies **except the assembler**:
+```
+conda env  create -f environment.yaml
+source activate pamir-deps 
+```
+
+Dependencies | Version 
+-------- |-----|
+Python   | 3.x |
+[samtools](http://www.htslib.org/) | >= 1.9 |
+[mrsfast](https://github.com/sfu-compbio/mrsfast) | >= 3.4.0 |
+[BLAST](ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast\+/LATEST/) | >= 2.9.0+ |
+[bedtools](https://bedtools.readthedocs.io/en/latest/) | >= 2.26.0 |
+[bwa](https://github.com/lh3/bwa) | >= 0.7.17 |
+[snakemake](https://snakemake.readthedocs.io/en/stable/) | >= 5.3.0 |
+[RepeatMasker](http://www.repeatmasker.org/) | >= 4.0.9 |
+[minia](https://github.com/GATB/minia) | >= 3.2.0 Or |
+[abyss](https://github.com/bcgsc/abyss) | >= 2.2.3 Or |
+[spades](https://github.com/ablab/spades) | >= 3.13.1 |
+
+Note: You only need to install one of the assemblers.
 
 
 
