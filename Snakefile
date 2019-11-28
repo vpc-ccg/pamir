@@ -16,7 +16,7 @@ cfg_mandatory("read_length")
 cfg_mandatory("reference")
 cfg_mandatory("raw-data")
 cfg_mandatory("centromeres")
-cfg_mandatory("blastdb")
+#cfg_mandatory("blastdb")
 cfg_mandatory("input")
 cfg_mandatory("population")
 
@@ -185,7 +185,7 @@ rule intersect_bed_and_repeats:
     output:
         bed=config["analysis"]+"/vis/{sample}/events_ins_pos_and_repeat.bed",
     shell:
-        "bedtools intersect -b {input.rpt} -a {input.bed} -r -f 0.5 -loj > {output}"
+        "bedtools intersect -b {input.rpt} -a {input.bed}  -loj > {output}"
 
 rule make_unique_repeats:
     input:
@@ -204,7 +204,7 @@ rule format_repeat_masking:
     output:
         "{sample}.repeat.bed"
     shell:
-        "cat {input} | awk 'BEGIN{{OFS=\"\\t\";}}NR>3{{gsub(\"C\",\"-\",$9);print $5,$6,$7,$10\"::\"$11,0,$9;}}' > {output}"
+        "cat {input} | awk 'BEGIN{{OFS=\"\\t\";}}NR>3{{gsub(\"C\",\"-\",$9);print $5,$6-1,$7,$10\"::\"$11,0,$9;}}' > {output}"
 
 rule make_repeat_mask_gff:
     input:
@@ -1016,28 +1016,44 @@ rule merge_contigs:
     script:
         "./scripts/prep-ctgs.py"
 
+if "blastdb" in config:
+    rule blast_contigs:
+        input:
+            config["analysis"]+"/"+config["assembler"]+"/reads.contigs.filtered.fa"
+        output:
+            config["analysis"]+"/"+config["assembler"]+"/reads.contigs.filtered.megablast"
+        threads:
+            config["other_threads"],
+        params:
+            db=config["blastdb"],
+        shell:    
+            "blastn -task megablast -db {params.db} -num_threads {threads} -query {input} > {output}"
 
+    rule find_contaminations:
+        input:
+            config["analysis"]+"/"+config["assembler"]+"/reads.contigs.filtered.megablast",
+        output:
+            config["analysis"]+"/"+config["assembler"]+"/reads.contigs.filtered.megablast.tabular",
+        shell:
+            "cat {input} | tr '\\n' '\\t' | sed 's/Query=/\\nQuery=/g'  | grep -v \"No hits found\" |awk 'NR>1' | cut -f 1 | awk '{{print $2;}}' >{ output}"
+    
+    rule clean_contigs:
+        input:
+            fasta=config["analysis"]+"/"+config["assembler"]+"/reads.contigs.filtered.fa",
+            mb=config["analysis"]+"/"+config["assembler"]+"/reads.contigs.filtered.megablast.tabular",
+        output:
+            config["analysis"]+"/"+config["assembler"]+"/reads.contigs.filtered.clean.fa"
+        shell:
+            "python scripts/remove_contaminations.py {input.mb} {input.fasta} {output}"
 
-rule blast_contigs:
-    input:
-        config["analysis"]+"/"+config["assembler"]+"/reads.contigs.filtered.fa"
-    output:
-        config["analysis"]+"/"+config["assembler"]+"/reads.contigs.filtered.megablast"
-    threads:
-        config["other_threads"],
-    params:
-        db=config["blastdb"],
-    shell:    
-        "blastn -task megablast -db {params.db} -num_threads {threads} -query {input} > {output}"
-
-rule clean_contigs:
-    input:
-        fasta=config["analysis"]+"/"+config["assembler"]+"/reads.contigs.filtered.fa",
-        mb=config["analysis"]+"/"+config["assembler"]+"/reads.contigs.filtered.megablast",
-    output:
-        config["analysis"]+"/"+config["assembler"]+"/reads.contigs.filtered.clean.fa"
-    shell:
-        "python scripts/remove_contaminations.py <(cat {input.mb} | tr '\\n' '\\t' | sed 's/Query=/\\nQuery=/g'  | grep -v \"No hits found\" |awk 'NR>1' | cut -f 1 | awk '{{print $2;}}') {input.fasta} {output}"
+else:
+    rule mock_clean_contigs:
+        input:
+            fasta=config["analysis"]+"/"+config["assembler"]+"/reads.contigs.filtered.fa",
+        output:
+            config["analysis"]+"/"+config["assembler"]+"/reads.contigs.filtered.clean.fa"
+        shell:
+            "ln -s {input} {output}"
 
 rule filter_contigs:
     input:
