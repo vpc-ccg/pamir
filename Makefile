@@ -151,7 +151,7 @@ all: $(EDLIB_HED_PATH) $(EDLIB_SRC_PATH) $(LOGGER_HED_PATH) $(BIN_PATH)/$(EXE) $
 .PHONY: install_helper
 
 install_helper: $(BIN_PATH)/$(EXE) $(UTIL_EXE) $(UTIL_PATH)/$(PROCESSING_EXE) $(COPIED_SCRIPTS)
-	@echo -e "\nPlease add pamir to your path:\n\nexport PATH=\044PATH:`pwd`\n\nOR\n\nsudo mv pamir.sh /usr/bin\nsudo mv pamir /usr/bin\n"
+	@printf "\nPlease add pamir to your path:\n\nexport PATH=\044PATH:`pwd`\n\nOR\n\nsudo mv pamir.sh /usr/bin\nsudo mv pamir /usr/bin\n\n"
 
 $(BIN_PATH)/$(EXE): $(OBJECTS)
 	$(CXX) $(OBJECTS) $(LFLAGS) -o $@

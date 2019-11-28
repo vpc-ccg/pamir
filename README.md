@@ -5,8 +5,9 @@ Pamir detects and genotypes novel sequence insertions in single or multiple data
 
 # Table of contents
 1. [Installation](#installation)
-2. [Output Formats](#output-formats)
-3. [Project Configuration](#project-configuration)
+2. [Running Pamir](#running-pamir)
+2. [Example](#example)
+3. [Visualization](#visualization)
 4. [Publications](#publications)
 5. [Contact & Support](#contact-and-support)
 
@@ -20,7 +21,7 @@ The first step to install Pamir is to download the source code from our
 change the current directory to the source directory ``pamir`` and run ``make`` and ``make install`` in
 terminal to create the necessary binary files. 
 
-```
+```shell
 git clone https://github.com/vpc-ccg/pamir.git --recursive
 cd pamir
 make
@@ -32,7 +33,7 @@ make install
 Pamir's pipeline requires a number of external programs. You can either manually install them or 
 take advantage of pamir's [conda](https://docs.conda.io/en/latest/) ``environment.yaml`` to 
 install all the dependencies **except the assembler**:
-```
+```shell
 conda env  create -f environment.yaml
 source activate pamir-deps 
 ```
@@ -54,110 +55,116 @@ Python   | 3.x |
 ***Note: You only need to install one of the assemblers.**
 
 ## Project Configuration
+n order to run pamir, you need to create a project configuration file namely ``config.yaml``. 
+This configuration consists of a number mandatory settings and some optional advance settings. 
+Below is the list of the all the settings that you can set in your project.
 
-   You also need to download the latest BLAST nt database to /your/path/to/ncbi-blast-2.5.0+/db/ (see *Compilation and Configuration* below) for contamination detection. 
+|config-paramater-name | Type | Description|
+|------------------------------|-----------|--------------------------------------------------------------------------------------------------------------------------------------|
+| path                         | Mandatory | Full path to project directory.  |
+| raw-data                     | Mandatory | Location of the input files (crams or bams) relative to ``path``.                                                         |
+| population                   | Mandatory | Populuation/cohort name. Note that name cannot contain any space characters.                                                                                                                 |
+| reference                    | Mandatory | Full path to the reference genome.                                                                                                        |
+| read_length                  | Mandatory | Read length of the input reads.                                                                                                       |
+| input                        | Mandatory | A list of input files per individual. Pamir 2.0 accepts BAM and CRAM files as input.       |
+| analysis-base                | Optional  | Location of intermediate files relative to ``path``. default: ``{path}/analysis``|
+| results-base                 | Optional  | Location of final results relative to the ``path``. default: ``{path}/results``  |
+| min_contig_len               | Optional  | Minimum contig length from the external assembler to use. default: ``read_length``  |
+| assembler                    | Optional  | External assembler to use (``minia``, ``abyss``, ``spades``) default: ``minia``                                                                      |
+| assembler_k                  | Optional  | kmer to use for external assembler. default: 47                                                                                      |
+| pamir_partitition_per_thread | Optional  | Number of internal pamir jobs to be completed per thread. This is an advanced settings, modifying this can heavily affect the performance. Too small or too large may affect the performance negatively.  default: 1000                     |
+| blastdb                      | Optional  | Full path to blast database to remove possible contaminants from the data.  |
+| centromeres | Optional | Full path to the file in bed format that contains centromeres locations. The calls in these regions will not be reported |
+| align_threads                | Optional  | number of threads to use for alignment jobs. default: 16                                                                             |
+| assembly_threads             | Optional  | number of threads to use for assembly jobs. default: 62                                                                              |
+| other_threads                | Optional  | number of threads to use for other jobs. default: 16                                                                                 |
+| minia_min_abundance          | Optional  | minia's internal assembly parameter. default: 5|
 
 
-```
-mkdir /dir/to/blast/db
-cd /dir/to/blast/db
-/path/to/blast/bin/update_blastdb.pl nt
-```
 
-Pamir is designed to detect novel sequence insertions based on one-end anchors (OEA) and orphans from paired-end Whole Genome Sequencing (WGS) reads. A .yaml configuration file with the following fields.
-
-1. path: full path to your project working directory
-2. raw-data: Location of the input files (crams or bams) relative to the project path(1)
-3. analysis-base: Location of intermediate files relative to the path(1)
-4. results-base: Location of final results relative to the path(1)
-5. population: population name/id
-6. reference: Whole genome reference path
-7. min\_contig\_len: Minimum contig length from the external assembler to use (Should be same as read length)
-8. assembler: external assembler to use (minia, abyss, spades)
-9. assembler\_k: kmer to use for external assembler
-10. assembly\_segmenter\_count: Number of processes to split the pamir partition work (Higher = more parallelism + more overhead) 
-11. blastdb: Path to blast database
-12. read\_length: read length of the input
-13. align\_threads: number of threads to use for alignment jobs
-14. assembly\_threads: number of threads to use for assembly jobs
-15. other\_threads: number of threads to use for other jobs
-16. input: a list of input files per individual like following, where files should be in the (path(1))/(raw-data(4))/. This version of pamir accepts BAM and CRAM files as input.
-
-```
+The following a an example of ``config-yaml`` with two individuals. 
+```yaml
+path:
+    /full/path/to/project-directory
+raw-data:
+    raw-data
+read_length:
+    100
+reference:
+    /full/path/to/the/reference.fa
+population:
+    my-pop
 input:
-  "A":
-   - A.cram
-  "B":
-   - B.cram
-  "C":
-   - C.cram
+ "samplename1":
+  - A.cram
+ "samplename2":
+  - B.cram/bam
 ```
 
-Pamir can be run with the following commands, this version of pamir requires 2 steps to be run in order. Where first command create the partition files, and second command genotypes the insertions.
-```
+Now, to run pamir on such a config file, you have to run the following command.
+```shell
 pamir.sh  --configfile /path/to/config.yaml
 ```
 
-You can pass any snakemake parameter to pamir.sh.
-```
--j [number of threads]
--np [Dry Run]
---forceall [rerun all steps regardless of the current stage]
-etc.
+Since, ``pamir.sh`` is internally utilizing ``snakemake``, you can pass any additionak ``snakemake`` parameters to ``pamir.sh``. Here are some examples:
+```shell
+pamir.sh  --configfile /path/to/config.yaml -j [number of threads] 
+pamir.sh  --configfile /path/to/config.yaml -np [Dry Run] 
+pamir.sh  --configfile /path/to/config.yaml --forceall [rerun all steps regardless of the current stage]
 ```
 
-
-#### Read Length
+### Read Length
 Now Pamir only accepts WGS datasets in which two mates of all reads are of **equal length**.
 
-
 ## Output Formats
-Pamir generates a [VCF file](https://samtools.github.io/hts-specs/VCFv4.2.pdf) for detected novel sequence insertions. You can run genotyping for each sample after obtaining the VCF file by:
+Pamir will generate the following structure.
+Pamir generates a [VCF file](https://samtools.github.io/hts-specs/VCFv4.2.pdf) for detected novel sequence insertions. 
 
-Your project will be in the following structure
 ```
 [path]/
-├── [raw-data]      <--- Temp Folder
+├── raw-data                       -> OR [raw-data]
 │   ├── A.cram
 │   ├── B.cram
-│   └── C.cram
-├── [analysis-base] <--- Temp Folder
-│   └── population
-└── [result-base]   <--- Results foldeer
-    └── population
-        ├── events.ref
+├── analysis                       -> OR [analysis-base]
+│   └── my-pop
+└── results                        -> OR [results-base]
+    └── my-pop
+        ├── index.html             -> Summary fo events
+        ├── summary.js             -> Summary required by index.html
+        ├── data.js                -> Data required by index.html
+        ├── events.repeat.bed      -> annotation of repeats for detected eveents
+        ├── events.fa              -> all the detected events with 1000bp flanking region
+        ├── events.fa.fai          -> index of events.fa
         └── ind
             ├── A
-            │   ├── events.bam
-            │   ├── events.bed
-            │   └── events.vcf
+            │   ├── events.bam     -> mapping of the reads in the events region
+            │   ├── events.bam.bai -> index
+            │   ├── events.bed     -> location of events
+            │   └── events.vcf     -> genotyped insertion calls
             ├── B
             │   ├── events.bam
+            │   ├── events.bam.bai
             │   ├── events.bed
             │   └── events.vcf
-            └── C
-                ├── events.bam
-                ├── events.bed
-                └── events.vcf
 ```
 
+# Example
+```shell
+curl -L https://ndownloader.figshare.com/files/18706463?private_link=42900675d70a9a2282e8 --output small-example.tar.gz
+tar xzvf small-example.tar.gz
+cd small-example; ./configure.sh
+pamir.sh -j16 --configfile config.yaml
+```
 
-events.vcf contains genotyped insertions calls.
-events.fa  is the reference build from called insertions + flanking regions from the genome
-events.bam is the reads from flanking regions of the calls
-events.bed is the bed file showing the insertion positions on events.fa
+# Visualization
+``index.html`` provides a quick way of looking at general overview of events. It is an alternative to working with vcf files in a friendly fashion.
+If you start your IGV, you can easily jump back and forth investigating your events from ``index.html``.  
 
 
-## Small working example
-    curl -L https://ndownloader.figshare.com/files/18706463?private_link=42900675d70a9a2282e8 --output small-example.tar.gz
-    tar xzvf small-example.tar.gz
-    cd small-example; ./configure.sh
-    pamir.sh -j16 --configfile config.yaml
-
-## Publications
+# Publications
 **Discovery and genotyping of novel sequence insertions in many sequenced individuals.** P. Kavak*, Y-Y. Lin*, I. Numanagić, H. Asghari, T. Güngör, C. Alkan‡, F. Hach‡. [***Bioinformatics*** (ISMB-ECCB 2017 issue), 33 (14): i161-i169, 2017.](https://doi.org/10.1093/bioinformatics/btx254)
 
-## Contact and Support
+# Contact and Support
 
 Feel free to drop any inquiry at the [issue page](https://github.com/vpc-ccg/pamir/issues)    .
 
