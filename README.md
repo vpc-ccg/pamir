@@ -25,19 +25,15 @@ Pamir relies on specific version of the following tools:
 8. [snakemake](https://snakemake.readthedocs.io/en/stable/) >= 5.3.0
 9. [RepeatMasker](http://www.repeatmasker.org/) >= 4.0.9
 10. Assembler
-* [minia](https://github.com/GATB/minia) >= 3.2.0 Or
-* [abyss](https://github.com/bcgsc/abyss) >= 2.2.3 Or
-* [spades](https://github.com/ablab/spades) >= 3.13.1
+    * [minia](https://github.com/GATB/minia) >= 3.2.0 Or
+    * [abyss](https://github.com/bcgsc/abyss) >= 2.2.3 Or
+    * [spades](https://github.com/ablab/spades) >= 3.13.1
 
 #### Or you can use environment.yaml with conda (Except Assembler)
     conda env  create -f environment.yaml
     source activate pamir-deps 
 
-
-
-
-   You also need to download the latest BLAST nt database to /your/path/to/ncbi-blast-2.5.0+/db/ (see *Compilation and Configuration* below) for contamination detection. 
-
+If you want to include contamination detection step, you need to install the latest BLAST nt database to `/your/path/to/ncbi-blast-2.5.0+/db/`. Therefore its optional. (see *Compilation and Configuration* below) 
 
 ```
 mkdir /dir/to/blast/db
@@ -46,18 +42,20 @@ cd /dir/to/blast/db
 ```
 
 ### Compilation and Configuration
-To install Pamir, you need to first fetch Pamir from our [git repository](https://github.com/vpc-ccg/pamir) or download the corresponding compressed files. 
+To install Pamir, you need to first fetch Pamir from our [git repository](https://github.com/vpc-ccg/pamir) or download the corresponding compressed files.
 ```
 git clone https://github.com/vpc-ccg/pamir.git
 cd pamir
 ```
 
 Make the project and move running script and executable folder somewhere in your PATH.
+
 ```
-pamir$ make -j
+pamir$ make -j2
 pamir$ mv pamir /usr/bin/
 pamir$ mv pamir.sh /usr/bin/
 ```
+
 ## Project Configuration
 Pamir is designed to detect novel sequence insertions based on one-end anchors (OEA) and orphans from paired-end Whole Genome Sequencing (WGS) reads. A .yaml configuration file with the following fields and their descriptions.
 
@@ -80,8 +78,9 @@ Pamir is designed to detect novel sequence insertions based on one-end anchors (
 | align_threads                | Optional  | number of threads to use for alignment jobs. default: 16                                                                             |
 | assembly_threads             | Optional  | number of threads to use for assembly jobs. default: 62                                                                              |
 | other_threads                | Optional  | number of threads to use for other jobs. default: 16                                                                                 |
-| minia_min_abundance          | Optional  | minia's internal assembly parameter. default: 5                                                                                      |
-## Here is an example of minimal config.yaml neccasary to execute pamir 
+| minia_min_abundance          | Optional  | minia's internal assembly parameter. default: 5|
+
+### Here is an example of minimal config.yaml required to execute pamir ###
 ```
 path:
     /full/path/to/project-directory
@@ -94,13 +93,14 @@ reference:
 population:
     name-with-no-space
 input:
- "0":
+ "samplename1":
   - 0.cram/bam
- "1":
+ "samplename2":
   - 1.cram/bam
 ```
 
-Pamir can be run with the following commands, this version of pamir requires 2 steps to be run in order. Where first command create the partition files, and second command genotypes the insertions.
+Pamir can be run with a single command which executes all steps of analysis.
+
 ```
 pamir.sh  --configfile /path/to/config.yaml
 ```
@@ -113,10 +113,8 @@ You can pass any snakemake parameter to pamir.sh.
 etc.
 ```
 
-
 #### Read Length
 Now Pamir only accepts WGS datasets in which two mates of all reads are of **equal length**.
-
 
 ## Output Formats
 Pamir generates a [VCF file](https://samtools.github.io/hts-specs/VCFv4.2.pdf) for detected novel sequence insertions. You can run genotyping for each sample after obtaining the VCF file by:
@@ -148,11 +146,14 @@ Your project will be in the following structure
                 └── events.vcf
 ```
 
+#### Descripton of output files
+events.vcf: output contains genotyped insertions calls in VCF format. Per individual sample.
+events.fa:  output contains insertion event with flanking wildtype reference sequences from the genome in FASTA format. Per population.
+events.bam: output contains all reads used to call insertion event in addition to wildtype reads in the flanking regions in BAM format. Per individual.
+events.bed: output contains the location of insertion event in BED format. Per individual sample.
 
-events.vcf contains genotyped insertions calls.
-events.fa  is the reference build from called insertions + flanking regions from the genome
-events.bam is the reads from flanking regions of the calls
-events.bed is the bed file showing the insertion positions on events.fa
+#### Quick tip to user
+`events.fa` contains all of the insertion events in the given population. Therefore, individual's `events.bam` can be loaded in to genome viewers (e.g: [IGV](https://software.broadinstitute.org/software/igv/home)) to investigate insertions in detail.
 
 
 ## Small working example
