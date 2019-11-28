@@ -5,8 +5,9 @@ Pamir detects and genotypes novel sequence insertions in single or multiple data
 
 # Table of contents
 1. [Installation](#installation)
-2. [Output Formats](#output-formats)
-3. [Project Configuration](#project-configuration)
+2. [Running Pamir](#running-pamir)
+2. [Example](#example)
+3. [Visualization](#visualization)
 4. [Publications](#publications)
 5. [Contact & Support](#contact-and-support)
 
@@ -112,7 +113,7 @@ pamir.sh  --configfile /path/to/config.yaml -np [Dry Run]
 pamir.sh  --configfile /path/to/config.yaml --forceall [rerun all steps regardless of the current stage]
 ```
 
-#### Read Length
+### Read Length
 Now Pamir only accepts WGS datasets in which two mates of all reads are of **equal length**.
 
 ## Output Formats
@@ -147,21 +148,23 @@ Pamir generates a [VCF file](https://samtools.github.io/hts-specs/VCFv4.2.pdf) f
             │   └── events.vcf
 ```
 
-## Small working example
-    curl -L https://ndownloader.figshare.com/files/18706463?private_link=42900675d70a9a2282e8 --output small-example.tar.gz
-    tar xzvf small-example.tar.gz
-    cd small-example; ./configure.sh
-    pamir.sh -j16 --configfile config.yaml
+# Example
+```
+curl -L https://ndownloader.figshare.com/files/18706463?private_link=42900675d70a9a2282e8 --output small-example.tar.gz
+tar xzvf small-example.tar.gz
+cd small-example; ./configure.sh
+pamir.sh -j16 --configfile config.yaml
+```
 
-## Visualization
+# Visualization
 ``index.html`` provides a quick way of looking at general overview of events. It is an alternative to working with vcf files in a friendly fashion.
-If you start your IGV, you can easily jump back and forth investigating your events from ``index.html`.`  
+If you start your IGV, you can easily jump back and forth investigating your events from ``index.html``.  
 
 
-## Publications
+# Publications
 **Discovery and genotyping of novel sequence insertions in many sequenced individuals.** P. Kavak*, Y-Y. Lin*, I. Numanagić, H. Asghari, T. Güngör, C. Alkan‡, F. Hach‡. [***Bioinformatics*** (ISMB-ECCB 2017 issue), 33 (14): i161-i169, 2017.](https://doi.org/10.1093/bioinformatics/btx254)
 
-## Contact and Support
+# Contact and Support
 
 Feel free to drop any inquiry at the [issue page](https://github.com/vpc-ccg/pamir/issues)    .
 
