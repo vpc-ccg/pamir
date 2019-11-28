@@ -58,6 +58,24 @@ pamir$ make -j
 pamir$ mv pamir /usr/bin/
 pamir$ mv pamir.sh /usr/bin/
 ```
+| path                         | Mandatory | full path to project directory                                                                                                       |
+|------------------------------|-----------|--------------------------------------------------------------------------------------------------------------------------------------|
+| raw-data                     | Mandatory | location of the input files (crams or bams) relative to the project path(1)                                                          |
+| population                   | Mandatory | populuation/cohort id                                                                                                                |
+| reference                    | Mandatory | full path to reference genome                                                                                                        |
+| read_length                  | Mandatory | read length of the input reads                                                                                                       |
+| input                        | Mandatory | a list of input files per individual like shown in an example below. This version of pamir accepts BAM and CRAM files as input.      |
+| analysis-base                | Optional  | location of intermediate files relative to the path(1). default: analysis directory will be created under project directory by pamir |
+| results-base                 | Optional  | location of final results relative to the path(1). default: results directory will be created under project directory by pamir       |
+| min_contig_len               | Optional  | minimum contig length from the external assembler to use default: Should be same as read length                                      |
+| assembler                    | Optional  | external assembler to use (minia, abyss, spades) default: minia                                                                      |
+| assembler_k                  | Optional  | kmer to use for external assembler. default: 47                                                                                      |
+| pamir_partitition_per_thread | Optional  | number of processes to split the pamir partition work (Higher = more parallelism + more overhead). default: 1000                     |
+| blastdb                      | Optional  | path to blast database to eleminate possible contiminations from the data. default: no db used                                       |
+| align_threads                | Optional  | number of threads to use for alignment jobs. default: 16                                                                             |
+| assembly_threads             | Optional  | number of threads to use for assembly jobs. default: 62                                                                              |
+| other_threads                | Optional  | number of threads to use for other jobs. default: 16                                                                                 |
+| minia_min_abundance          | Optional  | minia's internal assembly parameter. default: 5                                                                                      |
 
 ## Project Configuration
 Pamir is designed to detect novel sequence insertions based on one-end anchors (OEA) and orphans from paired-end Whole Genome Sequencing (WGS) reads. A .yaml configuration file with the following fields.
