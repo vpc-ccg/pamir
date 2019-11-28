@@ -21,7 +21,7 @@ The first step to install Pamir is to download the source code from our
 change the current directory to the source directory ``pamir`` and run ``make`` and ``make install`` in
 terminal to create the necessary binary files. 
 
-```
+```shell
 git clone https://github.com/vpc-ccg/pamir.git --recursive
 cd pamir
 make
@@ -33,7 +33,7 @@ make install
 Pamir's pipeline requires a number of external programs. You can either manually install them or 
 take advantage of pamir's [conda](https://docs.conda.io/en/latest/) ``environment.yaml`` to 
 install all the dependencies **except the assembler**:
-```
+```shell
 conda env  create -f environment.yaml
 source activate pamir-deps 
 ```
@@ -102,12 +102,12 @@ input:
 ```
 
 Now, to run pamir on such a config file, you have to run the following command.
-```
+```shell
 pamir.sh  --configfile /path/to/config.yaml
 ```
 
 Since, ``pamir.sh`` is internally utilizing ``snakemake``, you can pass any additionak ``snakemake`` parameters to ``pamir.sh``. Here are some examples:
-```
+```shell
 pamir.sh  --configfile /path/to/config.yaml -j [number of threads] 
 pamir.sh  --configfile /path/to/config.yaml -np [Dry Run] 
 pamir.sh  --configfile /path/to/config.yaml --forceall [rerun all steps regardless of the current stage]
@@ -149,7 +149,7 @@ Pamir generates a [VCF file](https://samtools.github.io/hts-specs/VCFv4.2.pdf) f
 ```
 
 # Example
-```
+```shell
 curl -L https://ndownloader.figshare.com/files/18706463?private_link=42900675d70a9a2282e8 --output small-example.tar.gz
 tar xzvf small-example.tar.gz
 cd small-example; ./configure.sh
