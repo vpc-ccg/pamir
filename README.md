@@ -58,8 +58,9 @@ pamir$ make -j
 pamir$ mv pamir /usr/bin/
 pamir$ mv pamir.sh /usr/bin/
 ```
-| path                         | Mandatory | full path to project directory                                                                                                       |
+|config-paramater-name | Type | Description|
 |------------------------------|-----------|--------------------------------------------------------------------------------------------------------------------------------------|
+| path                         | Mandatory | full path to project directory |
 | raw-data                     | Mandatory | location of the input files (crams or bams) relative to the project path(1)                                                          |
 | population                   | Mandatory | populuation/cohort id                                                                                                                |
 | reference                    | Mandatory | full path to reference genome                                                                                                        |
@@ -76,7 +77,6 @@ pamir$ mv pamir.sh /usr/bin/
 | assembly_threads             | Optional  | number of threads to use for assembly jobs. default: 62                                                                              |
 | other_threads                | Optional  | number of threads to use for other jobs. default: 16                                                                                 |
 | minia_min_abundance          | Optional  | minia's internal assembly parameter. default: 5                                                                                      |
-
 ## Project Configuration
 Pamir is designed to detect novel sequence insertions based on one-end anchors (OEA) and orphans from paired-end Whole Genome Sequencing (WGS) reads. A .yaml configuration file with the following fields.
 
