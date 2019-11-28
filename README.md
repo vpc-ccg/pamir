@@ -17,17 +17,19 @@ Pamir detects and genotypes novel sequence insertions in single or multiple data
 
 The first step to install Pamir is to download the source code from our 
 [GitHub](https://github.com/vpc-ccg/pamir) repository. After downloading, 
-change the current directory to the source directory ``pamir`` and run ``make`` in
+change the current directory to the source directory ``pamir`` and run ``make`` and ``make install`` in
 terminal to create the necessary binary files. 
 
 ```
 git clone https://github.com/vpc-ccg/pamir.git --recursive
 cd pamir
 make
+make install
 ``` 
 
 # Running Pamir
-Pamir's pipeline requires a number of external program. You can either manually install them or 
+## Prerequisites
+Pamir's pipeline requires a number of external programs. You can either manually install them or 
 take advantage of pamir's [conda](https://docs.conda.io/en/latest/) ``environment.yaml`` to 
 install all the dependencies **except the assembler**:
 ```
@@ -45,13 +47,13 @@ Python   | 3.x |
 [bwa](https://github.com/lh3/bwa) | >= 0.7.17 |
 [snakemake](https://snakemake.readthedocs.io/en/stable/) | >= 5.3.0 |
 [RepeatMasker](http://www.repeatmasker.org/) | >= 4.0.9 |
-[minia](https://github.com/GATB/minia) | >= 3.2.0 Or |
-[abyss](https://github.com/bcgsc/abyss) | >= 2.2.3 Or |
-[spades](https://github.com/ablab/spades) | >= 3.13.1 |
+[minia](https://github.com/GATB/minia) | >= 3.2.0 * |
+[abyss](https://github.com/bcgsc/abyss) | >= 2.2.3 * |
+[spades](https://github.com/ablab/spades) | >= 3.13 * |
 
-Note: You only need to install one of the assemblers.
+***Note: You only need to install one of the assemblers.**
 
-
+## Project Configuration
 
    You also need to download the latest BLAST nt database to /your/path/to/ncbi-blast-2.5.0+/db/ (see *Compilation and Configuration* below) for contamination detection. 
 
@@ -62,21 +64,6 @@ cd /dir/to/blast/db
 /path/to/blast/bin/update_blastdb.pl nt
 ```
 
-### Compilation and Configuration
-To install Pamir, you need to first fetch Pamir from our [git repository](https://github.com/vpc-ccg/pamir) or download the corresponding compressed files. 
-```
-git clone https://github.com/vpc-ccg/pamir.git --recursive
-cd pamir
-```
-
-Make the project and move running script and executable folder somewhere in your PATH.
-```
-pamir$ make -j
-pamir$ mv pamir /usr/bin/
-pamir$ mv pamir.sh /usr/bin/
-```
-
-## Project Configuration
 Pamir is designed to detect novel sequence insertions based on one-end anchors (OEA) and orphans from paired-end Whole Genome Sequencing (WGS) reads. A .yaml configuration file with the following fields.
 
 1. path: full path to your project working directory
