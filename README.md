@@ -150,9 +150,9 @@ Pamir generates a [VCF file](https://samtools.github.io/hts-specs/VCFv4.2.pdf) f
 
 # Example
 ```shell
-curl -L https://ndownloader.figshare.com/files/18706463?private_link=42900675d70a9a2282e8 --output small-example.tar.gz
-tar xzvf small-example.tar.gz
-cd small-example; ./configure.sh
+curl -L https://ndownloader.figshare.com/files/20021672?private_link=ce133e9aaa4d38a6d6b0 --output example.tar.gz
+tar xzvf example.tar.gz
+cd example; ./configure.sh
 pamir.sh -j16 --configfile config.yaml
 ```
 
