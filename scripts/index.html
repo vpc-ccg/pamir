@@ -49,6 +49,7 @@
                 <th data-field="l" data-sortable="true">Insertion Length</th>
                 <th data-field="c" data-sortable="true" data-formatter="percFormatter">Percentage</th>
                 <th data-field="r" data-sortable="true">Repeat-Type</th>
+                <th data-field="u" data-sortable="true">Insertion Uniqueness</th>
 
             </tr>
             </thead>
@@ -97,12 +98,13 @@
                 <th data-field="g" data-sortable="true">Genotype</th>
                 <th data-field="q" data-sortable="true">Qual</th>
                 <th data-field="c" data-sortable="true">ClusterId</th>
-                <th data-field="gt" data-sortable="true">Right Flank</th>
-                <th data-field="gt" data-sortable="true">Left Flank</th>
-                <th data-field="gr" data-sortable="true">Reference</th>
-                <th data-field="glr" data-sortable="true">GLRatio</th>
-                <th data-field="grr" data-sortable="true">GRRatio</th>
+                <th data-field="T" data-sortable="true">Right Flank</th>
+                <th data-field="L" data-sortable="true">Left Flank</th>
+                <th data-field="R" data-sortable="true">Reference</th>
+                <th data-formatter="GRRatioFormatter">GRRatio</th>
+                <th data-formatter="GLRatioFormatter">GLRatio</th>
                 <th data-field="x" data-formatter="actionFormatter">Actions</th>
+                <th data-field="r" data-sortable="true">ClusterId</th>
 
             </tr>
             </thead>
@@ -127,12 +129,25 @@
         return ("<a href=\"javascript:my_filter('" + value + "')\"  data-val=\"" + value + "\">" + name + "</a>");
     }
 
+    
     function percFormatter(value, row, id) {
 
 
         return ('<progress value="' + value + '" max="' + cohort_size + '"></progress>&nbsp;<span>'
             + Math.trunc((value / cohort_size) * 10000) / 100 + '</span>');
 
+    }
+        /* (left  - ref) / (left  + ref)
+        (right - ref) / (right + ref) */
+
+    function GRRatioFormatter(value, row, id) {
+        return Math.trunc(((parseInt(row.T)-parseInt(row.R))/((parseInt(row.T)+parseInt(row.R))) * 10000 / 100));
+        /* return ('<value=' +(parseInt(row.T)-parseInt(row.R))/(parseInt(row.T)+parseInt(row.R)) + '>'); */
+    }
+
+    function GLRatioFormatter(value, row, id) {
+        return Math.trunc(((parseInt(row.L)-parseInt(row.R))/((parseInt(row.L)+parseInt(row.R))) * 10000 / 100));
+        /* return ('<a href=' + (parseInt(row.L)-parseInt(row.R))/(parseInt(row.L)+parseInt(row.R)) + '>'); */
     }
 
     function my_filter(value) {
