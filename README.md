@@ -55,7 +55,7 @@ Python   | 3.x |
 ***Note: You only need to install one of the assemblers.**
 
 ## Project Configuration
-n order to run pamir, you need to create a project configuration file namely ``config.yaml``. 
+In order to run pamir, you need to create a project configuration file namely ``config.yaml``. 
 This configuration consists of a number mandatory settings and some optional advance settings. 
 Below is the list of the all the settings that you can set in your project.
 
