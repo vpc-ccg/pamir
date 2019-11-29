@@ -378,8 +378,9 @@ rule annotate_repeats_in_vcf:
             vcfl = sorted(vcfl, key=lambda x: x[2])
 
             for b,v in zip(bedl,vcfl):
-                print("\t".join(v[:7]),end="\t",file=ohand)
-                print(b[3],file=ohand,end="\t") 
+                print("\t".join(v[:8]),end=";",file=ohand)
+                bb = b[3].split(";")
+                print(bb[-2],bb[-1],sep=";",file=ohand,end="\t") 
                 print("\t".join(v[8:]),file=ohand)
 
 rule all_vis_table:
