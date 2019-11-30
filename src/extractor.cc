@@ -2,6 +2,7 @@
 #include <map>
 #include <zlib.h>
 #include <algorithm>
+#include <map>
 #include "common.h"
 #include "extractor.h"
 #include "record.h"
@@ -9,8 +10,6 @@
 #include "bam_parser.h"
 
 using namespace std;
-
-
 /****************************************************************/
 inline void output_record(FILE *fp, int ftype, const Record &rc)
 {
@@ -83,81 +82,6 @@ inline void gz_record( gzFile fp, int ftype, const Record &rc)
 	gzwrite( fp, record.c_str(), record.size() );
 }
 /****************************************************************/
-extractor::extractor(string filename, string output_prefix, int ftype, int oea, int orphan) 
-{
-
-	FILE *fi = fopen(filename.c_str(), "rb");
-	char magic[2];
-	fread(magic, 1, 2, fi);
-	fclose(fi);
-
-	string extensions[] = {"","fa","fq","sam"};
-
-	Parser *parser;
-	if (magic[0] == char(0x1f) && magic[1] == char(0x8b)) 
-		parser = new BAMParser(filename);
-	else
-		parser = new SAMParser(filename);
-
-	string comment = parser->readComment();
-
-
-	FILE *foea_mapped, *foea_unmapped, *forphan, *fall_int;
-	fall_int  = fopen ((output_prefix + "all_interleaved.fastq").c_str(), "w");
-	// open file
-	if (oea) 
-	{
-		string foea_mapped_name = output_prefix + "oea.mapped."+extensions[ftype];
-		string foea_unmapped_name = output_prefix + "oea.unmapped."+extensions[ftype];
-		foea_mapped  = fopen (foea_mapped_name.c_str(), "w");
-		foea_unmapped  = fopen (foea_unmapped_name.c_str(), "w");
-	}
-		
-	if (orphan)
-	{
-		string forphan_name = output_prefix + "orphan."+extensions[ftype];
-		forphan = fopen (forphan_name.c_str(), "w");
-	}
-
-	
-	uint32_t flag;
-	while (parser->hasNext())
-	{
-		const Record &rc = parser->next();
-		flag = rc.getMappingFlag();
-		if ((flag & 0xD) == 0xD)
-		{
-			output_record (forphan, ftype, rc);
-			output_record(fall_int, ftype, rc);
-		}
-		else if ((flag & 0x5) == 0x5) 
-		{
-			output_record (foea_unmapped, ftype, rc);
-			output_record(fall_int, ftype, rc);
-		}
-		else if ((flag & 0x9) == 0x9)
-		{
-			output_record (foea_mapped, ftype, rc);
-			output_record(fall_int, ftype, rc);
-		}
-		parser->readNext();
-	}
-	
-	delete parser;
-	
-	// close file
-	if (oea)
-	{
-		fclose(foea_mapped);
-		fclose(foea_unmapped);
-	}
-	if (orphan)
-	{
-		fclose(forphan);
-	}
-	fclose(fall_int);
-}
-/***************************************************************/
 int md_length( char *md)
 {
 	md+=5;
@@ -198,110 +122,6 @@ int check_md ( const char * option_tag)
 	}
 	free(tag);
 	return value;
-}
-
-// Designed for sam/bam sorted by read-name.
-/*************************************************************/
-extractor::extractor(string filename, string output, double match_r = 1.0) 
-{
-
-	FILE *fi = fopen(filename.c_str(), "rb");
-	char magic[2];
-	fread(magic, 1, 2, fi);
-	fclose(fi);
-
-	Parser *parser;
-	if (magic[0] == char(0x1f) && magic[1] == char(0x8b)) 
-		parser = new BAMParser(filename);
-	else
-		parser = new SAMParser(filename);
-
-	string comment = parser->readComment();
-
-
-	FILE *fq = fopen (output.c_str(),"w");
-
-	char *opt 			= new char[1000000];
-	char *MD 			= new char[1000000];
-	string record;
-	string f_rname, c_rname;
-	string f_seq,  s_seq;
-	string f_qual, s_qual;
-	uint32_t p_flag;
-	uint32_t flag;
-	uint32_t tlen, f_len =0, s_len = 0;
-	int f_match = 0, s_match = 0, match = 0;
-	while (parser->hasNext())
-	{
-		const Record &rc = parser->next();
-		flag = rc.getMappingFlag();
-		tlen = strlen( rc.getSequence() );
-		if(  (flag & 0x800) != 0x800 )
-		{
-			f_rname = string(rc.getReadName());
-			if ( f_rname !=  c_rname)  
-			{
-				if ( f_len && s_len &&  ( (match_r >= (f_match*1.0)/f_len ) || ( match_r >= (s_match*1.0)/s_len)  ))
-				{
-					record = S("@%s/1\n%s\n+\n%s\n@%s/2\n%s\n+\n%s\n", c_rname.c_str(), f_seq.c_str(), f_qual.c_str(), c_rname.c_str(), s_seq.c_str(), s_qual.c_str() );
-					fwrite(record.c_str(), 1, record.size(), fq);
-				}
-				f_seq[0] = '\0';
-				s_seq[0] = '\0';
-				f_len = 0;
-				s_len = 0;
-				f_match = 0;
-				s_match = 0;
-				c_rname = f_rname;
-			}
-		
-			strcpy(opt,rc.getOptional());
-			strtok(opt,"\t");
-			MD = strtok(NULL,"\t");
-			match = md_length(MD);
-			
-			if (  (flag & 0x40) == 0x40  )
-			{
-				if ( f_len < tlen )
-				{
-					f_seq  = string(rc.getSequence());
-					f_qual = string(rc.getQuality());
-					if( (flag & 0x10) == 0x10)
-					{
-						f_seq = reverse_complement(f_seq);
-						f_qual = reverse( f_qual );
-					}
-					f_len = tlen;
-
-					if (f_match < match){ f_match = match;}
-				}
-			}
-			else if ( (flag & 0x80) == 0x80  )
-			{
-				if ( s_len < tlen )
-				{
-					s_seq  = string(rc.getSequence());
-					s_qual = string(rc.getQuality());
-					if( (flag & 0x10) == 0x10)
-					{
-						s_seq = reverse_complement( s_seq );
-						s_qual = reverse( s_qual );
-					}
-					s_len = tlen;
-					if (s_match < match){ s_match = match;}
-				}
-			}
-		}
-		parser->readNext();
-	}
-	
-	if ( f_len && s_len &&  ( (match_r >= (f_match*1.0)/f_len ) || ( match_r >= (s_match*1.0)/s_len)  ))
-	{
-		record = S("@%s/1\n%s\n+\n%s\n@%s/2\n%s\n+\n%s\n", c_rname.c_str(), f_seq.c_str(), f_qual.c_str(), c_rname.c_str(), s_seq.c_str(), s_qual.c_str() );
-		fwrite(record.c_str(), 1, record.size(), fq);
-	}
-	delete parser;
-	fclose(fq);
 }
 /****************************************************************/
 int parse_sc( const char *cigar, int &match_l, int &read_l )
@@ -400,7 +220,6 @@ int process_oea( const Record &rc, map<string, Record> &map_oea, FILE *f_map, FI
 	}
 	return (int)map_oea.size();
 }
-
 /****************************************************************/
 int examine_mapping( const Record &rc, map<string, Record > &map_read, FILE *f_map, FILE *f_unmap, FILE *f_int, int ftype, double clip_ratio, int &min_length, FILE *f_orphan, int &result )
 {
@@ -546,187 +365,6 @@ int examine_mapping( const Record &rc, map<string, Record > &map_read, FILE *f_m
 }
 // select any reads whose clipping ratio is less than the clip_ratio in the analysis for mrsfast mapping
 /****************************************************************/
-extractor::extractor(string filename, string output_prefix, int ftype, int oea, int orphan, double clip_ratio = 0.99 ) 
-{
-	int min_length = -1;
-	FILE *fi = fopen(filename.c_str(), "rb");
-	char magic[2];
-	fread(magic, 1, 2, fi);
-	fclose(fi);
-
-	string extensions[] = {"","fa","fq","sam"};
-
-	Parser *parser;
-	if (magic[0] == char(0x1f) && magic[1] == char(0x8b)) 
-		parser = new BAMParser(filename);
-	else
-		parser = new SAMParser(filename);
-
-	string comment = parser->readComment();
-
-	FILE *foea_mapped, *foea_unmapped, *forphan,*forphan_sup, *fall_int, *f_min_length;
-	fall_int  = fopen ((output_prefix + ".all_interleaved.fastq").c_str(), "w");
-	if (oea) 
-	{
-		string foea_mapped_name = output_prefix + ".oea.mapped."+extensions[ftype];
-		string foea_unmapped_name = output_prefix + ".oea.unmapped."+extensions[ftype];
-		foea_mapped  = fopen (foea_mapped_name.c_str(), "w");
-		foea_unmapped  = fopen (foea_unmapped_name.c_str(), "w");
-	}
-		
-	if (orphan)
-	{
-
-		string forphan_name = output_prefix + ".orphan.canonical."+extensions[ftype];
-		string forphan_name_sup = output_prefix + ".orphan.almost."+extensions[ftype];
-		forphan = fopen (forphan_name.c_str(), "w");
-		forphan_sup = fopen (forphan_name_sup.c_str(), "w");
-	}
-
-	map<string, Record > map_read;
-	map<string, Record > map_orphan;
-	map<string,  Record > map_oea;
-	int max_size = 0, tmp_size = 0;
-	int max_c = 0, tmp_c = 0;
-	int max_orphan = 0, max_oea = 0;
-	int examine_result = 0;
-	int count = 0,	// total number of reads
-		n_chimeric = 0,
-		n_orphan   = 0,
-		n_oea      = 0,
-		md_orphan   = 0,
-		md_oea   = 0,
-		md_concordant   = 0,
-		dummy = 0, dummy_1 = 0;
-
-	
-	uint32_t flag;
-	uint32_t pos, pair_pos;
-	int32_t  tlen;
-	int orphan_flag, oea_flag, chimera_flag;
-	while (parser->hasNext())
-	{
-		const Record &rc = parser->next();
-		Record cur_rc(rc);
-
-		flag     = rc.getMappingFlag();
-		pos      = rc.getLocation();
-		pair_pos = rc.getPairLocation();
-		tlen     = rc.getTemplateLength();
-
-		if ( flag < 256 ) // To-Do: include supplementary split-mapping as potential mapping locations
-		{
-			orphan_flag  = (  ( rc.getMappingFlag() & 0xc) == 0xc); 
-			oea_flag     = ( (( rc.getMappingFlag() & 0xc) == 0x4) || (( rc.getMappingFlag() & 0xc) == 0x8) );
-			chimera_flag = ( (0 == (flag & 0xc)  ) && strncmp("=", rc.getPairChromosome(), 1) );
-			if (orphan_flag)	{ n_orphan += 1; }
-			else if (chimera_flag)	{ n_chimeric += 1; }
-			else if (oea_flag)	{ n_oea += 1; }
-			//fprintf(stdout, "%d\t%d\t%d\n", orphan_flag, oea_flag, chimera_flag );
-			if ( orphan_flag  or chimera_flag) 
-			{
-				if ( orphan )
-				{
-					tmp_c = process_orphan( rc, map_orphan, forphan, fall_int, ftype );
-					if ( tmp_c > max_orphan) {	max_orphan=tmp_c;	}
-				}
-				//if (orphan_flag)	{ n_orphan += 1; }
-				//else if (chimera_flag)	{ n_chimeric += 1; }
-			}
-			//else if ( oea_flag )
-			//{
-			//	if ( oea )
-			//	{
-			//		tmp_c = process_oea( rc, map_oea, foea_mapped, foea_unmapped, fall_int, ftype, min_length );
-			//		if ( tmp_c > max_oea) {	max_oea = tmp_c; }
-			//	}
-			//	n_oea += 1;
-			//}
-			// Hints:  BWA can report concordant mappings with next > pos with negative tlen
-			else
-			{
-				tmp_size = examine_mapping( rc, map_read, foea_mapped, foea_unmapped, fall_int, ftype, clip_ratio, min_length, forphan_sup, examine_result);
-				if ( tmp_size > max_size)
-				{	
-					max_size = tmp_size;
-				}
-				if ( examine_result == 3){ md_concordant +=1;}
-				else if ( examine_result == 1){ md_oea +=1;}
-				else if ( examine_result == 2){ md_orphan +=1;}
-				else if ( examine_result == 0){ dummy +=1;}
-				else if ( examine_result == 4){ dummy_1 +=1;}
-				else{
-				fprintf(stderr, ">>>fuck up %s\n", rc.getReadName());
-				}
-				
-			}
-			count++; if (0 == count%1000000){fprintf( stderr, ".");}
-		}
-		parser->readNext();
-	}
-	
-	delete parser;
-	
-	Logger::instance().error("");
-	//ERROR( "\nMax %d %d %d \n", max_size, max_orphan, max_oea);
-	//ERROR( "\nFinal %u %u %u \n", map_read.size(), map_orphan.size(), map_oea.size() );
-	//fclose(ftest);
-	
-	f_min_length  = fopen ((output_prefix + ".min_length").c_str(), "w");
-	fprintf(f_min_length, "%d\n", min_length);
-	fclose( f_min_length);
-	
-	FILE *f_stat;
-	f_stat  = fopen ((output_prefix + ".stat").c_str(), "w");
-	fprintf(f_stat, "#Reads\tConcordant\tTotalOEA\tTotalOrphan\tFlagOEA\tFlagOrphan\tmdOEA\tmdOrphan\tChimeric\tMinLength\n");
-	fprintf(f_stat, "%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n", count/2, md_concordant, md_oea , md_orphan + n_orphan/2 + n_chimeric/2, n_oea/2, n_orphan/2, md_oea, md_orphan, n_chimeric/2, min_length);
-	//fprintf(f_stat, "%d\t%d\n", dummy, dummy_1);
-	fclose( f_stat);
-
-
-    Logger::instance().info("%lu\t%lu\n", map_orphan.size(), map_read.size());
-  //  fprintf(stdout, "%lu\t%lu\n", map_orphan.size(), map_read.size());
-	//
-	if ( 0 < map_orphan.size())
-	{
-		map<string, Record >::iterator it;
-
-        Logger::instance().error(">>>> orphan\n" );//, it.getReadName());
-	//	fprintf(stdout, ">>>> orphan\n" );//, it.getReadName());
-		for (it = map_orphan.begin(); it!= map_orphan.end(); it++)
-		{
-            Logger::instance().error("%s\n", it->second.getReadName());
-	//		fprintf(stdout, "%s\n", it->second.getReadName());
-		}
-			
-	}
-	if ( 0 < map_read.size())
-	{
-		map<string, Record >::iterator it;
-        Logger::instance().error(">>>> read\n");
-	//	fprintf(stdout, ">>>> read\n" );//, it.getReadName());
-		for (it = map_read.begin(); it!= map_read.end(); it++)
-		{
-            Logger::instance().error("%s\n", it->second.getReadName());
-			//fprintf(stdout, "%s\n", it->second.getReadName());
-		}
-			
-	}
-	// close file
-	if (oea)
-	{
-		fclose(foea_mapped);
-		fclose(foea_unmapped);
-	}
-	if (orphan)
-	{
-
-		fclose(forphan);
-		fclose(forphan_sup);
-	}
-	fclose(fall_int);
-}
-/****************************************************************/
 //int examine_all_mapping( const Record &rc, map<string, Record > &map_read, FILE *f_first, FILE *f_second,  int &min_length,  int &result )
 int examine_all_mapping( const Record &rc, map<string, Record > &map_read, gzFile f_first, gzFile f_second,  int &min_length,  int &result )
 {
@@ -813,6 +451,452 @@ int examine_all_mapping( const Record &rc, map<string, Record > &map_read, gzFil
 }
 // all reads
 /****************************************************************/
+extractor::extractor(string filename, string output_prefix, int ftype, int oea, int orphan, double clip_ratio = 0.99 )
+{
+    int min_length = -1;
+    FILE *fi = fopen(filename.c_str(), "rb");
+    char magic[2];
+    fread(magic, 1, 2, fi);
+    fclose(fi);
+    map<int, int> freq;
+
+    string extensions[] = {"","fa","fq","sam"};
+
+    Parser *parser;
+    if (magic[0] == char(0x1f) && magic[1] == char(0x8b))
+        parser = new BAMParser(filename);
+    else
+        parser = new SAMParser(filename);
+
+    string comment = parser->readComment();
+
+    FILE *foea_mapped, *foea_unmapped, *forphan,*forphan_sup, *fall_int, *f_min_length;
+    fall_int  = fopen ((output_prefix + ".all_interleaved.fastq").c_str(), "w");
+    if (oea)
+    {
+        string foea_mapped_name = output_prefix + ".oea.mapped."+extensions[ftype];
+        string foea_unmapped_name = output_prefix + ".oea.unmapped."+extensions[ftype];
+        foea_mapped  = fopen (foea_mapped_name.c_str(), "w");
+        foea_unmapped  = fopen (foea_unmapped_name.c_str(), "w");
+    }
+
+    if (orphan)
+    {
+
+        string forphan_name = output_prefix + ".orphan.canonical."+extensions[ftype];
+        string forphan_name_sup = output_prefix + ".orphan.almost."+extensions[ftype];
+        forphan = fopen (forphan_name.c_str(), "w");
+        forphan_sup = fopen (forphan_name_sup.c_str(), "w");
+    }
+
+    map<string, Record > map_read;
+    map<string, Record > map_orphan;
+    map<string,  Record > map_oea;
+    int max_size = 0, tmp_size = 0;
+    int max_c = 0, tmp_c = 0;
+    int max_orphan = 0, max_oea = 0;
+    int examine_result = 0;
+    int count = 0,	// total number of reads
+            n_chimeric = 0,
+            n_orphan   = 0,
+            n_oea      = 0,
+            md_orphan   = 0,
+            md_oea   = 0,
+            md_concordant   = 0,
+            dummy = 0, dummy_1 = 0;
+
+
+    uint32_t flag;
+    uint32_t pos, pair_pos;
+    int32_t  tlen;
+    int orphan_flag, oea_flag, chimera_flag;
+    while (parser->hasNext())
+    {
+        const Record &rc = parser->next();
+        Record cur_rc(rc);
+
+        flag     = rc.getMappingFlag();
+        pos      = rc.getLocation();
+        pair_pos = rc.getPairLocation();
+        tlen     = rc.getTemplateLength();
+
+        if ( flag < 256 ) // To-Do: include supplementary split-mapping as potential mapping locations
+        {
+            orphan_flag  = (  ( rc.getMappingFlag() & 0xc) == 0xc);
+            oea_flag     = ( (( rc.getMappingFlag() & 0xc) == 0x4) || (( rc.getMappingFlag() & 0xc) == 0x8) );
+            chimera_flag = ( (0 == (flag & 0xc)  ) && strncmp("=", rc.getPairChromosome(), 1) );
+            if (orphan_flag)	{ n_orphan += 1; }
+            else if (chimera_flag)	{ n_chimeric += 1; }
+            else if (oea_flag)	{ n_oea += 1; }
+            //fprintf(stdout, "%d\t%d\t%d\n", orphan_flag, oea_flag, chimera_flag );
+            if ( orphan_flag  or chimera_flag)
+            {
+                if ( orphan )
+                {
+                    tmp_c = process_orphan( rc, map_orphan, forphan, fall_int, ftype );
+                    if ( tmp_c > max_orphan) {	max_orphan=tmp_c;	}
+                }
+                //if (orphan_flag)	{ n_orphan += 1; }
+                //else if (chimera_flag)	{ n_chimeric += 1; }
+            }
+                //else if ( oea_flag )
+                //{
+                //	if ( oea )
+                //	{
+                //		tmp_c = process_oea( rc, map_oea, foea_mapped, foea_unmapped, fall_int, ftype, min_length );
+                //		if ( tmp_c > max_oea) {	max_oea = tmp_c; }
+                //	}
+                //	n_oea += 1;
+                //}
+                // Hints:  BWA can report concordant mappings with next > pos with negative tlen
+            else
+            {
+                tmp_size = examine_mapping( rc, map_read, foea_mapped, foea_unmapped, fall_int, ftype, clip_ratio, min_length, forphan_sup, examine_result);
+                if ( tmp_size > max_size)
+                {
+                    max_size = tmp_size;
+                }
+                if ( examine_result == 3){
+                    md_concordant +=1;
+                    if (rc.getTemplateLength()>0)
+                        freq[rc.getTemplateLength()]++;
+                }
+                else if ( examine_result == 1){ md_oea +=1;}
+                else if ( examine_result == 2){ md_orphan +=1;}
+                else if ( examine_result == 0){ dummy +=1;}
+                else if ( examine_result == 4){ dummy_1 +=1;}
+                else{
+                    fprintf(stderr, ">>>fuck up %s\n", rc.getReadName());
+                }
+
+            }
+            count++; if (0 == count%1000000){fprintf( stderr, ".");}
+        }
+        parser->readNext();
+    }
+
+    delete parser;
+
+    Logger::instance().error("");
+    //ERROR( "\nMax %d %d %d \n", max_size, max_orphan, max_oea);
+    //ERROR( "\nFinal %u %u %u \n", map_read.size(), map_orphan.size(), map_oea.size() );
+    //fclose(ftest);
+
+    f_min_length  = fopen ((output_prefix + ".min_length").c_str(), "w");
+    fprintf(f_min_length, "%d\n", min_length);
+    fclose( f_min_length);
+
+    FILE *f_stat;
+    f_stat  = fopen ((output_prefix + ".stat").c_str(), "w");
+    fprintf(f_stat, "#Reads\tConcordant\tTotalOEA\tTotalOrphan\tFlagOEA\tFlagOrphan\tmdOEA\tmdOrphan\tChimeric\tMinLength\n");
+    fprintf(f_stat, "%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n", count/2, md_concordant, md_oea , md_orphan + n_orphan/2 + n_chimeric/2, n_oea/2, n_orphan/2, md_oea, md_orphan, n_chimeric/2, min_length);
+    //fprintf(f_stat, "%d\t%d\n", dummy, dummy_1);
+    for (auto it=freq.begin(); it!=freq.end(); it++) {
+        fprintf(stderr, "%d %d\n", it->first, it->second);
+    }
+    fclose( f_stat);
+
+
+    Logger::instance().info("%lu\t%lu\n", map_orphan.size(), map_read.size());
+    //  fprintf(stdout, "%lu\t%lu\n", map_orphan.size(), map_read.size());
+    //
+    if ( 0 < map_orphan.size())
+    {
+        map<string, Record >::iterator it;
+
+        Logger::instance().error(">>>> orphan\n" );//, it.getReadName());
+        //	fprintf(stdout, ">>>> orphan\n" );//, it.getReadName());
+        for (it = map_orphan.begin(); it!= map_orphan.end(); it++)
+        {
+            Logger::instance().error("%s\n", it->second.getReadName());
+            //		fprintf(stdout, "%s\n", it->second.getReadName());
+        }
+
+    }
+    if ( 0 < map_read.size())
+    {
+        map<string, Record >::iterator it;
+        Logger::instance().error(">>>> read\n");
+        //	fprintf(stdout, ">>>> read\n" );//, it.getReadName());
+        for (it = map_read.begin(); it!= map_read.end(); it++)
+        {
+            Logger::instance().error("%s\n", it->second.getReadName());
+            //fprintf(stdout, "%s\n", it->second.getReadName());
+        }
+
+    }
+    // close file
+    if (oea)
+    {
+        fclose(foea_mapped);
+        fclose(foea_unmapped);
+    }
+    if (orphan)
+    {
+
+        fclose(forphan);
+        fclose(forphan_sup);
+    }
+    fclose(fall_int);
+}
+
+void output_mates(const Record &mate1, const Record &mate2, FILE *fout, int ftype) {
+    u_int32_t FIRST_MATE = 0x40;
+    if ((mate1.getMappingFlag() & FIRST_MATE) == FIRST_MATE) {
+        output_record(fout, ftype, mate1);
+        output_record(fout, ftype, mate2);
+    } else {
+        output_record(fout, ftype, mate2);
+        output_record(fout, ftype, mate1);
+    }
+}
+
+int is_good_mapping (const Record &mapping) {
+    if ((mapping.getMappingFlag() & 0x4)== 0x4)
+        return 0;
+    return 1;
+    if ((mapping.getMappingFlag() & 0x4) == 0)
+        return 1;
+    else
+        return 0;
+}
+
+extractor::extractor(string filename, string output_prefix, int ftype, int oea, int orphan, double clip_ratio = 0.99,
+                     int x = 1) {
+
+    FILE *fi = fopen(filename.c_str(), "rb");
+    char magic[2];
+    fread(magic, 1, 2, fi);
+    fclose(fi);
+
+    Parser *parser;
+    if (magic[0] == char(0x1f) && magic[1] == char(0x8b))
+        parser = new BAMParser(filename);
+    else
+        parser = new SAMParser(filename);
+
+    string comment = parser->readComment();
+
+
+    map<int, int> dist;
+    map<int, int> read_lengths;
+    map <string, Record> map_read;
+    map <string, Record> map_orphan;
+    map <string, Record> map_oea;
+
+    int orig_concordant = 0;
+    int orig_chimeric = 0;
+    int orig_oea = 0;
+    int orig_orphan = 0;
+
+    int proc_concordant = 0;
+    int proc_chimeric = 0;
+    int proc_oea = 0;
+    int proc_orphan = 0;
+
+    string extensions[] = {"", "fa", "fq", "sam"};
+
+    FILE *foea_mapped, *foea_unmapped, *forphan, *forphan_sup, *fall_int, *f_min_length;
+    fall_int = fopen((output_prefix + ".all_interleaved.fastq").c_str(), "w");
+    if (oea) {
+        string foea_mapped_name = output_prefix + ".oea.mapped." + extensions[ftype];
+        string foea_unmapped_name = output_prefix + ".oea.unmapped." + extensions[ftype];
+        foea_mapped = fopen(foea_mapped_name.c_str(), "w");
+        foea_unmapped = fopen(foea_unmapped_name.c_str(), "w");
+    }
+
+    if (orphan) {
+        string forphan_name = output_prefix + ".orphan.canonical." + extensions[ftype];
+        string forphan_name_sup = output_prefix + ".orphan.almost." + extensions[ftype];
+        forphan = fopen(forphan_name.c_str(), "w");
+        forphan_sup = fopen(forphan_name_sup.c_str(), "w");
+    }
+
+    int count = 0;
+    while (parser->hasNext()) {
+        const Record &rc = parser->next();
+        Record cur_rc(rc);
+
+
+        string name = string(rc.getReadName());
+        int flag = rc.getMappingFlag();
+        int tlen = rc.getTemplateLength();
+
+        if (flag < 256) // To-Do: include supplementary split-mapping as potential mapping locations
+        {
+            int length = strlen(rc.getSequence());
+            read_lengths[ length]++;
+
+            if ((flag & 0xc) == 0xc) {
+                // I am orphan
+                orig_orphan++;
+                proc_orphan++;
+
+                auto it = map_orphan.find(name);
+                if (it != map_orphan.end()) {
+                    output_mates(rc, it->second, forphan, ftype);
+                    map_orphan.erase(it);
+                } else {
+                    map_orphan[name] = rc;
+                }
+            } else if ( (flag & 0xc) == 0x4 || (flag & 0xc) == 0x8) {
+                // I am OEA
+                orig_oea++;
+
+                auto it = map_oea.find(name);
+                if (it != map_oea.end()) {
+                    int gm1 = is_good_mapping(rc);
+                    int gm2 = is_good_mapping(it->second);
+                    if ( gm1+gm2 == 0) {
+                        proc_orphan++;
+                        output_mates(rc, it->second, forphan_sup, ftype);
+                    } else {
+                        proc_oea++;
+                        if (gm1) {
+                            output_record(foea_mapped, ftype, rc);
+                            output_record(foea_unmapped, ftype, it->second);
+                        } else {
+                            output_record(foea_unmapped, ftype, rc);
+                            output_record(foea_mapped, ftype, it->second);
+                        }
+                    }
+                    map_oea.erase(it);
+                } else {
+                    map_oea[name] = rc;
+                }
+            } else {
+                // I ROCK
+                if ((flag & 0x2) == 2)
+                    orig_concordant++;
+                else
+                    orig_chimeric++;
+
+                auto it = map_read.find(name);
+
+                if (it != map_read.end()) {
+
+                    if (strcmp(rc.getChromosome(), (it->second).getChromosome() ) != 0)
+                    {
+                        proc_orphan ++;
+                        output_mates(rc, it->second, forphan, ftype);
+                    } else {
+                        int gm1 = is_good_mapping(rc);
+                        int gm2 = is_good_mapping(it->second);
+                        if (gm1 + gm2 == 2) {
+                            if ((flag & 0x2) == 0x2) {
+                                dist[abs(tlen)]++;
+                                proc_concordant++;
+                            } else { // discordant
+                                proc_chimeric++;
+                            }
+                        } else if (gm1 + gm2 == 0) {
+                            proc_orphan++;
+                            output_mates(rc, it->second, forphan_sup, ftype);
+                        } else {
+                            proc_oea++;
+                            if (gm1) {
+                                output_record(foea_mapped, ftype, rc);
+                                output_record(foea_unmapped, ftype, it->second);
+                            } else {
+                                output_record(foea_unmapped, ftype, rc);
+                                output_record(foea_mapped, ftype, it->second);
+                            }
+                        }
+                    }
+                    map_read.erase(it);
+                } else {
+                    map_read[name] = rc;
+                }
+            }
+            count++;
+            if (0 == count % 1000000) { fprintf(stderr, "."); }
+        }
+        parser->readNext();
+    }
+
+    delete parser;
+//    Logger::instance.info ("%d")
+//
+//    f_min_length = fopen((output_prefix + ".min_length").c_str(), "w");
+//    fprintf(f_min_length, "%d\n", min_length);
+//    fclose(f_min_length);
+//
+//    FILE *f_stat;
+//    f_stat = fopen((output_prefix + ".stat").c_str(), "w");
+//    fprintf(f_stat,
+//            "#Reads\tConcordant\tTotalOEA\tTotalOrphan\tFlagOEA\tFlagOrphan\tmdOEA\tmdOrphan\tChimeric\tMinLength\n");
+//    fprintf(f_stat, "%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n", count / 2, md_concordant, md_oea,
+//            md_orphan + n_orphan / 2 + n_chimeric / 2, n_oea / 2, n_orphan / 2, md_oea, md_orphan, n_chimeric / 2,
+//            min_length);
+//    //fprintf(f_stat, "%d\t%d\n", dummy, dummy_1);
+//    for (auto it = freq.begin(); it != freq.end(); it++) {
+//        fprintf(stderr, "%d %d\n", it->first, it->second);
+//    }
+//    fclose(f_stat);
+//
+
+    Logger::instance().info("%lu\t%lu\n", map_orphan.size(), map_read.size());
+    //  fprintf(stdout, "%lu\t%lu\n", map_orphan.size(), map_read.size());
+    //
+    if (0 < map_orphan.size()) {
+        map<string, Record>::iterator it;
+
+        Logger::instance().error(">>>> orphan\n");//, it.getReadName());
+        //	fprintf(stdout, ">>>> orphan\n" );//, it.getReadName());
+        for (it = map_orphan.begin(); it != map_orphan.end(); it++) {
+            Logger::instance().error("%s\n", it->second.getReadName());
+            //		fprintf(stdout, "%s\n", it->second.getReadName());
+        }
+
+    }
+    if (0 < map_read.size()) {
+        map<string, Record>::iterator it;
+        Logger::instance().error(">>>> read\n");
+        //	fprintf(stdout, ">>>> read\n" );//, it.getReadName());
+        for (it = map_read.begin(); it != map_read.end(); it++) {
+            Logger::instance().error("%s\n", it->second.getReadName());
+            //fprintf(stdout, "%s\n", it->second.getReadName());
+        }
+
+    }
+
+    if (read_lengths.size() > 0) {
+        Logger::instance().info ("Read Length Range [%d, %d]\n", read_lengths.begin()->first, read_lengths.rbegin()->first);
+        for (auto it=read_lengths.begin(); it != read_lengths.end(); it++)
+            Logger::instance().info ("%d\t%d\n", it->first, it->second);
+    }
+
+    if (dist.size() > 0) {
+        Logger::instance().info ("TLen Range [%d, %d]\n", dist.begin()->first, dist.rbegin()->first);
+        for (auto it=dist.begin(); it != dist.end(); it++)
+            Logger::instance().info ("%d\t%d\n", it->first, it->second);
+    }
+
+    Logger::instance().info("Total Number of Reads: %20d\n",count);
+    Logger::instance().info("          Conconrdant: %20d\n",orig_concordant);
+    Logger::instance().info("             Chimeric: %20d\n",orig_chimeric);
+    Logger::instance().info("                  OEA: %20d\n",orig_oea);
+    Logger::instance().info("               Orphan: %20d\n",orig_orphan);
+    Logger::instance().info("After Processing\n");
+    Logger::instance().info("          Conconrdant: %20d\n",proc_concordant);
+    Logger::instance().info("             Chimeric: %20d\n",proc_chimeric);
+    Logger::instance().info("                  OEA: %20d\n",proc_oea);
+    Logger::instance().info("               Orphan: %20d\n",proc_orphan);
+
+    // close file
+    if (oea) {
+        fclose(foea_mapped);
+        fclose(foea_unmapped);
+    }
+    if (orphan) {
+
+        fclose(forphan);
+        fclose(forphan_sup);
+    }
+    fclose(fall_int);
+}
+
+/****************************************************************/
 extractor::extractor(string filename, string output_prefix ) //, int ftype, int oea, int orphan, double clip_ratio = 0.99 ) 
 {
 	int min_length = -1;
@@ -870,7 +954,6 @@ extractor::extractor(string filename, string output_prefix ) //, int ftype, int 
 		md_concordant   = 0,
 		dummy = 0, dummy_1 = 0;
 
-	
 	uint32_t flag;
 	uint32_t pos, pair_pos;
 	int32_t  tlen;
@@ -915,7 +998,10 @@ extractor::extractor(string filename, string output_prefix ) //, int ftype, int 
 	gzclose(f_misc);
 }
 /***************************************************************/
+
+
+
+
 extractor::~extractor()
 {
-		
 }
