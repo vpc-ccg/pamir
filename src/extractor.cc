@@ -573,7 +573,7 @@ int is_good_mapping (const Record &mapping, float clip_ratio) {
     int length = 0;
     parse_sc( mapping.getCigar(), matched, length);
 
-    if ( ( (float)matched/strlen(mapping.getSequence()) ) <= clip_ratio )
+    if ( ( (float)matched/mapping.getSequenceLength() ) <= clip_ratio )
         return 0;
     else
         return 1;
@@ -645,7 +645,7 @@ extractor::extractor(string filename, string output_prefix, int ftype, int oea, 
 
         if (flag < 256) // To-Do: include supplementary split-mapping as potential mapping locations
         {
-            int length = strlen(rc.getSequence());
+            int length = rc.getSequenceLength();
             read_lengths[ length]++;
 
             if ((flag & 0xc) == 0xc) {
@@ -736,12 +736,15 @@ extractor::extractor(string filename, string output_prefix, int ftype, int oea, 
                 }
             }
             count++;
-            if (0 == count % 1000000) { fprintf(stderr, "."); }
+            if (0 == count % 1000000) {
+                fprintf(stderr, "\rProcessed %dM records.", count / 1000000);
+            }
         } else {
             supp_cnt++;
         }
         parser->readNext();
     }
+    fprintf(stderr, "\n");
 
     delete parser;
 

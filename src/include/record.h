@@ -98,6 +98,7 @@ public:
 	const char* getSequence() const { return &line[0] + strFields[SEQ]; }
 	const char* getQuality() const { return &line[0] + strFields[QUAL]; }
 	const char* getOptional() const { return &line[0] + strFields[OPT]; }
+	const int getSequenceLength() const {return strFields[QUAL]-strFields[SEQ]-1;}
 
 	size_t getReadNameSize() const { return strlen(getReadName()); }
 	size_t getSequenceSize() const { return strFields[QUAL] - strFields[SEQ] - 1; }
