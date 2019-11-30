@@ -511,10 +511,6 @@ int main(int argc, char **argv)
 			if (argc != 8) throw "Usage:\tpamir remove_concordant [sam-file] [output] outputtype oea? orphan? matched_ratio";
 			extractor ext(argv[2], argv[3], atoi(argv[4]), atoi(argv[5]), atoi(argv[6]), stod(argv[7]));
 		}
-		else if (mode == "getfastq") {
-			if(argc != 4) throw "Usage:\tpamir getfastq  [sam-file/bam-file] [output]";
-			extractor ext(argv[2], argv[3] );//, atoi(argv[4]), atoi(argv[5]), atoi(argv[6]), stod(argv[7]));
-		}
 		else if (mode == "mask" || mode == "maski") {
 			if (argc != 6) throw "Usage:\tpamir mask/maski [repeat-file] [reference] [output] [padding]";
 			mask(argv[2], argv[3], argv[4], atoi(argv[5]), mode == "maski");
