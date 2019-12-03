@@ -12,8 +12,6 @@
 
 class SAMParser: public Parser {
 	FILE *input;
-	
-    size_t file_size;
 
     Record currentRecord;
 

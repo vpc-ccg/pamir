@@ -10,12 +10,10 @@ SAMParser::SAMParser (const string &filename)
 	Parser::fname = filename;
 
 	input = fopen(filename.c_str(), "r");
-	if (input == NULL)	
-		{	exit(1);	}
+	if (input == NULL){
+	    exit(1);
+	}
 
-	fseek(input, 0L, SEEK_END);
-	file_size = ftell(input);
-	fseek(input, 0L, SEEK_SET);
 }
 
 SAMParser::~SAMParser (void) 
@@ -55,11 +53,6 @@ bool SAMParser::hasNext (void)
 size_t SAMParser::fpos (void) 
 {
 	return ftell(input);
-}
-
-size_t SAMParser::fsize (void) 
-{
-	return file_size;
 }
 
 void SAMParser::parse (Record &record) 

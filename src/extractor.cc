@@ -82,48 +82,6 @@ inline void gz_record( gzFile fp, int ftype, const Record &rc)
 	gzwrite( fp, record.c_str(), record.size() );
 }
 /****************************************************************/
-int md_length( char *md)
-{
-	md+=5;
-	int length = 0;
-	int tmp = 0;
-	while( *md )
-	{
-		if (isdigit(*md))
-		{ 
-			tmp = 10 * tmp + (*md - '0');
-		}
-		else
-		{
-			length += tmp;
-			tmp = 0;
-		}
-		md++;
-	}
-	if (0 < tmp){length+=tmp;}
-	return length;
-}
-/**********************************************/
-int check_md ( const char * option_tag)
-{
-	char *tag=(char*)malloc(MAX_CHAR);
-	char c;
-	int value=-1;
-	int offset;
-	while( *option_tag )
-	{
-		sscanf( option_tag, "%s %n", tag, &offset);
-		if ( 0 == strncmp("MD", tag, 2))
-		{
-			value=md_length(tag+5);
-		}
-		option_tag+=offset;
-
-	}
-	free(tag);
-	return value;
-}
-/****************************************************************/
 int parse_sc( const char *cigar, int &match_l, int &read_l )
 {	
 	int tmp = 0;
@@ -372,7 +330,6 @@ extractor::extractor(string filename, string output_prefix, int ftype, int oea, 
     char magic[2];
     fread(magic, 1, 2, fi);
     fclose(fi);
-    map<int, int> freq;
 
     string extensions[] = {"","fa","fq","sam"};
 
@@ -472,8 +429,6 @@ extractor::extractor(string filename, string output_prefix, int ftype, int oea, 
                 }
                 if ( examine_result == 3){
                     md_concordant +=1;
-                    if (rc.getTemplateLength()>0)
-                        freq[rc.getTemplateLength()]++;
                 }
                 else if ( examine_result == 1){ md_oea +=1;}
                 else if ( examine_result == 2){ md_orphan +=1;}
@@ -505,9 +460,6 @@ extractor::extractor(string filename, string output_prefix, int ftype, int oea, 
     fprintf(f_stat, "#Reads\tConcordant\tTotalOEA\tTotalOrphan\tFlagOEA\tFlagOrphan\tmdOEA\tmdOrphan\tChimeric\tMinLength\n");
     fprintf(f_stat, "%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n", count/2, md_concordant, md_oea , md_orphan + n_orphan/2 + n_chimeric/2, n_oea/2, n_orphan/2, md_oea, md_orphan, n_chimeric/2, min_length);
     //fprintf(f_stat, "%d\t%d\n", dummy, dummy_1);
-    for (auto it=freq.begin(); it!=freq.end(); it++) {
-        fprintf(stderr, "%d %d\n", it->first, it->second);
-    }
     fclose( f_stat);
 
 
@@ -713,6 +665,7 @@ extractor::extractor(string filename, string output_prefix, int ftype, int oea, 
                                 proc_concordant+=2;
                             } else { // discordant
                                 proc_discordant+=2;
+// TODO: REMOVE this after tests.
 //                                output_record(foea_mapped, ftype, rc);
 //                                output_record(foea_unmapped, ftype, it->second);
                             }
@@ -767,8 +720,10 @@ extractor::extractor(string filename, string output_prefix, int ftype, int oea, 
 
     FILE *f_stat;
     f_stat = fopen((output_prefix + ".stat").c_str(), "w");
-    fprintf(f_stat,"    Read Length Range: [%d, %d]\n", read_lengths.begin()->first, read_lengths.rbegin()->first);
-    fprintf(f_stat,"Template Length Range: [%d, %d]\n", dist.begin()->first, dist.rbegin()->first);
+    if (read_lengths.size() > 0)
+        fprintf(f_stat, "    Read Length Range: [%d, %d]\n", read_lengths.begin()->first, read_lengths.rbegin()->first);
+    if (dist.size() > 0)
+        fprintf(f_stat, "Template Length Range: [%d, %d]\n", dist.begin()->first, dist.rbegin()->first);
     fprintf(f_stat,"Original Stats:\n");
     fprintf(f_stat,"Total Number of Reads: %d\n",count);
     fprintf(f_stat,"        Supplementary: %d\n",supp_cnt);
