@@ -7,12 +7,11 @@
 #include <stdlib.h>
 
 #include "common.h"
-#include "parser.h"
 #include "record.h"
 
-class SAMParser: public Parser {
+class SAMParser {
 	FILE *input;
-
+    std::string fname;
     Record currentRecord;
 
 public:

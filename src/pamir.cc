@@ -19,7 +19,6 @@
 #include "extractor.h"
 #include "record.h"
 #include "sam_parser.h"
-#include "bam_parser.h"
 #include "sort.h"
 
 

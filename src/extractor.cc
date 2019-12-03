@@ -328,8 +328,7 @@ extractor::extractor(string filename, string output_prefix, int ftype, int oea, 
 
     string extensions[] = {"","fa","fq","sam"};
 
-    Parser *parser;
-    parser = new SAMParser(filename);
+    SAMParser *parser = new SAMParser(filename);
 
     string comment = parser->readComment();
 
@@ -525,8 +524,7 @@ int is_good_mapping (const Record &mapping, float clip_ratio) {
 
 extractor::extractor(string filename, string output_prefix, int ftype, int oea, int orphan, double clip_ratio = 0.99,
                      int x = 1) {
-    Parser *parser;
-    parser = new SAMParser(filename);
+    SAMParser *parser = new SAMParser(filename);
     string comment = parser->readComment();
 
 

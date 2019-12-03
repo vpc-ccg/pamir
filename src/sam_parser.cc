@@ -7,7 +7,7 @@ using namespace std;
 
 SAMParser::SAMParser (const string &filename)
 {
-	Parser::fname = filename;
+	fname = filename;
 
 	input = fopen(filename.c_str(), "r");
 	if (input == NULL){
