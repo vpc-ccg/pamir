@@ -24,7 +24,6 @@ public:
 	bool readNext ();
 	bool hasNext (void);
 	size_t fpos (void);
-	size_t fsize (void);
 
 public:
 	void parse (Record &line);

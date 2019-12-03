@@ -7,7 +7,6 @@
 #include "extractor.h"
 #include "record.h"
 #include "sam_parser.h"
-#include "bam_parser.h"
 
 using namespace std;
 /****************************************************************/
@@ -326,18 +325,11 @@ int examine_mapping( const Record &rc, map<string, Record > &map_read, FILE *f_m
 extractor::extractor(string filename, string output_prefix, int ftype, int oea, int orphan, double clip_ratio = 0.99 )
 {
     int min_length = -1;
-    FILE *fi = fopen(filename.c_str(), "rb");
-    char magic[2];
-    fread(magic, 1, 2, fi);
-    fclose(fi);
 
     string extensions[] = {"","fa","fq","sam"};
 
     Parser *parser;
-    if (magic[0] == char(0x1f) && magic[1] == char(0x8b))
-        parser = new BAMParser(filename);
-    else
-        parser = new SAMParser(filename);
+    parser = new SAMParser(filename);
 
     string comment = parser->readComment();
 
@@ -533,18 +525,8 @@ int is_good_mapping (const Record &mapping, float clip_ratio) {
 
 extractor::extractor(string filename, string output_prefix, int ftype, int oea, int orphan, double clip_ratio = 0.99,
                      int x = 1) {
-
-    FILE *fi = fopen(filename.c_str(), "rb");
-    char magic[2];
-    fread(magic, 1, 2, fi);
-    fclose(fi);
-
     Parser *parser;
-    if (magic[0] == char(0x1f) && magic[1] == char(0x8b))
-        parser = new BAMParser(filename);
-    else
-        parser = new SAMParser(filename);
-
+    parser = new SAMParser(filename);
     string comment = parser->readComment();
 
 
