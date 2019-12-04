@@ -8,7 +8,6 @@ class extractor
 
 public:
 	extractor(string, string, int, int, int, double);
-    extractor(string, string, int, int, int, double, int);
 	~extractor();
 
 };
