@@ -1,8 +1,8 @@
-#ifndef SMOOTHER_H
-#define SMOOTHER_H
+#ifndef __SMOOTHER_H__
+#define __SMOOTHER_H__
 
-namespace smoother{
-    int main(int argc, char**argv);
+namespace smoother {
+    int main(int argc, char **argv);
 }
 
 
