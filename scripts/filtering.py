@@ -54,10 +54,9 @@ def main():
     THREADS        =   int(sys.argv[7])
     #samples_txt = sys.argv[8]
     all_reads_fastq = sys.argv[8]
-    MRSFAST        = sys.argv[9]
-    RECALIBRATE = sys.argv[10]
-    readlength = int(sys.argv[11])
-
+    MRSFAST        = "mrsfast"
+    readlength = int(sys.argv[9])
+    RECALIBRATE = "./pamir recalibrate"
     folder  ="{0}/filtering".format(workdir)
     os.system("mkdir -p {0}".format(folder))
     start=1

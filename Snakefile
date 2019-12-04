@@ -826,7 +826,7 @@ rule filter_vcf:
     threads:
         config["aligner_threads"]
     shell:
-        "python scripts/filtering.py {input.vcf} {params.ref} {params.min_insert} {params.max_insert} {params.wd}/{wildcards.sample}/ {params.tlen} {threads} {input.fq} mrsfast ./util/recalibrate {params.read_len} && cat {input.header} {input.vcf}_filtered > {output.vcf}"
+        "python scripts/filtering.py {input.vcf} {params.ref} {params.min_insert} {params.max_insert} {params.wd}/{wildcards.sample}/ {params.tlen} {threads} {input.fq} {params.read_len} && cat {input.header} {input.vcf}_filtered > {output.vcf}"
          
 rule sort_vcf:
     input:    

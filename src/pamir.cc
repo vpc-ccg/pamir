@@ -22,7 +22,7 @@
 #include "sort.h"
 #include "process_range.h"
 #include "process_orphans.h"
-//#include "recalibrate.h"
+#include "recalibrate.h"
 #include "smoother.h"
 
 
@@ -558,9 +558,9 @@ int main(int argc, char **argv)
         else if(mode == "process_orphan"){
             return orphan_process::main(argc-1,argv+1);
         }
-//        else if(mode == "recalibrate"){
-//            return recalibrate::main(argc-1,argv+1);
-//        }
+        else if(mode == "recalibrate"){
+            return recalibrate::main(argc-1,argv+1);
+        }
         else if(mode == "smoother"){
             return smoother::main(argc-1,argv+1);
         }
