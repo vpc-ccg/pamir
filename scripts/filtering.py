@@ -3,7 +3,7 @@ import os, sys, errno, argparse, subprocess, fnmatch, configparser, shutil
 
 
 def usage():
-    print('\nUsage: python filtering.py VCF REF mrsFAST-min mrsFAST-max workdir TLEN THREADS samplenum mrsfast recalibrate read_len')
+    print('\nUsage: python filtering.py VCF REF mrsFAST-min mrsFAST-max workdir TLEN THREADS samplenum  read_len')
     sys.exit(-1)
 
 ##############################
@@ -40,7 +40,7 @@ def get_bed_seq( ref_dict, ref, start, end):
 ################################
 def main():
     args = sys.argv[1:]
-    if len(args) != 11:
+    if len(args) != 9:
         usage()
     REF            =    sys.argv[2]
     FILE        =    sys.argv[1]
