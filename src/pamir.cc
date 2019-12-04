@@ -508,7 +508,7 @@ int main(int argc, char **argv)
 		string mode = argv[1];
 		if (mode == "remove_concordant") {
 			if (argc != 8) throw "Usage:\tpamir remove_concordant [sam-file] [output] outputtype oea? orphan? matched_ratio";
-			extractor ext(argv[2], argv[3], atoi(argv[4]), atoi(argv[5]), atoi(argv[6]), stod(argv[7]));
+			extractor ext(argv[2], argv[3], atoi(argv[4]), atoi(argv[5]), atoi(argv[6]), stod(argv[7]),1);
 		}
 		else if (mode == "mask" || mode == "maski") {
 			if (argc != 6) throw "Usage:\tpamir mask/maski [repeat-file] [reference] [output] [padding]";

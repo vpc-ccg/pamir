@@ -7,6 +7,7 @@
 #include "extractor.h"
 #include "record.h"
 #include "sam_parser.h"
+#include "stats.h"
 
 using namespace std;
 /****************************************************************/
@@ -588,6 +589,7 @@ extractor::extractor(string filename, string output_prefix, int ftype, int oea, 
                 auto it = map_orphan.find(name);
                 if (it != map_orphan.end()) {
                     output_mates(rc, it->second, forphan, ftype);
+                    output_mates(rc, it->second, fall_int, ftype);
                     map_orphan.erase(it);
                 } else {
                     map_orphan[name] = rc;
@@ -603,14 +605,19 @@ extractor::extractor(string filename, string output_prefix, int ftype, int oea, 
                     if ( gm1+gm2 == 0) {
                         proc_orphan+=2;
                         output_mates(rc, it->second, forphan_sup, ftype);
+                        output_mates(rc, it->second, fall_int, ftype);
                     } else {
                         proc_oea+=2;
                         if (gm1) {
                             output_record(foea_mapped, ftype, rc);
                             output_record(foea_unmapped, ftype, it->second);
+                            output_record(fall_int, ftype, rc);
+                            output_record(fall_int, ftype, it->second);
                         } else {
                             output_record(foea_unmapped, ftype, rc);
                             output_record(foea_mapped, ftype, it->second);
+                            output_record(fall_int, ftype, rc);
+                            output_record(fall_int, ftype, it->second);
                         }
                     }
                     map_oea.erase(it);
@@ -636,6 +643,7 @@ extractor::extractor(string filename, string output_prefix, int ftype, int oea, 
                     {
                         proc_orphan +=2;
                         output_mates(rc, it->second, forphan, ftype);
+                        output_mates(rc, it->second, fall_int, ftype);
                     } else {
                         int gm1 = is_good_mapping(rc, clip_ratio);
                         int gm2 = is_good_mapping(it->second, clip_ratio);
@@ -646,20 +654,27 @@ extractor::extractor(string filename, string output_prefix, int ftype, int oea, 
                             } else { // discordant
                                 proc_discordant+=2;
 // TODO: REMOVE this after tests.
-//                                output_record(foea_mapped, ftype, rc);
-//                                output_record(foea_unmapped, ftype, it->second);
+                                output_record(foea_mapped, ftype, rc);
+                                output_record(foea_unmapped, ftype, it->second);
+                                output_record(fall_int, ftype, rc);
+                                output_record(fall_int, ftype, it->second);
                             }
                         } else if (gm1 + gm2 == 0) {
                             proc_orphan+=2;
                             output_mates(rc, it->second, forphan_sup, ftype);
+                            output_mates(rc, it->second, fall_int, ftype);
                         } else {
                             proc_oea+=2;
                             if (gm1) {
                                 output_record(foea_mapped, ftype, rc);
                                 output_record(foea_unmapped, ftype, it->second);
+                                output_record(fall_int, ftype, rc);
+                                output_record(fall_int, ftype, it->second);
                             } else {
                                 output_record(foea_unmapped, ftype, rc);
                                 output_record(foea_mapped, ftype, it->second);
+                                output_record(fall_int, ftype, rc);
+                                output_record(fall_int, ftype, it->second);
                             }
                         }
                     }
@@ -700,29 +715,42 @@ extractor::extractor(string filename, string output_prefix, int ftype, int oea, 
 
     FILE *f_stat;
     f_stat = fopen((output_prefix + ".stat").c_str(), "w");
+
+
+    fprintf(f_stat,"Total Number of Reads: %d\n",count / 2);
+    fprintf(f_stat,"# of Primary Mappings: %d\n",count / 2);
+    fprintf(f_stat,"  # of Supp. Mappings: %d\n\n",supp_cnt / 2);
+    fprintf(f_stat,"Original:\n");
+    fprintf(f_stat,"Concordant: %d\n",orig_concordant/2);
+    fprintf(f_stat,"Discordant: %d\n",orig_discordant/2);
+    fprintf(f_stat,"  Chimeric: %d\n",orig_chimeric/2);
+    fprintf(f_stat,"       OEA: %d\n",orig_oea/2);
+    fprintf(f_stat,"    Orphan: %d\n\n",orig_orphan/2);
+    fprintf(f_stat,"Processed:\n");
+    fprintf(f_stat,"Concordant: %d\n",proc_concordant/2);
+    fprintf(f_stat,"Discordant: %d\n",proc_discordant/2);
+    fprintf(f_stat,"  Chimeric: %d\n",proc_chimeric/2);
+    fprintf(f_stat,"       OEA: %d\n",proc_oea/2);
+    fprintf(f_stat,"    Orphan: %d\n\n",proc_orphan/2);
     if (read_lengths.size() > 0)
-        fprintf(f_stat, "    Read Length Range: [%d, %d]\n", read_lengths.begin()->first, read_lengths.rbegin()->first);
-    if (dist.size() > 0)
-        fprintf(f_stat, "Template Length Range: [%d, %d]\n", dist.begin()->first, dist.rbegin()->first);
-    fprintf(f_stat,"Original Stats:\n");
-    fprintf(f_stat,"Total Number of Reads: %d\n",count);
-    fprintf(f_stat,"        Supplementary: %d\n",supp_cnt);
-    fprintf(f_stat,"          Conconrdant: %d\n",orig_concordant);
-    fprintf(f_stat,"       Disconconrdant: %d\n",orig_discordant);
-    fprintf(f_stat,"             Chimeric: %d\n",orig_chimeric);
-    fprintf(f_stat,"                  OEA: %d\n",orig_oea);
-    fprintf(f_stat,"               Orphan: %d\n",orig_orphan);
-    fprintf(f_stat,"After Processing:\n");
-    fprintf(f_stat,"          Conconrdant: %d\n",proc_concordant);
-    fprintf(f_stat,"       Disconconrdant: %d\n",proc_discordant);
-    fprintf(f_stat,"             Chimeric: %d\n",proc_chimeric);
-    fprintf(f_stat,"                  OEA: %d\n",proc_oea);
-    fprintf(f_stat,"               Orphan: %d\n",proc_orphan);
-    fprintf(f_stat,"Template Length Distribution:\n");
+        fprintf(f_stat,"Read Length Range: [%d, %d]\n\n", read_lengths.begin()->first, read_lengths.rbegin()->first);
+    if (dist.size() > 0) {
+        fprintf(f_stat,"TLEN:\n");
+        fprintf(f_stat,"Range: [%d, %d]\n", dist.begin()->first, dist.rbegin()->first);
+        auto dist_stats = get_distribution(dist.begin(), dist.end(),
+                                           [](const decltype(dist.begin()) &val) -> int { return val->first; });
+        fprintf(f_stat," Mean: %.2lf\n", dist_stats.first);
+        fprintf(f_stat,"  Std: %.2lf\n\n", dist_stats.second);
+    }
+
+    fprintf(f_stat,"Template Length Counts:\n");
+
     if (dist.size() > 0) {
         for (auto it=dist.begin(); it != dist.end(); it++)
             fprintf(f_stat,"%d\t%d\n", it->first, it->second);
     }
+
+
     fclose(f_stat);
 
     // close file
