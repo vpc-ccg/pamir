@@ -22,7 +22,7 @@ using std::map;
 using std::pair;
 
 
-namespace cram_process {
+namespace range_process {
 
     enum class sup_type {
         rightbp, leftbp, both, ref, nosup,

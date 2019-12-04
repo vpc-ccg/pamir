@@ -24,9 +24,9 @@ SCRIPT_SOURCE = scripts
 SCRIPT_PATH = $(BIN_PATH)/scripts
 SRC_EXT = cc
 
-SOURCE_FILES =  pamir.cc aligner.cc common.cc genome.cc partition.cc assembler.cc sam_parser.cc sort.cc extractor.cc
-UTIL_SRC_FILES = extract_support.cc smoother.cc recalibrate.cc
-PROCESSING_SRC_FILES = process_reads.cc process_orphans.cc process_range.cc edlib.cc sam_processing.cc
+SOURCE_FILES =  pamir.cc aligner.cc common.cc genome.cc partition.cc assembler.cc sam_parser.cc sort.cc extractor.cc  smoother.cc  process_orphans.cc process_range.cc edlib.cc sam_processing.cc
+UTIL_SRC_FILES = extract_support.cc recalibrate.cc
+#PROCESSING_SRC_FILES = process_reads.cc
 
 SCRIPT_FILES = merge_refs.py contig_graph.py  filter_by_setcover.py  filtering.py  generate_setcover_input.py  genotyping.py  prep-ctgs.py  remove_contaminations.py  sort_vcf.py  version_check.py process_repeats.py process_unique.py
 
@@ -146,7 +146,7 @@ $(EDLIB_HED_PATH): $(EDLIB_EXT_HED_PATH)
 
 
 .PHONY: all
-all: $(EDLIB_HED_PATH) $(EDLIB_SRC_PATH) $(LOGGER_HED_PATH) $(BIN_PATH)/$(EXE) $(UTIL_EXE) $(UTIL_PATH)/$(PROCESSING_EXE) $(COPIED_SCRIPTS)
+all: $(EDLIB_HED_PATH) $(EDLIB_SRC_PATH) $(LOGGER_HED_PATH) $(BIN_PATH)/$(EXE) $(UTIL_EXE) $(COPIED_SCRIPTS)
 
 .PHONY: install_helper
 
@@ -159,8 +159,8 @@ $(BIN_PATH)/$(EXE): $(OBJECTS)
 $(UTIL_PATH)/%: $(BUILD_PATH)/%.o $(BUILD_PATH)/common.o
 	$(CXX) $(CXXFLAGS) $(LFLAGS) -o $@ $< $(BUILD_PATH)/common.o
 
-$(UTIL_PATH)/$(PROCESSING_EXE): $(PROCESSING_OBJ)
-	$(CXX)  $(LFAGS) -o $@ $(PROCESSING_OBJ)
+#$(UTIL_PATH)/$(PROCESSING_EXE): $(PROCESSING_OBJ)
+#	$(CXX)  $(LFAGS) -o $@ $(PROCESSING_OBJ)
 
 $(BUILD_PATH)/%.o: $(SRC_PATH)/%.$(SRC_EXT)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -MP -MMD -c $< -o $@

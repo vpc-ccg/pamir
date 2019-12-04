@@ -488,7 +488,7 @@ rule genotype_vis:
         process.communicate()
         view_cmd="samtools view -T {} {}".format(params.ref,input.cram)
         sort_cmd = "samtools sort -n | samtools view"
-        in_house_cmd = "./util/process range {} {} {} {} {} {} {}"
+        in_house_cmd = "./pamir process_range {} {} {} {} {} {} {}"
         with open(input.vcf,"r") as hand , open( output.sam, "w") as samhand, open(output.vcf, "w") as vcfhand, open(output.bed, "w") as bedhand:
 
 
@@ -638,7 +638,7 @@ rule map_orphans_to_vis_fasta:
     threads:
         config["aligner_threads"]
     shell:
-        "bwa mem -t {threads} {input.fasta} {input.fastq} -p | ./util/process orphan > {output}"
+        "bwa mem -t {threads} {input.fasta} {input.fastq} -p | ./pamir process_orphan > {output}"
 
 rule bwa_index:
     input:
@@ -796,7 +796,7 @@ rule smoother:
     output:
         config["analysis"]+"/pamir/annotation/{sample}/smooth",
     shell:
-        "./util/smoother {input} >  {output}"
+        "./pamir smoother {input} >  {output}"
 
 rule prep_for_set_cover:
     input:
