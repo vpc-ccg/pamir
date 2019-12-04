@@ -742,44 +742,7 @@ rule rename_events:
                 ho = hashlib.md5(fields[4].encode())
                 fields[2] = "-".join([fields[0],fields[1],ho.hexdigest()[:11]])
                 print( "\t".join(fields), file=ohand)
-                
-'''
-rule genotype_please:
-    input:
-        vcf=config["analysis"]+"/pamir/annotation/{sample}/annotated.vcf", 
-        mate1=config["analysis"]+"/fastqs/{sample}/{sample}.mate1.gz",
-        mate2=config["analysis"]+"/fastqs/{sample}/{sample}.mate2.gz",
-        header=config["analysis"]+"/pamir/header.vcf",
-    output:
-        config["analysis"]+"/pamir/genotyping/{sample}/insertions.vcf"
-    params:
-        ref=config["reference"],
-        template_length=1000,
-        min_tlen=0,
-        max_tlen=1000,
-        tlen=1000,
-        wd=config["analysis"]+"/pamir/genotyping",
-        read_len=config["read_length"],
-        MRSFAST="mrsfast",
-        RECALIBRATE="./util/recalibrate",
-    threads:
-        config["aligner_threads"] 
-    shell:
-        "python scripts/genotyping.py {input.vcf} {params.ref} {input.mate1}   {input.mate2} {wildcards.sample} {params.min_tlen} {params.max_tlen} {params.wd}/{wildcards.sample} {params.tlen} {threads} {params.read_len} {params.MRSFAST} {params.RECALIBRATE} && cat {input.header} {params.wd}/{wildcards.sample}/insertions_genotype_{wildcards.sample}.vcf.nohead > {output}" 
-
-
-
-rule samtools_get_fastq_mates:
-    input:
-        cram=config["path"]+config["raw-data"]+"/{sample}.final.cram"
-    output: 
-        mate1=config["analysis"]+"/fastqs/{sample}/{sample}.mate1",
-        mate2=config["analysis"]+"/fastqs/{sample}/{sample}.mate2",
-    params:
-        ref=config["reference"],
-    shell:
-        "module load samtools/1.9 && samtools fastq --reference {params.ref} -1 {output.mate1} -2 {output.mate2} -0 /dev/null -s /dev/null -n -F 0x900 {input.cram}"
-'''
+               
 rule filter_by_setcover:
     input:
         smooth=config["analysis"]+"/pamir/annotation/{sample}/smooth",
@@ -1025,7 +988,7 @@ rule recalibrate_oea_to_orphan:
     output:
         config["analysis"]+"/rem-cor/{sample}/{sample}.oea2orphan.recalib.sam"
     shell:
-        "./util/recalibrate {input.lookup} <(samtools view {input.bam}) {output}"
+        "./pamir recalibrate {input.lookup} <(samtools view {input.bam}) {output}"
 
 rule pamir_partition:
     input:
