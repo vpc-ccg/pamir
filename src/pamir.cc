@@ -19,7 +19,6 @@
 #include "extractor.h"
 #include "record.h"
 #include "sam_parser.h"
-#include "sort.h"
 #include "process_range.h"
 #include "process_orphans.h"
 #include "recalibrate.h"
@@ -517,10 +516,6 @@ int main(int argc, char **argv)
 		else if (mode == "mask" || mode == "maski") {
 			if (argc != 6) throw "Usage:\tpamir mask/maski [repeat-file] [reference] [output] [padding]";
 			mask(argv[2], argv[3], argv[4], atoi(argv[5]), mode == "maski");
-		}
-		else if (mode == "sort") {
-			if (argc != 4) throw "Usage:\tpamir sort [sam-file] [output]";
-			sortFile(argv[2], argv[3], 2 * GB);
 		}
 		else if (mode == "partition") {
 			if ( 8 == argc)
