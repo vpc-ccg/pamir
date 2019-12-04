@@ -86,6 +86,8 @@ namespace recalibrate {
         fclose(fin2);
         fclose(fout);
         fclose(fout2);
+    
+        return 0;
     }
-    return 0;
+
 }
