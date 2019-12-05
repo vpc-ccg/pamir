@@ -19,23 +19,35 @@ genome_partition::genome_partition ()
 	fp = 0;
 }
 
-genome_partition::genome_partition (const string &filename, int dist, const unordered_map<string, string> &om)
-{
-	distance = dist;
-	auto g=om.begin();
-	oea_mate = om;
+genome_partition::genome_partition(const string &filename, int dist) {
+    distance = dist;
 
-	fp = gzopen(filename.c_str(), "r");	
-	gzgets(fp, prev_string, 2000);
-	while(  !strncmp("@", prev_string, 1) )
-	{
-	gzgets(fp, prev_string, 2000);
-	}
+    fp = gzopen(filename.c_str(), "r");
+    gzgets(fp, prev_string, 2000);
+    while (!strncmp("@", prev_string, 1)) {
+        gzgets(fp, prev_string, 2000);
+    }
 }
 
 genome_partition::~genome_partition ()
 {
 	if (fp) gzclose(fp);
+}
+
+int genome_partition::load_oea_mates ( const string &mate_file) {
+    FILE *fin = fopen(mate_file.c_str(), "r");
+    char name[MAXB], read[MAXB], tmp[MAXB];
+    while (fgets(name, MAXB, fin)) {
+        fgets(read, MAXB, fin);
+        fgets(tmp, MAXB, fin);
+        fgets(tmp, MAXB, fin);
+        if (strlen(name)>2 && name[strlen(name) - 3] == '/')
+            name[strlen(name)-3]='\0';
+        read[strlen(read)-1]='\0';
+        oea_mate[string(name+1)] = read;
+    }
+    fclose(fin);
+    return 0;
 }
 
 int genome_partition::load_orphan( const string &orphan_contig, const string &oea2orphan )

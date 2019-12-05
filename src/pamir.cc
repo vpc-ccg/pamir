@@ -32,22 +32,10 @@ using namespace std;
 void partify (const string &read_file, const string &out, int threshold,
 	const string &contig_file, const string &oea2orphan,const string &mate_file) 
 {
-	FILE *fin = fopen(mate_file.c_str(), "r");
-	unordered_map<string, string> mymap;
-	const int MAXB = 259072;
-	char name[MAXB], read[MAXB], tmp[MAXB];
-	while (fgets(name, MAXB, fin)) {
-		fgets(read, MAXB, fin);
-		fgets(tmp, MAXB, fin);
-		fgets(tmp, MAXB, fin);
-		if (strlen(name)>2 && name[strlen(name) - 3] == '/')
-			name[strlen(name)-3]='\0';
-		read[strlen(read)-1]='\0';
-		mymap[string(name+1)] = read;
-	}
-	genome_partition pt(read_file, threshold, mymap); 
-	// loading orphan association information
+	genome_partition pt(read_file, threshold);
+
 	pt.load_orphan( contig_file, oea2orphan);
+	pt.load_oea_mates (mate_file);
 	
 	int fc = 1;
 	FILE *fo = fopen(out.c_str(), "wb");
@@ -61,7 +49,6 @@ void partify (const string &read_file, const string &out, int threshold,
 	FILE *foc = fopen((out + ".count").c_str(), "w");
 	fprintf(foc, "%d\n",fc-1);
 	fclose(foc);
-	fclose(fin);
 	fclose(fo);
 	fclose(fidx);
 }
