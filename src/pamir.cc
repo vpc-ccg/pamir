@@ -184,44 +184,10 @@ void append_vcf(const string &chrName, const string &reference, const vector< tu
             vcf_str +=  "\t";
 			vcf_str +=  std::to_string( get<5>(reports[r]));
 			vcf_str +=  "\tPASS\t";
-//			vcf_str +=  std::to_string( get<2>(reports[r])) ;
-//			vcf_str += 	";END=";	vcf_str +=	std::to_string( get<1>(reports[r]) + get<2>(reports[r])-1 );
 			vcf_str += "Cluster=";	vcf_str +=	std::to_string( clusterId ) ;
 			vcf_str += ";Support=";	vcf_str	+=	std::to_string( get<4>(reports[r])) ;
-//			vcf_str += ";SEQ=";		vcf_str	+=	get<3>(reports[r]);
 			vcf_str += "\n";
 		}
-/*
-		if(get<0>(reports[r])== "INS")
-		{
-			vcf_str += 	chrName;	vcf_str += 	"\t";
-			vcf_str +=	std::to_string(get<1>(reports[r]));	vcf_str += "\t.\t";
-			vcf_str +=  reference.at(r);
-			vcf_str +=  "\t<INS>\t";
-			vcf_str +=  std::to_string( get<5>(reports[r]));
-			vcf_str +=  "\tPASS\tSVTYPE=INS;SVLEN=";
-			vcf_str +=  std::to_string( get<2>(reports[r])) ;
-			vcf_str += 	";END=";	vcf_str +=	std::to_string( get<1>(reports[r]) + get<2>(reports[r])-1 );
-			vcf_str += ";Cluster=";	vcf_str +=	std::to_string( clusterId ) ;
-			vcf_str += ";Support=";	vcf_str	+=	std::to_string( get<4>(reports[r])) ;
-			vcf_str += ";SEQ=";		vcf_str	+=	get<3>(reports[r]);
-			vcf_str += "\n";
-		}
-    	if(get<0>(reports[r])== "DEL")
-		{
-			vcf_str_del += 	chrName;	vcf_str_del += 	"\t";
-			vcf_str_del +=	std::to_string(get<1>(reports[r]));	vcf_str_del += "\t.\t";
-			vcf_str_del +=  reference.at(r);
-			vcf_str_del +=  "\t<DEL>\t";
-			vcf_str_del +=  std::to_string( get<5>(reports[r]));
-			vcf_str_del +=  "\tPASS\tSVTYPE=DEL;SVLEN=";
-			vcf_str_del +=  std::to_string( get<2>(reports[r])) ;
-			vcf_str_del += 	";END=";	vcf_str_del +=	std::to_string( get<1>(reports[r]) + get<2>(reports[r])-1 );
-			vcf_str_del += ";Cluster=";	vcf_str_del +=	std::to_string( clusterId ) ;
-			vcf_str_del += ";Support=";	vcf_str_del	+=	std::to_string( get<4>(reports[r])) ;
-			vcf_str_del += ";SEQ=";		vcf_str_del	+=	get<3>(reports[r]);
-			vcf_str_del += "\n";
-		}*/
 	}
 }
 /*******************************************************************/
@@ -423,9 +389,6 @@ void assemble (const string &partition_file, const string &reference, const stri
 /*********************************************************************************************/
 int main(int argc, char **argv)
 {
-	string log_path = "";
-
-
 	try {
 
 		if (argc < 2) throw "Usage:\tpamir [mode=(?)]";
@@ -438,7 +401,7 @@ int main(int argc, char **argv)
 		else if (mode == "partition") {
 			if ( 8 == argc)
 			{
-			    log_path = argv[3];
+			    string log_path = argv[3];
 			    log_path+=".log";
                 Logger::instance().info.set_file(log_path.c_str());
 				partify(argv[2], argv[3], atoi(argv[4]), argv[5], argv[6], argv[7]);
