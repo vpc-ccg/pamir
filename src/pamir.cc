@@ -26,86 +26,8 @@
 
 
 using namespace std;
+//TODO Implement repeaet master after genome file is converted to util
 
-inline string space (int i) 
-{
-	return string(i, ' ');
-}
-/*******************************************************************/
-void mask (const string &repeats, const string &path, const string &result, int pad = 0, bool invert = false)
-{
-	const int MAX_BUF_SIZE = 2000;
-	size_t b, e, m = 0;
-	char ref[MAX_BUF_SIZE], name[MAX_BUF_SIZE], l[MAX_BUF_SIZE];
-	
-	map<string, vector<pair<size_t, size_t>>> masks;
-	FILE *fi = fopen(repeats.c_str(), "r");
-	int prev = 0; string prev_ref = "";
-	while (fscanf(fi, "%s %lu %lu %s", ref, &b, &e, name) != EOF) {
-		if (e - b < 2 * pad) continue;
-		masks[ref].push_back({b + pad, e - pad});
-	}
-	for (auto &r: masks) 
-		sort(r.second.begin(), r.second.end());
-	if (invert) for (auto &r: masks) 
-	{
-		vector<pair<size_t, size_t>> v;
-		size_t prev = 0;
-		for (auto &p: r.second) {
-			if (prev < p.first)
-				v.push_back({prev, p.first});
-			prev = p.second;
-		}
-		v.push_back({prev, 500 * 1024 * 1024});
-		r.second = v;
-	}
-	fclose(fi);
-	
-	const int MAX_CHR_SIZE = 300000000;
-	char *x = new char[MAX_CHR_SIZE];
-
-	fi = fopen(path.c_str(), "r");
-	FILE *fo = fopen(result.c_str(), "w");
-	fgets(l, MAX_BUF_SIZE, fi);
-	
-	while (true) {
-		if (feof(fi))
-			break;
-		
-		fprintf(fo, "%s", l);
-		char *p = l; while (*p && !isspace(*p)) p++; *p = 0;
-		string n = string(l + 1);
-		printf("Parsed %s\n", n.c_str());
-		
-		size_t xlen = 0;
-		while (fgets(l, MAX_BUF_SIZE, fi)) {
-			if (l[0] == '>') 
-				break;
-			if(l[strlen(l)-1]=='\n'){
-				memcpy(x + xlen, l, strlen(l)- 1);
-				xlen += strlen(l)-1;
-			}
-			else{
-				memcpy(x + xlen, l, strlen(l));
-				xlen += strlen(l);
-			}
-		}
-		x[xlen] = 0;
-
-		for (auto &r: masks[n]) {
-			if (r.first >= xlen) continue;
-			if (r.second >= xlen) r.second = xlen;
-			memset(x + r.first, 'N', r.second - r.first);
-		}
-
-		for (size_t i = 0; i < xlen; i += 120) 
-			fprintf(fo, "%.120s\n", x + i);
-	}
-
-	fclose(fi);
-	fclose(fo);
-	delete[] x;
-}
 /**************************************************************/
 void partify (const string &read_file, const string &out, int threshold,
 	const string &contig_file, const string &oea2orphan,const string &mate_file) 
@@ -512,10 +434,6 @@ int main(int argc, char **argv)
 		if (mode == "remove_concordant") {
 			if (argc != 8) throw "Usage:\tpamir remove_concordant [sam-file] [output] outputtype oea? orphan? matched_ratio";
 			extractor ext(argv[2], argv[3], atoi(argv[4]), atoi(argv[5]), atoi(argv[6]), stod(argv[7]));
-		}
-		else if (mode == "mask" || mode == "maski") {
-			if (argc != 6) throw "Usage:\tpamir mask/maski [repeat-file] [reference] [output] [padding]";
-			mask(argv[2], argv[3], argv[4], atoi(argv[5]), mode == "maski");
 		}
 		else if (mode == "partition") {
 			if ( 8 == argc)
