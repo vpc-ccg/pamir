@@ -13,7 +13,7 @@ using namespace std;
 class genome_partition
 {
 	int distance;
-	vector<pair<pair<string, string>, pair<int,int> > > comp;
+	vector<pair<pair<string, string>, pair<int,int> > > current_cluster;
 	unordered_set<string> read_cache;
 	unordered_map<string, string> oea_mate;
 	// for orphan information

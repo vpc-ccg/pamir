@@ -108,9 +108,9 @@ bool genome_partition::add_read (string read_name, int flag, int loc)
 	auto it = oea_mate.find(read_name);
 	if (it != oea_mate.end()) {
 		if (flag & 0x10)
-			{	comp.push_back({{read_name + "+", it->second}, {1, loc}}); sign = '+';}
+			{	current_cluster.push_back({{read_name + "+", it->second}, {1, loc}}); sign = '+';}
 		else
-			{	comp.push_back({{read_name + "-", reverse_complement(it->second)},{1, loc}}); sign= '-';}
+			{	current_cluster.push_back({{read_name + "-", reverse_complement(it->second)},{1, loc}}); sign= '-';}
 		// adjust associated orphans for a cluster
 		map<string, vector<int> >::iterator mit;
 		if (map_token.find(read_name) != map_token.end()) {
@@ -165,7 +165,7 @@ string genome_partition::get_reference ()
 
 vector<pair<pair<string, string>, pair<int,int>>> genome_partition::get_next ()
 {
-	comp.clear();
+	current_cluster.clear();
 	read_cache.clear();
 	myset.clear();
 
@@ -189,7 +189,7 @@ vector<pair<pair<string, string>, pair<int,int>>> genome_partition::get_next ()
 		p_end = loc;
 	}
 	
-	return comp;
+	return current_cluster;
 }
 
 size_t genome_partition::dump (const vector<pair<pair<string, string>, pair<int,int>>> &vec, FILE *fo, int fc)
