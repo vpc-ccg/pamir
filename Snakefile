@@ -928,7 +928,7 @@ rule pamir_assemble_full_new:
         with open( input.cluster_count, 'r') as chand:
             cc = int(chand.readline())
         
-        index = 0
+        index = 1
         use_threads = threads - 1
         pppt = min(params.pppt,int(cc/use_threads))
         
