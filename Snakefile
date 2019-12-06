@@ -933,7 +933,7 @@ rule pamir_assemble_full_new:
         pppt = min(params.pppt,int(cc/use_threads))
         
         cmd_template =  "./pamir assemble {0} {1} {{0}}-{{1}} T{{2}} 30000 {2} {3}/{4} > {3}/{4}/T{{2}}.log".format(input.partition, params.ref, params.read_length, params.wd, wildcards.sample)
-        while index + pppt <= cc:
+        while index + pppt -1 <= cc:
             tids = []
             procs = []
             first_index = index
@@ -942,11 +942,11 @@ rule pamir_assemble_full_new:
                 if index + pppt > cc:
                     end = cc
                 else:
-                    end = index + pppt
+                    end = index + pppt - 1
                 cmd = cmd_template.format(start,end,tid)
                 procs.append(subprocess.Popen(cmd, shell=True))
                 tids.append(tid)
-                index = end
+                index = end + 1
 
             print("Processing partitions between {} and {} with {} threads".format(first_index,index,len(procs),file=sys.stderr))
             for i,proc in enumerate(procs):
