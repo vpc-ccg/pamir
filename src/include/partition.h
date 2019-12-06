@@ -19,6 +19,11 @@ private:
     int p_end;
     string p_ref;
 
+    //TODO: more todo
+    int start;
+    int end;
+    FILE* partition_file;
+
     //TODO: properly rename it to current_cluster;
 	vector<pair<pair<string, string>, pair<int,int> > > current_cluster;
 
@@ -40,15 +45,18 @@ private:
 	bool add_read (string, int, int);
 
 public:
-	genome_partition (void);
+	genome_partition (const string&, const string&);
 	genome_partition (const string&, int);
 	~genome_partition (void);
+
+
+
 
 	int load_orphan( const string &orphan_contig, const string &oea2orphan);
 	int load_oea_mates (const string &mate_file) ;
 
 	vector<pair<pair<string, string>, pair<int,int> > > get_next (void);
-	vector<pair<pair<string, string>, pair<int,int> > > read_partition (const string&, const string&);
+	vector<pair<pair<string, string>, pair<int,int> > > read_partition ();
 
 	bool has_next (void);
 	size_t dump (const vector<pair<pair<string, string>, pair<int, int>>>&, FILE*, int);

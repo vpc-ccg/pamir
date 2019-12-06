@@ -13,11 +13,45 @@
 
 using namespace std;
 
-genome_partition::genome_partition () 
-{
-	distance = 0;
-	fp = 0;
+genome_partition::genome_partition (const string &partition_file_path, const string &range) {
+    // TODO : WHY????
+    distance = 0;
+    fp = 0;
+
+    size_t pos;
+    start = stoi (range, &pos);
+    cout << pos << endl;
+    if (pos < range.size()) {
+        end = stoi (range.substr(pos+1));
+    } else {
+        end = start;
+    }
+    vector<size_t> offsets;
+    FILE *fidx = fopen((partition_file_path + ".idx").c_str(), "rb");
+    if(fidx==NULL)
+    {
+        printf(".idx file does not exist!\n");
+        exit(-1);
+    }
+    else
+    {
+        size_t offset;
+        while (fread(&offset, 1, sizeof(size_t), fidx) == sizeof(size_t))
+        {
+            offsets.push_back(offset);
+        }
+    }
+    fclose(fidx);
+
+    if ( end > offsets.size()+1 )
+        end = offsets.size()+1;
+cout << start << " " << end << endl;
+    partition_file = fopen(partition_file_path.c_str(), "rb");
+    fseek(partition_file, offsets[start-1], SEEK_SET);
 }
+
+
+
 
 genome_partition::genome_partition(const string &filename, int dist) {
     distance = dist;
@@ -278,37 +312,10 @@ int genome_partition::get_cluster_id ()
 	return fc;
 }
 
-vector<pair<pair<string, string>, pair<int,int>>> genome_partition::read_partition (const string &partition_file, const string &range)
+//read next partition
+vector<pair<pair<string, string>, pair<int,int>>> genome_partition::read_partition ()
 {
-	static int start = -1, end = -1;
-	static vector<size_t> offsets;
-	if (start == -1) {
-		char *dup = strdup(range.c_str());
-		char *tok = strtok(dup, "-");
-		if (!tok) start = 0;
-		else {
-			start = atol(tok), tok = strtok(0, "-");
-			end = tok ? atol(tok) : -1;
-		}
-		free(dup);
-		FILE *fidx = fopen((partition_file + ".idx").c_str(), "rb");
-		if(fidx==NULL)
-		{
-			printf(".idx file does not exist!\n");
-			exit(-1);
-		}
-		else
-		{
-			size_t offset;
-			while (fread(&offset, 1, sizeof(size_t), fidx) == sizeof(size_t))
-			{
-				offsets.push_back(offset);
-			}
-		}
-		fclose(fidx);
-	}
 
-	FILE *fi;
 	int sz, i;
 	vector<pair<pair<string, string>, pair<int,int>>> result;
 
@@ -317,18 +324,16 @@ vector<pair<pair<string, string>, pair<int,int>>> genome_partition::read_partiti
 
 reset:
 	//	assert(start < offsets.size());
-	if (start >= offsets.size() || start >= end)
+	if (start > end)
 		return vector<pair<pair<string, string>, pair<int,int>>>();
-	//fprintf(stderr,"Seeking to %d--%d (%lu)\n", start, end, offsets[start]);
-	fi = fopen(partition_file.c_str(), "rb");
-	fseek(fi, offsets[start++], SEEK_SET);
-	fscanf(fi, "%d %d %d %d %s\n", &fc, &sz, &p_start, &p_end, pref);
+	start++;
+	fscanf(partition_file, "%d %d %d %d %s\n", &fc, &sz, &p_start, &p_end, pref);
 	p_ref = pref;
 	result.resize(0);
 	result.reserve(sz);
 
 	for (i = 0; i < sz; i++) {
-		fgets(pref, MAXB, fi);
+		fgets(pref, MAXB, partition_file);
 		int loc;
 		int support;
 		sscanf(pref, "%s %s %d %d", name, read, &support, &loc);
@@ -336,7 +341,7 @@ reset:
 		string sread(read);
 		result.push_back({{sname, sread}, {support, loc}});
 	}
-	fclose(fi);
+
 	if (result.size() == 0)
 		goto reset;
 	return result;

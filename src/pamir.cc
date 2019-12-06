@@ -248,7 +248,7 @@ void assemble (const string &partition_file, const string &reference, const stri
 	assembler as(max_len, 15);
 	genome ref(reference.c_str());
 	map<string,string> chroms;
-	genome_partition pt;
+	genome_partition pt(partition_file, range);
 	aligner al(max_len + 2010 );
 	
 	string tmp_ref; tmp_ref.reserve(4);
@@ -262,7 +262,7 @@ void assemble (const string &partition_file, const string &reference, const stri
 
 	while (1) 
 	{
-		auto p 			= pt.read_partition(partition_file, range); 
+		auto p 			= pt.read_partition();
 		// end of the partition file
 		if ( !p.size() ) 
 			break;
@@ -405,8 +405,8 @@ int main(int argc, char **argv)
 		}
 		else if (mode == "get_cluster") {
 			if (argc != 4) throw "Usage:\tpamir get_cluster [partition-file] [range]";
-			genome_partition pt;
-			pt.output_partition( argv[2], argv[3]);
+//			genome_partition pt;
+//			pt.output_partition( argv[2], argv[3]);
 		}
 		else if (mode == "index_log") {
 			if (argc != 3) throw "Usage:\tpamir index_log [log-file]\n\tIndexing the log file of assemble subcommand for fast random access. Required for running subcommand output_log.";
