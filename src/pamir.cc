@@ -405,8 +405,11 @@ int main(int argc, char **argv)
 		}
 		else if (mode == "get_cluster") {
 			if (argc != 4) throw "Usage:\tpamir get_cluster [partition-file] [range]";
-//			genome_partition pt;
-//			pt.output_partition( argv[2], argv[3]);
+            string log_path = string(argv[3])+".cluster";
+            Logger::instance().info.set_file(log_path.c_str());
+            genome_partition pt(argv[2], argv[3]);
+            pt.output_partitions();
+
 		}
 		else if (mode == "index_log") {
 			if (argc != 3) throw "Usage:\tpamir index_log [log-file]\n\tIndexing the log file of assemble subcommand for fast random access. Required for running subcommand output_log.";

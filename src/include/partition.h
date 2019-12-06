@@ -64,7 +64,7 @@ public:
 	int get_start (void);
 	int get_end (void);
 	string get_reference (void);
-	int output_partition (const string &, const string &);
+	void output_partitions();
 	int get_cluster_id ();
 };
 
