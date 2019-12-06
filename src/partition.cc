@@ -42,6 +42,8 @@ genome_partition::genome_partition (const string &partition_file_path, const str
     }
     fclose(fidx);
 
+    if (start < 1)
+        start = 1;
     if ( end > offsets.size()+1 )
         end = offsets.size()+1;
     partition_file = fopen(partition_file_path.c_str(), "rb");
