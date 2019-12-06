@@ -23,6 +23,11 @@ private:
     int start;
     int end;
     FILE* partition_file;
+    FILE* partition_out_file;
+    FILE* partition_out_index_file;
+    FILE* partition_out_count_file;
+
+
 
     //TODO: properly rename it to current_cluster;
 	vector<pair<pair<string, string>, pair<int,int> > > current_cluster;
@@ -46,12 +51,12 @@ private:
 
 public:
 	genome_partition (const string&, const string&);
-	genome_partition (const string&, int);
+	genome_partition (int, const string&,  const string&, const string&, const string&, const string &);
 	~genome_partition (void);
 
 
 
-
+    void partify ();
 	int load_orphan( const string &orphan_contig, const string &oea2orphan);
 	int load_oea_mates (const string &mate_file) ;
 

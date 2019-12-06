@@ -27,32 +27,6 @@
 
 using namespace std;
 //TODO Implement repeaet master after genome file is converted to util
-
-/**************************************************************/
-void partify (const string &read_file, const string &out, int threshold,
-	const string &contig_file, const string &oea2orphan,const string &mate_file) 
-{
-	genome_partition pt(read_file, threshold);
-
-	pt.load_orphan( contig_file, oea2orphan);
-	pt.load_oea_mates (mate_file);
-	
-	int fc = 1;
-	FILE *fo = fopen(out.c_str(), "wb");
-	FILE *fidx = fopen((out + ".idx").c_str(), "wb");
-	while (pt.has_next()) {
-		auto p = pt.get_next();
-		size_t i = pt.dump(p, fo, fc);
-		fwrite(&i, 1, sizeof(size_t), fidx);
-		fc++;
-	}
-	FILE *foc = fopen((out + ".count").c_str(), "w");
-	fprintf(foc, "%d\n",fc-1);
-	fclose(foc);
-	fclose(fo);
-	fclose(fidx);
-}
-
 /****************************************************************/
 // For outputing specific log
 void log_idx (const string &log_file ) 
@@ -391,10 +365,18 @@ int main(int argc, char **argv)
 			    string log_path = argv[3];
 			    log_path+=".log";
                 Logger::instance().info.set_file(log_path.c_str());
-				partify(argv[2], argv[3], atoi(argv[4]), argv[5], argv[6], argv[7]);
+                genome_partition pt(atoi(argv[4]), argv[2],  argv[5], argv[6], argv[7], argv[3]) ;
+                pt.partify();
 			}
 			else{ throw "Usage:\tpamir partition [read-file] [output-file] [threshold] [ [orphan-contig] [oea2orphan] ] [mate_file]"; }
 		}
+        else if (mode == "get_cluster") {
+            if (argc != 4) throw "Usage:\tpamir get_cluster [partition-file] [range]";
+            string log_path = string(argv[3])+".cluster";
+            Logger::instance().info.set_file(log_path.c_str());
+            genome_partition pt(argv[2], argv[3]);
+            pt.output_partitions();
+        }
 		else if (mode=="header"){
 			if (argc !=4) throw "Usage:3 parameters needed\tpamir header [output_file_name] [reference]";
 			print_header(argv[2],argv[3]);
@@ -403,14 +385,7 @@ int main(int argc, char **argv)
 			if (argc != 9) throw "Usage:10 parameters needed\tpamir assemble [partition-file] [reference] [range] [output-file-vcf] [max-len] [read-length] dir_prefix";
 			assemble(argv[2], argv[3], argv[4], argv[5], atoi(argv[6]), atoi(argv[7]), argv[8]);
 		}
-		else if (mode == "get_cluster") {
-			if (argc != 4) throw "Usage:\tpamir get_cluster [partition-file] [range]";
-            string log_path = string(argv[3])+".cluster";
-            Logger::instance().info.set_file(log_path.c_str());
-            genome_partition pt(argv[2], argv[3]);
-            pt.output_partitions();
 
-		}
 		else if (mode == "index_log") {
 			if (argc != 3) throw "Usage:\tpamir index_log [log-file]\n\tIndexing the log file of assemble subcommand for fast random access. Required for running subcommand output_log.";
 			log_idx( argv[2]);

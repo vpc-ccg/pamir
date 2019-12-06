@@ -53,7 +53,11 @@ genome_partition::genome_partition (const string &partition_file_path, const str
 
 
 
-genome_partition::genome_partition(const string &filename, int dist) {
+genome_partition::genome_partition(int dist, const string &filename, const string &contig_file, const string &oea2orphan, const string& mate_file ,const string &output) {
+    load_orphan( contig_file, oea2orphan);
+    load_oea_mates (mate_file);
+
+
     distance = dist;
 
     fp = gzopen(filename.c_str(), "r");
@@ -61,7 +65,28 @@ genome_partition::genome_partition(const string &filename, int dist) {
     while (!strncmp("@", prev_string, 1)) {
         gzgets(fp, prev_string, 2000);
     }
+
+    partition_out_file = fopen(output.c_str(), "wb");
+    partition_out_index_file = fopen((output + ".idx").c_str(), "wb");
+    partition_out_count_file = fopen((output + ".count").c_str(), "w");
 }
+
+void genome_partition::partify() {
+    int fc=1;
+    while (has_next()) {
+        auto p = get_next();
+        size_t i = dump(p, partition_out_file, fc);
+        fwrite(&i, 1, sizeof(size_t), partition_out_index_file);
+        fc++;
+    }
+    fprintf(partition_out_count_file, "%d\n",fc-1);
+
+    fclose ( partition_out_file );
+    fclose ( partition_out_index_file );
+    fclose ( partition_out_count_file );
+
+}
+
 
 genome_partition::~genome_partition ()
 {
@@ -317,20 +342,21 @@ vector<pair<pair<string, string>, pair<int,int>>> genome_partition::read_partiti
 {
 
 	int sz, i;
-	vector<pair<pair<string, string>, pair<int,int>>> result;
+//	vector<pair<pair<string, string>, pair<int,int>>> result;
 
 	char pref[MAXB];
 	char name[MAXB], read[MAXB];
 
+//    current_cluster.clear();
+
 reset:
-	//	assert(start < offsets.size());
 	if (start > end)
 		return vector<pair<pair<string, string>, pair<int,int>>>();
 	start++;
 	fscanf(partition_file, "%d %d %d %d %s\n", &fc, &sz, &p_start, &p_end, pref);
 	p_ref = pref;
-	result.resize(0);
-	result.reserve(sz);
+	current_cluster.resize(0);
+    current_cluster.reserve(sz);
 
 	for (i = 0; i < sz; i++) {
 		fgets(pref, MAXB, partition_file);
@@ -339,12 +365,12 @@ reset:
 		sscanf(pref, "%s %s %d %d", name, read, &support, &loc);
 		string sname(name);
 		string sread(read);
-		result.push_back({{sname, sread}, {support, loc}});
+		current_cluster.push_back({{sname, sread}, {support, loc}});
 	}
 
-	if (result.size() == 0)
+	if (current_cluster.size() == 0)
 		goto reset;
-	return result;
+	return current_cluster;
 }
 
 void genome_partition::output_partitions() {
