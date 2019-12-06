@@ -12,6 +12,14 @@ using namespace std;
 
 class genome_partition {
 private:
+    FILE* partition_out_file;
+    FILE* partition_out_index_file;
+    FILE* partition_out_count_file;
+
+    int cluster_count = 0;
+
+
+
 	int distance;
 
     int fc;
@@ -23,9 +31,6 @@ private:
     int start;
     int end;
     FILE* partition_file;
-    FILE* partition_out_file;
-    FILE* partition_out_index_file;
-    FILE* partition_out_count_file;
 
 
 
@@ -53,9 +58,10 @@ public:
 	genome_partition (const string&, const string&);
 	genome_partition (int, const string&,  const string&, const string&, const string&, const string &);
 	~genome_partition (void);
+	genome_partition(const string&);
 
 
-
+    void new_dump();
     void partify ();
 	int load_orphan( const string &orphan_contig, const string &oea2orphan);
 	int load_oea_mates (const string &mate_file) ;

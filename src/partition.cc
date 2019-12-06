@@ -13,11 +13,22 @@
 
 using namespace std;
 
-genome_partition::genome_partition (const string &partition_file_path, const string &range) {
-    // TODO : WHY????
-    distance = 0;
-    fp = 0;
+genome_partition::genome_partition (const string & out_prefix){
+    partition_out_file = fopen(out_prefix.c_str(), "wb");
+    if (partition_out_file == NULL)
+        throw("[Genome Partition] Cannot open the file.");
 
+    partition_out_index_file = fopen((out_prefix + ".idx").c_str(), "wb");
+    if (partition_out_index_file == NULL)
+        throw("[Genome Partition] Cannot open the file.");
+
+    partition_out_count_file = fopen((out_prefix + ".count").c_str(), "w");
+    if (partition_out_count_file == NULL)
+        throw("[Genome Partition] Cannot open the file.");
+}
+
+genome_partition::genome_partition (const string &partition_file_path, const string &range):genome_partition(range) {
+    // extracting range [start,end]
     size_t pos;
     start = stoi (range, &pos);
     if (pos < range.size()) {
@@ -25,35 +36,31 @@ genome_partition::genome_partition (const string &partition_file_path, const str
     } else {
         end = start;
     }
+
+    FILE *partition_file_index = fopen((partition_file_path + ".idx").c_str(), "rb");
+    if ( partition_file_index == NULL)
+        throw("[Genome Partition] Cannot open the file.");
+
+    Logger::instance().info ("Loading the index file.\n");
     vector<size_t> offsets;
-    FILE *fidx = fopen((partition_file_path + ".idx").c_str(), "rb");
-    if(fidx==NULL)
+    size_t offset;
+    while (fread(&offset, 1, sizeof(size_t), partition_file_index) == sizeof(size_t))
     {
-        printf(".idx file does not exist!\n");
-        exit(-1);
+        offsets.push_back(offset);
     }
-    else
-    {
-        size_t offset;
-        while (fread(&offset, 1, sizeof(size_t), fidx) == sizeof(size_t))
-        {
-            offsets.push_back(offset);
-        }
-    }
-    fclose(fidx);
+
+    fclose(partition_file_index);
 
     if (start < 1)
         start = 1;
     if ( end > offsets.size()+1 )
         end = offsets.size()+1;
+
     partition_file = fopen(partition_file_path.c_str(), "rb");
     fseek(partition_file, offsets[start-1], SEEK_SET);
 }
 
-
-
-
-genome_partition::genome_partition(int dist, const string &filename, const string &contig_file, const string &oea2orphan, const string& mate_file ,const string &output) {
+genome_partition::genome_partition(int dist, const string &filename, const string &contig_file, const string &oea2orphan, const string& mate_file ,const string &output):genome_partition(output) {
     load_orphan( contig_file, oea2orphan);
     load_oea_mates (mate_file);
 
@@ -65,32 +72,36 @@ genome_partition::genome_partition(int dist, const string &filename, const strin
     while (!strncmp("@", prev_string, 1)) {
         gzgets(fp, prev_string, 2000);
     }
-
-    partition_out_file = fopen(output.c_str(), "wb");
-    partition_out_index_file = fopen((output + ".idx").c_str(), "wb");
-    partition_out_count_file = fopen((output + ".count").c_str(), "w");
 }
 
 void genome_partition::partify() {
-    int fc=1;
+    fc=1;
     while (has_next()) {
         auto p = get_next();
+        cluster_count++;
         size_t i = dump(p, partition_out_file, fc);
-        fwrite(&i, 1, sizeof(size_t), partition_out_index_file);
+//        fwrite(&i, 1, sizeof(size_t), partition_out_index_file);
+        new_dump();
         fc++;
     }
-    fprintf(partition_out_count_file, "%d\n",fc-1);
-
-    fclose ( partition_out_file );
-    fclose ( partition_out_index_file );
-    fclose ( partition_out_count_file );
-
 }
 
 
 genome_partition::~genome_partition ()
 {
+    fprintf(partition_out_count_file, "%d\n", cluster_count);
+
 	if (fp) gzclose(fp);
+
+	if (partition_out_file != NULL)
+	    fclose (partition_out_file);
+
+    if (partition_out_index_file != NULL)
+        fclose (partition_out_index_file);
+
+    if (partition_out_count_file != NULL)
+        fclose (partition_out_count_file);
+
 }
 
 int genome_partition::load_oea_mates ( const string &mate_file) {
@@ -131,10 +142,10 @@ int genome_partition::load_orphan( const string &orphan_contig, const string &oe
 	}
 	fclose(fin);
     Logger::instance().info("Loading orphan contig file\n");
-	
+
 	fin = fopen( oea2orphan.c_str(), "r");
 	while( NULL != fgets( readline, MAX_CHAR, fin ) )
-	{	
+	{
 		sscanf(readline, "%s %d %s %d %d %s %s %d %d %s %d\n", rname, &flag, gname,  &pos, &qual, tmp, tmp, &npos, &tlen, cont, &z);
 		rstr = string( rname );
 		if (rstr.size() > 2 && rstr[rstr.size() - 2] == '/')
@@ -174,7 +185,7 @@ bool genome_partition::add_read (string read_name, int flag, int loc)
 	char sign;
 	if (read_name.size() > 2 && read_name[read_name.size() - 2] == '/')
 		read_name = read_name.substr(0, read_name.size() - 2);
-	
+
 	if (read_cache.find(read_name) != read_cache.end()) return false;
 	auto it = oea_mate.find(read_name);
 	if (it != oea_mate.end()) {
@@ -249,18 +260,26 @@ vector<pair<pair<string, string>, pair<int,int>>> genome_partition::get_next ()
 	p_end = loc;
 	ploc = loc;
 	add_read(read_name, flag, loc);
-	
+
 	while (has_next()&&gzgets(fp, prev_string, 2000)) {
 		sscanf(prev_string,"%s %d %s %d", read_name, &flag, ref_name, &loc);
 		if (loc - p_start > distance || ref_name != p_ref)
 			break;
-		
+
 		add_read(read_name, flag, loc);
 		ploc = loc;
 		p_end = loc;
 	}
-	
+
 	return current_cluster;
+}
+
+void genome_partition::new_dump() {
+    size_t pos = ftell(partition_out_file);
+    fwrite(&pos, 1, sizeof(size_t), partition_out_index_file);
+    fprintf(partition_out_file, "%d %lu %d %d %s\n", fc, current_cluster.size(), p_start, p_end, p_ref.c_str());
+    for (auto &i: current_cluster)
+        fprintf(partition_out_file, "%s %s %d %d\n", i.first.first.c_str(), i.first.second.c_str(), i.second.first, i.second.second);
 }
 
 size_t genome_partition::dump (const vector<pair<pair<string, string>, pair<int,int>>> &vec, FILE *fo, int fc)
@@ -271,7 +290,7 @@ size_t genome_partition::dump (const vector<pair<pair<string, string>, pair<int,
 	int tie= 0;
 	string orphan_info;
 	orphan_info.reserve(20000);
-	
+
 	map<string, vector<int> >::iterator mit;
     Logger::instance().info("CLUSTER ID: %d\n", fc);
 	for (mit=myset.begin(); mit!=myset.end(); mit++)
@@ -279,8 +298,8 @@ size_t genome_partition::dump (const vector<pair<pair<string, string>, pair<int,
 		string revcontent;
 		//fprintf(flog,"readNum: %d\tcontigname: %s\tleft: %d\tright: %d\tforward: %d\treverse: %d\n", nReads, (*mit).first.c_str(), myset[(*mit).first][2], myset[(*mit).first][3], myset[(*mit).first][0], myset[(*mit).first][1]);
         Logger::instance().info("readNum: %d\tcontigname: %s\tleft: %d\tright: %d\tforward: %d\treverse: %d\n", nReads, (*mit).first.c_str(), myset[(*mit).first][2], myset[(*mit).first][3], myset[(*mit).first][0], myset[(*mit).first][1]);
-		
-		int contiglen = map_cont[(*mit).first].length(); 
+
+		int contiglen = map_cont[(*mit).first].length();
 		if(contiglen <= INSSIZE)
 		{
 			if( 0 == myset[(*mit).first][2] )
@@ -289,7 +308,7 @@ size_t genome_partition::dump (const vector<pair<pair<string, string>, pair<int,
 				continue;
 			}
 		}
-		else 
+		else
 		{
 			if((myset[(*mit).first][2]==0|| myset[(*mit).first][3]==0) && myset[(*mit).first][2] +myset[(*mit).first][3] < 0.3*nReads )
 			{
@@ -323,13 +342,14 @@ size_t genome_partition::dump (const vector<pair<pair<string, string>, pair<int,
 	}
 	if ( tie ) { Logger::instance().info("Forward and reverse were in tie condition : %d times.\n", tie);}
 
-	// Actual Partiton Content 
-	size_t pos = ftell(fo);
-	fprintf(fo, "%d %d %d %d %s\n", fc, nReads + acceptedContigNum, p_start, p_end, p_ref.c_str());
-	for (auto &i: vec)
-		fprintf(fo, "%s %s %d %d\n", i.first.first.c_str(), i.first.second.c_str(), i.second.first, i.second.second);
+	// Actual Partiton Content
+//	size_t pos = ftell(fo);
+//	fprintf(fo, "%d %d %d %d %s\n", fc, nReads + acceptedContigNum, p_start, p_end, p_ref.c_str());
+//	for (auto &i: vec)
+//		fprintf(fo, "%s %s %d %d\n", i.first.first.c_str(), i.first.second.c_str(), i.second.first, i.second.second);
 	if ( acceptedContigNum )
 		fprintf(fo, "%s", orphan_info.c_str() );
+	size_t pos = 0;
 	return pos;
 }
 int genome_partition::get_cluster_id ()
@@ -352,6 +372,7 @@ vector<pair<pair<string, string>, pair<int,int>>> genome_partition::read_partiti
 reset:
 	if (start > end)
 		return vector<pair<pair<string, string>, pair<int,int>>>();
+    cluster_count++;
 	start++;
 	fscanf(partition_file, "%d %d %d %d %s\n", &fc, &sz, &p_start, &p_end, pref);
 	p_ref = pref;
@@ -379,12 +400,13 @@ void genome_partition::output_partitions() {
         p = read_partition();
         if (p.size() == 0)
             break;
+        new_dump();
 
-        Logger::instance().info("%d %d %d %d %s\n", get_cluster_id(), p.size(), p_start, p_end, p_ref.c_str());
-        for (auto it = p.begin(); it != p.end(); it++) {
-            Logger::instance().info("%s %s %d %d\n", it->first.first.c_str(), it->first.second.c_str(),
-                                    it->second.first, it->second.second);
-        }
+//        Logger::instance().info("%d %d %d %d %s\n", get_cluster_id(), p.size(), p_start, p_end, p_ref.c_str());
+//        for (auto it = p.begin(); it != p.end(); it++) {
+//            Logger::instance().info("%s %s %d %d\n", it->first.first.c_str(), it->first.second.c_str(),
+//                                    it->second.first, it->second.second);
+//        }
 
     }
 }
