@@ -65,11 +65,9 @@ Below is the list of the all the settings that you can set in your project.
 | raw-data                     | Mandatory | Location of the input files (crams or bams) relative to ``path``.                                                         |
 | population                   | Mandatory | Populuation/cohort name. Note that name cannot contain any space characters.                                                                                                                 |
 | reference                    | Mandatory | Full path to the reference genome.                                                                                                        |
-| read_length                  | Mandatory | Read length of the input reads.                                                                                                       |
 | input                        | Mandatory | A list of input files per individual. Pamir 2.0 accepts BAM and CRAM files as input.       |
 | analysis-base                | Optional  | Location of intermediate files relative to ``path``. default: ``{path}/analysis``|
 | results-base                 | Optional  | Location of final results relative to the ``path``. default: ``{path}/results``  |
-| min_contig_len               | Optional  | Minimum contig length from the external assembler to use. default: ``read_length``  |
 | assembler                    | Optional  | External assembler to use (``minia``, ``abyss``, ``spades``) default: ``minia``                                                                      |
 | assembler_k                  | Optional  | kmer to use for external assembler. default: 47                                                                                      |
 | pamir_partitition_per_thread | Optional  | Number of internal pamir jobs to be completed per thread. This is an advanced settings, modifying this can heavily affect the performance. Too small or too large may affect the performance negatively.  default: 1000                     |
@@ -79,6 +77,8 @@ Below is the list of the all the settings that you can set in your project.
 | assembly_threads             | Optional  | number of threads to use for assembly jobs. default: 62                                                                              |
 | other_threads                | Optional  | number of threads to use for other jobs. default: 16                                                                                 |
 | minia_min_abundance          | Optional  | minia's internal assembly parameter. default: 5|
+| min_contig_len               | Deprecated  | Minimum contig length from the external assembler to use. We know calculate this on the go. |
+| read_length                  | Deprecated | Read length of the input reads.  We know calculate this on the go.                                                                                                     |
 
 
 
@@ -88,8 +88,6 @@ path:
     /full/path/to/project-directory
 raw-data:
     raw-data
-read_length:
-    100
 reference:
     /full/path/to/the/reference.fa
 population:
@@ -112,10 +110,6 @@ pamir.sh  --configfile /path/to/config.yaml -j [number of threads]
 pamir.sh  --configfile /path/to/config.yaml -np [Dry Run] 
 pamir.sh  --configfile /path/to/config.yaml --forceall [rerun all steps regardless of the current stage]
 ```
-
-### Read Length
-Now Pamir only accepts WGS datasets in which two mates of all reads are of **equal length**.
-
 ## Output Formats
 Pamir will generate the following structure.
 Pamir generates a [VCF file](https://samtools.github.io/hts-specs/VCFv4.2.pdf) for detected novel sequence insertions. 
