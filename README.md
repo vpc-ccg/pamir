@@ -65,7 +65,7 @@ Below is the list of the all the settings that you can set in your project.
 | raw-data                     | Mandatory | Location of the input files (crams or bams) relative to ``path``.                                                         |
 | population                   | Mandatory | Populuation/cohort name. Note that name cannot contain any space characters.                                                                                                                 |
 | reference                    | Mandatory | Full path to the reference genome.                                                                                                        |
-| input                        | Deprecated | A list of input files per individual. Pamir 2.0 accepts BAM and CRAM files as input.       |
+| input                        | Mandatory | A list of input files per individual. Pamir 2.0 accepts BAM and CRAM files as input.       |
 | analysis-base                | Optional  | Location of intermediate files relative to ``path``. default: ``{path}/analysis``|
 | results-base                 | Optional  | Location of final results relative to the ``path``. default: ``{path}/results``  |
 | assembler                    | Optional  | External assembler to use (``minia``, ``abyss``, ``spades``) default: ``minia``                                                                      |
