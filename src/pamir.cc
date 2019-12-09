@@ -244,13 +244,13 @@ void assemble (const string &partition_file, const string &reference, const stri
 		// cluster has too many or too few reads
 		if ( p.size() > 7000 || p.size() <= 2 ) {
             Logger::instance().info("-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");
-            Logger::instance().info(" + Cluster ID      : %d\n", pt.get_cluster_id());
+            Logger::instance().info(" + Cluster ID      : %d\n", pt.get_id());
             Logger::instance().info(" + Reads Count     : %lu\n", p.size());
             Logger::instance().info("INFO: Skipped Processing - Too few or Too many reads\n");
             continue;
         }
 		string chrName  = pt.get_reference();
-		int cluster_id  = pt.get_cluster_id();
+		int cluster_id  = pt.get_id();
 		int pt_start    = pt.get_start();
 		int pt_end      = pt.get_end();
 		int ref_start   = pt_start - LENFLAG;
@@ -312,7 +312,7 @@ void assemble (const string &partition_file, const string &reference, const stri
 			int tmp_end = get<1>(reports_lq[j]);
 			tmp_ref_lq += ref.get_base_at(chrName, tmp_end);
 		}
-		append_vcf( chrName, tmp_ref, reports, pt.get_cluster_id(), vcf_info, vcf_info_del);
+		append_vcf( chrName, tmp_ref, reports, pt.get_id(), vcf_info, vcf_info_del);
 		n_buffer++;
 		if ( 0 == n_buffer%MAX_BUFFER )
 		{
@@ -320,7 +320,7 @@ void assemble (const string &partition_file, const string &reference, const stri
 			n_buffer = 0;
 			vcf_info.clear();
 		}
-		append_vcf( chrName, tmp_ref_lq, reports_lq, pt.get_cluster_id(), vcf_info_lq, vcf_info_del);
+		append_vcf( chrName, tmp_ref_lq, reports_lq, pt.get_id(), vcf_info_lq, vcf_info_del);
 		n_buffer2++;
 		/*if (n_buffer==0)
 			n_buffer++;
@@ -365,13 +365,15 @@ int main(int argc, char **argv)
 			    string log_path = argv[3];
 			    log_path+=".log";
                 Logger::instance().info.set_file(log_path.c_str());
+//                Logger::instance().info.set_prefix("[PAMIR] ").toggle_time();
                 genome_partition pt(atoi(argv[4]), argv[2],  argv[5], argv[6], argv[7], argv[3]) ;
-                pt.partify();
+                pt.cluster_reads();
 			}
 			else{ throw "Usage:\tpamir partition [read-file] [output-file] [threshold] [ [orphan-contig] [oea2orphan] ] [mate_file]"; }
 		}
         else if (mode == "get_cluster") {
             if (argc != 4) throw "Usage:\tpamir get_cluster [partition-file] [range]";
+//            Logger::instance().info.set_prefix("[PAMIR] ").toggle_time();
             string log_path = string(argv[3])+".cluster";
             Logger::instance().info.set_file(log_path.c_str());
             genome_partition pt(argv[2], argv[3]);

@@ -16,13 +16,12 @@ private:
     FILE* partition_out_index_file;
     FILE* partition_out_count_file;
 
-    int cluster_count = 0;
-
-
+    int partition_count = 0;
+    int partition_id = 0;
 
 	int distance;
 
-    int fc;
+//    int fc;
     int p_start;
     int p_end;
     string p_ref;
@@ -62,7 +61,7 @@ public:
 
 
     void new_dump();
-    void partify ();
+    void cluster_reads ();
 	int load_orphan( const string &orphan_contig, const string &oea2orphan);
 	int load_oea_mates (const string &mate_file) ;
 
@@ -76,7 +75,7 @@ public:
 	int get_end (void);
 	string get_reference (void);
 	void output_partitions();
-	int get_cluster_id ();
+	int get_id ();
 };
 
 
