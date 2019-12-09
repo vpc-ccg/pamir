@@ -284,14 +284,14 @@ void genome_partition::new_dump() {
         fprintf(partition_out_file, "%s %s %d %d\n", i.first.first.c_str(), i.first.second.c_str(), i.second.first, i.second.second);
 }
 
-size_t genome_partition::dump (const vector<pair<pair<string, string>, pair<int,int>>> &vec, FILE *fo, int partition_id)
-{
+size_t genome_partition::dump (const vector<pair<pair<string, string>, pair<int,int>>> &vec, FILE *fo, int partition_id){
+    vector<pair<pair<string, string>, pair<int,int>>> append_cluster;
 	// Inserting possible orphan contig
 	int acceptedContigNum =0;
 	int nReads = (int)vec.size();
 	int tie= 0;
-	string orphan_info;
-	orphan_info.reserve(20000);
+	//string orphan_info;
+	//orphan_info.reserve(20000);
 
 	map<string, vector<int> >::iterator mit;
     Logger::instance().info("CLUSTER ID: %d\n", partition_id);
@@ -320,11 +320,14 @@ size_t genome_partition::dump (const vector<pair<pair<string, string>, pair<int,
 		}
 		if( myset[(*mit).first][0] ==  myset[(*mit).first][1] )
 		{
-			orphan_info += (*mit).first + " " + map_cont[(*mit).first] + " 0 -1\n";
+            append_cluster.push_back({{mit->first, map_cont[(*mit).first]},{0,-1}});
+//			orphan_info += (*mit).first + " " + map_cont[(*mit).first] + " 0 -1\n";
 			string content = map_cont[(*mit).first];
 			revcontent = reverse_complement(content);
-			orphan_info += (*mit).first + "_rv " + revcontent+ " 0 -1\n";
-			tie++;
+//			orphan_info += (*mit).first + "_rv " + revcontent+ " 0 -1\n";
+            append_cluster.push_back({{mit->first, revcontent},{0,-1}});
+
+tie++;
 			acceptedContigNum +=2;
 		}
 		else
@@ -338,7 +341,8 @@ size_t genome_partition::dump (const vector<pair<pair<string, string>, pair<int,
 				string content = map_cont[(*mit).first];
 				revcontent = reverse_complement(content);
 			}
-			orphan_info += (*mit).first + " " + revcontent+ " 0 -1\n";
+			append_cluster.push_back({{mit->first, revcontent},{0,-1}});
+//	orphan_info += (*mit).first + " " + revcontent+ " 0 -1\n";
 			acceptedContigNum ++;
 		}
 	}
@@ -349,10 +353,12 @@ size_t genome_partition::dump (const vector<pair<pair<string, string>, pair<int,
 //	fprintf(fo, "%d %d %d %d %s\n", partition_id, nReads + acceptedContigNum, p_start, p_end, p_ref.c_str());
 //	for (auto &i: vec)
 //		fprintf(fo, "%s %s %d %d\n", i.first.first.c_str(), i.first.second.c_str(), i.second.first, i.second.second);
-	if ( acceptedContigNum )
-		fprintf(fo, "%s", orphan_info.c_str() );
-	size_t pos = 0;
-	return pos;
+	if ( acceptedContigNum ){
+	    current_cluster.insert(current_cluster.begin(), append_cluster.begin(), append_cluster.end());
+	}
+	//	fprintf(fo, "%s", orphan_info.c_str() );
+	//size_t pos = 0;
+	return append_cluster.size();
 }
 int genome_partition::get_id ()
 {
