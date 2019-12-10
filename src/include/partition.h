@@ -33,16 +33,17 @@ private:
 
 
 
-    //TODO: properly rename it to current_cluster;
-	vector<pair<pair<string, string>, pair<int,int> > > current_cluster;
 
-	unordered_set<string> read_cache;    // no IDEA
+
 	unordered_map<string, string> oea_mate;
-	map<string, vector<vector<string> > > map_token;
+	map<string, vector<vector<string> > > oea2contig;
 	map<string, string> map_cont;
 	// insert orphan into clusters
-	map<string, vector<int> > orphan_contig_stats;
 
+	// Orphan contig stats specific to current cluster
+	map<string, vector<int> > orphan_contig_stats;
+    //TODO: properly rename it to current_cluster;
+    vector<pair<pair<string, string>, pair<int,int> > > current_cluster;
 
 
 	gzFile fp;
@@ -51,8 +52,10 @@ private:
 	const int INSSIZE=450;
 
 private:
-	bool add_read (string, int, int);
-    void update_clusters_with_orphan_contigs ();
+	void add_read (string, int, int);
+    void update_clusters_with_orphan_contigs ( );
+    void dump();
+    bool has_next (void);
 public:
 	genome_partition (const string&, const string&);
 	genome_partition (int, const string&,  const string&, const string&, const string&, const string &);
@@ -60,15 +63,15 @@ public:
 	genome_partition(const string&);
 
 
-    void new_dump();
+
     void cluster_reads ();
 	int load_orphan( const string &orphan_contig, const string &oea2orphan);
 	int load_oea_mates (const string &mate_file) ;
 
-	vector<pair<pair<string, string>, pair<int,int> > > get_next (void);
+	void get_next (void);
 	vector<pair<pair<string, string>, pair<int,int> > > read_partition ();
 
-	bool has_next (void);
+
 
 
 	int get_start (void);
