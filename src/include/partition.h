@@ -41,7 +41,7 @@ private:
 	map<string, vector<vector<string> > > map_token;
 	map<string, string> map_cont;
 	// insert orphan into clusters
-	map<string, vector<int> > myset;
+	map<string, vector<int> > orphan_contig_stats;
 
 
 
@@ -52,7 +52,7 @@ private:
 
 private:
 	bool add_read (string, int, int);
-
+    void update_clusters_with_orphan_contigs ();
 public:
 	genome_partition (const string&, const string&);
 	genome_partition (int, const string&,  const string&, const string&, const string&, const string &);
@@ -69,7 +69,7 @@ public:
 	vector<pair<pair<string, string>, pair<int,int> > > read_partition ();
 
 	bool has_next (void);
-	size_t update_clusters_with_orphan_contigs (const vector<pair<pair < string, string>, pair<int, int>>>&, FILE*, int);
+
 
 	int get_start (void);
 	int get_end (void);

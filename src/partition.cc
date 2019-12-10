@@ -81,7 +81,7 @@ void genome_partition::cluster_reads() {
     while (has_next()) {
         auto p = get_next();
         partition_count++;
-        size_t i = update_clusters_with_orphan_contigs(p, partition_out_file, partition_id);
+        update_clusters_with_orphan_contigs();
         new_dump();
         partition_id++;
     }
@@ -199,25 +199,25 @@ bool genome_partition::add_read (string read_name, int flag, int loc)
 		if (map_token.find(read_name) != map_token.end()) {
 			vector<vector<string> >::iterator nit;
 			for (nit=map_token[read_name].begin(); nit != map_token[read_name].end(); nit++){
-				if (myset.find((*nit)[0]) == myset.end()) {
+				if (orphan_contig_stats.find((*nit)[0]) == orphan_contig_stats.end()) {
 					vector<int> tmpev;
 					tmpev.push_back(0);
 					tmpev.push_back(0);
 					tmpev.push_back(0);
 					tmpev.push_back(0);
-					myset[(*nit)[0]] = tmpev;
+					orphan_contig_stats[(*nit)[0]] = tmpev;
 					//fprintf( stdout, "F_%s_F\n", (*nit)[0].c_str() );
 				}
 
 				if (sign != (*nit)[1][0])
-					myset[(*nit)[0]][1]++;
+					orphan_contig_stats[(*nit)[0]][1]++;
 				else
-					myset[(*nit)[0]][0]++;
+					orphan_contig_stats[(*nit)[0]][0]++;
 
 				if ((*nit)[2] == "l")
-					myset[(*nit)[0]][2]++;
+					orphan_contig_stats[(*nit)[0]][2]++;
 				else
-					myset[(*nit)[0]][3]++;
+					orphan_contig_stats[(*nit)[0]][3]++;
 			}
 		}
 
@@ -250,7 +250,7 @@ vector<pair<pair<string, string>, pair<int,int>>> genome_partition::get_next ()
 {
 	current_cluster.clear();
 	read_cache.clear();
-	myset.clear();
+	orphan_contig_stats.clear();
 
 	char read_name[1000], ref_name[1000];
 	int flag, loc;
@@ -284,63 +284,55 @@ void genome_partition::new_dump() {
         fprintf(partition_out_file, "%s %s %d %d\n", i.first.first.c_str(), i.first.second.c_str(), i.second.first, i.second.second);
 }
 
-size_t genome_partition::update_clusters_with_orphan_contigs (const vector<pair<pair<string, string>, pair<int,int>>> &vec, FILE *fo,
-    int partition_id){
-    vector<pair<pair<string, string>, pair<int,int> > > append_cluster;
-	// Inserting possible orphan contig
-	int acceptedContigNum =0;
-	int nReads = (int)vec.size();
-	int tie= 0;
+void genome_partition::update_clusters_with_orphan_contigs() {
 
-	map<string, vector<int> >::iterator mit;
+    bool tie = false;
+    size_t nReads = current_cluster.size();
+
     Logger::instance().info("CLUSTER ID: %d\n", partition_id);
-	for (mit=myset.begin(); mit!=myset.end(); mit++){
-		string revcontent;
-        Logger::instance().info("readNum: %d\tcontigname: %s\tleft: %d\tright: %d\tforward: %d\treverse: %d\n", nReads,(*mit).first.c_str(), myset[(*mit).first][2], myset[(*mit).first][3], myset[(*mit).first][0], myset[(*mit).first][1]);
+    for (auto mit = orphan_contig_stats.begin(); mit != orphan_contig_stats.end(); mit++) {
 
-		int contiglen = map_cont[(*mit).first].length();
-		if(contiglen <= INSSIZE){
-			if( 0 == myset[(*mit).first][2]){
-			    Logger::instance().info("Short contig and no left or right flank supporters\n");
-				continue;
-			}
-		}
-		else {
-			if((myset[(*mit).first][2]==0|| myset[(*mit).first][3]==0) && myset[(*mit).first][2] +myset[(*mit).first][3] < 0.3*nReads ){
-                Logger::instance().info("either no OEAs mapping on left or right flank and not enough left + right flank support < 30%%\n");
-				continue;
-			}
-		}
-		if( myset[(*mit).first][0] ==  myset[(*mit).first][1]){
-            append_cluster.push_back({{mit->first, map_cont[(*mit).first]},{0,-1}});
-			string content = map_cont[(*mit).first];
-			revcontent = reverse_complement(content);
-            append_cluster.push_back({{mit->first, revcontent},{0,-1}});
+        Logger::instance().info("readNum: %lu\tcontigname: %s\tleft: %d\tright: %d\tforward: %d\treverse: %d\n", nReads,
+                                (*mit).first.c_str(), orphan_contig_stats[(*mit).first][2],
+                                orphan_contig_stats[(*mit).first][3], orphan_contig_stats[(*mit).first][0],
+                                orphan_contig_stats[(*mit).first][1]);
 
-            ++tie;
-			acceptedContigNum +=2;
-		}
-		else {
-			if(myset[(*mit).first][0] > myset[(*mit).first][1]){
-				revcontent = map_cont[(*mit).first];
-			}
-			else if(myset[(*mit).first][1] > myset[(*mit).first][0]){
-				string content = map_cont[(*mit).first];
-				revcontent = reverse_complement(content);
-			}
-			append_cluster.push_back({{mit->first, revcontent},{0,-1}});
-			acceptedContigNum ++;
-		}
-	}
-	if (tie){
-	    Logger::instance().info("Forward and reverse were in tie condition : %d times.\n", tie);
-	}
+        int contiglen = map_cont[(*mit).first].length();
+        if (contiglen <= INSSIZE) {
+            if (0 == orphan_contig_stats[(*mit).first][2]) {
+                Logger::instance().info("Short contig and no left flank supporters\n");
+                continue;
+            }
+        }
+        else{
+            if ((orphan_contig_stats[(*mit).first][2] == 0 || orphan_contig_stats[(*mit).first][3] == 0) &&
+                orphan_contig_stats[(*mit).first][2] + orphan_contig_stats[(*mit).first][3] < 0.3 * nReads) {
+                Logger::instance().info(
+                    "either no OEAs mapping on left or right flank and not enough left + right flank support < 30%%\n");
+                continue;
+            }
+        }
+        string content = map_cont[(*mit).first];
+        if (orphan_contig_stats[(*mit).first][0] == orphan_contig_stats[(*mit).first][1]) {
+            current_cluster.push_back({{mit->first, map_cont[(*mit).first]},
+                                       {0,          -1}});
+            current_cluster.push_back({{mit->first, reverse_complement(content)},
+                                       {0,          -1}});
+            tie = true;
+        } else {
+            if (orphan_contig_stats[(*mit).first][0] > orphan_contig_stats[(*mit).first][1]) {
+                current_cluster.push_back({{mit->first, content},
+                                           {0,          -1}});
+            } else if (orphan_contig_stats[(*mit).first][1] > orphan_contig_stats[(*mit).first][0]) {
+                current_cluster.push_back({{mit->first, reverse_complement(content)},
+                                           {0,          -1}});
+            }
 
-	if (acceptedContigNum){
-	    current_cluster.insert(current_cluster.end(), append_cluster.begin(), append_cluster.end());
-	}
-
-	return append_cluster.size();
+        }
+    }
+    if (tie) {
+        Logger::instance().info("Forward and reverse were in tie condition : %d times.\n", tie);
+    }
 }
 
 int genome_partition::get_id ()
@@ -349,9 +341,7 @@ int genome_partition::get_id ()
 }
 
 //read next partition
-vector <pair<pair < string, string>, pair<int, int>>>
-
-genome_partition::read_partition() {
+vector <pair<pair < string, string>, pair<int, int>>> genome_partition::read_partition() {
 
 	int sz, i;
 	char pref[MAXB];
