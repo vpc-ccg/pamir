@@ -354,7 +354,7 @@ tie++;
 //	for (auto &i: vec)
 //		fprintf(fo, "%s %s %d %d\n", i.first.first.c_str(), i.first.second.c_str(), i.second.first, i.second.second);
 	if ( acceptedContigNum ){
-	    current_cluster.insert(current_cluster.begin(), append_cluster.begin(), append_cluster.end());
+	    current_cluster.insert(current_cluster.end(), append_cluster.begin(), append_cluster.end());
 	}
 	//	fprintf(fo, "%s", orphan_info.c_str() );
 	//size_t pos = 0;

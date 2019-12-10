@@ -4,19 +4,19 @@ def cfg_default( key, val):
     if key not in config:
         config[key] = val
 
-def cfg_mandatory( key):
-    
+def cfg_mandatory( key):   
     assert key in config, "{} is a mandatory field in config".format(key)
     
+def cfg_optional( key):
+    pass
 
 assembler_binaries = {"minia":"minia","abyss":"abyss-pe","spades":"spades.py"}
 
 cfg_mandatory("path")
-cfg_mandatory("read_length")
 cfg_mandatory("reference")
 cfg_mandatory("raw-data")
 cfg_mandatory("centromeres")
-#cfg_mandatory("blastdb")
+
 cfg_mandatory("input")
 cfg_mandatory("population")
 
@@ -33,11 +33,15 @@ cfg_default("genotyping_flank_size",1000)
 cfg_default("linked-data", config["analysis"] + "/linked-data")
 cfg_default("assembler","minia")
 cfg_default("assembler_k", 64)
-cfg_default("pamir_min_contig_len", config["read_length"])
 cfg_default("assembly_threads",62)
 cfg_default("aligner_threads", 16)
 cfg_default("other_threads",16)
 cfg_default("minia_min_abundance",5)
+cfg_default("n_std_dev",3)
+
+cfg_optional("pamir_min_contig_len")
+cfg_optional("blastdb")
+
 
 def tool_exists(name):
     from shutil import which
@@ -983,7 +987,7 @@ rule pamir_assemble_full_new:
 
 rule recalibrate_oea_to_orphan:
     input:
-        lookup=config["analysis"]+"/"+config["assembler"]+"/reads.contigs.filtered.clean.merged.fa.lookup",
+        lookup=config["analysis"]+"/"+config["assembler"]+"/{sample}.reads.contigs.filtered.clean.merged.fa.lookup",
         bam=config["analysis"]+"/rem-cor/{sample}/{sample}.oea2orphan.bam"
     output:
         config["analysis"]+"/rem-cor/{sample}/{sample}.oea2orphan.recalib.sam"
@@ -995,7 +999,7 @@ rule pamir_partition:
         sam=config["analysis"]+"/rem-cor/{sample}/{sample}.anchor.sorted.sam",
         oea2orphan=config["analysis"]+"/rem-cor/{sample}/{sample}.oea2orphan.recalib.sam",
         oea_unmapped=config["analysis"]+"/rem-cor/{sample}/{sample}.oea.unmapped.fq",
-        contigs=config["analysis"]+"/"+config["assembler"]+"/reads.contigs.filtered.clean.fa",
+        contigs=config["analysis"]+"/"+config["assembler"]+"/{sample}.reads.contigs.filtered.clean.fa",
     output:
         partition=config["analysis"]+"/pamir/partition/{sample}/partition",
         cluster_count=config["analysis"]+"/pamir/partition/{sample}/partition.count",
@@ -1007,20 +1011,20 @@ rule pamir_partition:
 
 rule merge_contigs:
     input:
-        config["analysis"]+"/"+config["assembler"]+"/reads.contigs.filtered.clean.fa"
+        config["analysis"]+"/"+config["assembler"]+"/{sample}.reads.contigs.filtered.clean.fa"
     output:
-        single=config["analysis"]+"/"+config["assembler"]+"/reads.contigs.filtered.clean.single.fa", 
-        merged=config["analysis"]+"/"+config["assembler"]+"/reads.contigs.filtered.clean.merged.fa",
-        index=config["analysis"]+"/"+config["assembler"]+"/reads.contigs.filtered.clean.merged.fa.lookup", 
+        single=config["analysis"]+"/"+config["assembler"]+"/{sample}.reads.contigs.filtered.clean.single.fa", 
+        merged=config["analysis"]+"/"+config["assembler"]+"/{sample}.reads.contigs.filtered.clean.merged.fa",
+        index=config["analysis"]+"/"+config["assembler"]+"/{sample}.reads.contigs.filtered.clean.merged.fa.lookup", 
     script:
         "./scripts/prep-ctgs.py"
 
 if "blastdb" in config:
     rule blast_contigs:
         input:
-            config["analysis"]+"/"+config["assembler"]+"/reads.contigs.filtered.fa"
+            config["analysis"]+"/"+config["assembler"]+"/contigs.fasta"
         output:
-            config["analysis"]+"/"+config["assembler"]+"/reads.contigs.filtered.megablast"
+            config["analysis"]+"/"+config["assembler"]+"/contigs.megablast"
         threads:
             config["other_threads"],
         params:
@@ -1030,46 +1034,53 @@ if "blastdb" in config:
 
     rule find_contaminations:
         input:
-            config["analysis"]+"/"+config["assembler"]+"/reads.contigs.filtered.megablast",
+            config["analysis"]+"/"+config["assembler"]+"/contigs.megablast",
         output:
-            config["analysis"]+"/"+config["assembler"]+"/reads.contigs.filtered.megablast.tabular",
+            config["analysis"]+"/"+config["assembler"]+"/contigs.megablast.tabular",
         shell:
             "cat {input} | tr '\\n' '\\t' | sed 's/Query=/\\nQuery=/g'  | grep -v \"No hits found\" |awk 'NR>1' | cut -f 1 | awk '{{print $2;}}' >{output}"
     
     rule clean_contigs:
         input:
-            fasta=config["analysis"]+"/"+config["assembler"]+"/reads.contigs.filtered.fa",
-            mb=config["analysis"]+"/"+config["assembler"]+"/reads.contigs.filtered.megablast.tabular",
+            fasta=config["analysis"]+"/"+config["assembler"]+"/contigs.fasta",
+            mb=config["analysis"]+"/"+config["assembler"]+"/contigs.megablast.tabular",
         output:
-            config["analysis"]+"/"+config["assembler"]+"/reads.contigs.filtered.clean.fa"
+            config["analysis"]+"/"+config["assembler"]+"/contigs.clean.fa"
         shell:
             "python scripts/remove_contaminations.py {input.mb} {input.fasta} {output}"
 
 else:
     rule mock_clean_contigs:
         input:
-            fasta=config["analysis"]+"/"+config["assembler"]+"/reads.contigs.filtered.fa",
+            fasta=config["analysis"]+"/"+config["assembler"]+"/contigs.fasta",
         output:
-            config["analysis"]+"/"+config["assembler"]+"/reads.contigs.filtered.clean.fa"
+            config["analysis"]+"/"+config["assembler"]+"/contigs.clean.fa"
         shell:
             "ln -s {input} {output}"
 
 rule filter_contigs:
     input:
-        config["analysis"]+"/"+config["assembler"]+"/contigs.fasta"
+        fa=config["analysis"]+"/"+config["assembler"]+"/contigs.clean.fa",
+        json=config["analysis"]+"/rem-cor/{sample}/{sample}.stats.json",
     output:
-        config["analysis"]+"/"+config["assembler"]+"/reads.contigs.filtered.fa"
-    params:
-        pamir_min_contig_len=config["pamir_min_contig_len"],
+        config["analysis"]+"/"+config["assembler"]+"/{sample}.reads.contigs.filtered.clean.fa"
     run:
-        with open(input[0],'r') as hand, open(output[0],'w+') as arm:
+        import json
+        with open(input.json, 'r') as jhand:
+            stat_cfg = json.load(jhand)
+        if "pamir_min_contig_len" in config:
+            min_ctg_len = config["pamir_min_contig_len"]
+        else:
+            min_ctg_len = stat_cfg["read_len"]
+
+        with open(input.fa,'r') as hand, open(output[0],'w+') as arm:
             line = hand.readline()
             while line != '':
                 if line[0] != '>':
                     raise Exception('multi line fastas not good')
                 header = line.rstrip()
                 line = hand.readline()
-                if len(line) > params.pamir_min_contig_len + 1: #Plus 1 for endline
+                if len(line) > min_ctg_len + 1: #Plus 1 for endline
                     print(header,file=arm)
                     print(line.rstrip(),file=arm)
                 line = hand.readline()
@@ -1150,8 +1161,8 @@ rule bam_sort:
 rule mrsfast_oea_unmapped_contig_map_tail_cropped:
     input:
         nohit=config["analysis"]+"/rem-cor/{sample}/{sample}.oea.unmapped.sam.nohit",
-        contigs=config["analysis"]+"/"+config["assembler"]+"/reads.contigs.filtered.clean.merged.fa",
-        index=config["analysis"]+"/"+config["assembler"]+"/reads.contigs.filtered.clean.merged.fa.index",
+        contigs=config["analysis"]+"/"+config["assembler"]+"/{sample}.reads.contigs.filtered.clean.merged.fa",
+        index=config["analysis"]+"/"+config["assembler"]+"/{sample}.reads.contigs.filtered.clean.merged.fa.index",
     output:
         sam=config["analysis"]+"/rem-cor/{sample}/{sample}.oea.unmapped.tail.sam",
     params:
@@ -1167,8 +1178,8 @@ rule mrsfast_oea_unmapped_contig_map_tail_cropped:
 rule mrsfast_oea_unmapped_contig_map_cropped:
     input:
         nohit=config["analysis"]+"/rem-cor/{sample}/{sample}.oea.unmapped.sam.nohit",
-        contigs=config["analysis"]+"/"+config["assembler"]+"/reads.contigs.filtered.clean.merged.fa",
-        index=config["analysis"]+"/"+config["assembler"]+"/reads.contigs.filtered.clean.merged.fa.index",
+        contigs=config["analysis"]+"/"+config["assembler"]+"/{sample}.reads.contigs.filtered.clean.merged.fa",
+        index=config["analysis"]+"/"+config["assembler"]+"/{sample}.reads.contigs.filtered.clean.merged.fa.index",
     output:
         sam=config["analysis"]+"/rem-cor/{sample}/{sample}.oea.unmapped.front.sam",
     params:
@@ -1184,8 +1195,8 @@ rule mrsfast_oea_unmapped_contig_map_cropped:
 rule mrsfast_oea_unmapped_contig_map:
     input:
         oea=config["analysis"]+"/rem-cor/{sample}/{sample}.oea.unmapped.fq", 
-        contigs=config["analysis"]+"/"+config["assembler"]+"/reads.contigs.filtered.clean.merged.fa",
-        index=config["analysis"]+"/"+config["assembler"]+"/reads.contigs.filtered.clean.merged.fa.index",
+        contigs=config["analysis"]+"/"+config["assembler"]+"/{sample}.reads.contigs.filtered.clean.merged.fa",
+        index=config["analysis"]+"/"+config["assembler"]+"/{sample}.reads.contigs.filtered.clean.merged.fa.index",
     output:
         sam=config["analysis"]+"/rem-cor/{sample}/{sample}.oea.unmapped.sam",
         nohit=config["analysis"]+"/rem-cor/{sample}/{sample}.oea.unmapped.sam.nohit"
@@ -1254,6 +1265,66 @@ rule link_cram:
         "ln -s {input} {output}"
 
        # CRAMS=config["path"]+config["raw-data"],
+"""
+Total Number of Reads: 1790291
+# of Primary Mappings: 1790291
+  # of Supp. Mappings: 1
+
+Original:
+Concordant: 1748701
+Discordant: 2396
+  Chimeric: 143
+       OEA: 10166
+    Orphan: 28885
+
+Processed:
+Concordant: 1747025
+Discordant: 806
+  Chimeric: 0
+       OEA: 11932
+    Orphan: 30528
+
+Read Length Range: [100, 100]
+
+TLEN:
+Range: [454, 545]
+ Mean: 499.50
+  Std: 26.56
+"""
+
+rule make_read_config:
+    input:
+        statfile=config["analysis"]+"/rem-cor/{sample}/{sample}.stat",
+    output:
+        json=config["analysis"]+"/rem-cor/{sample}/{sample}.stats.json",
+    run:
+        import json
+        stats_prep_cfg = {}       
+        with open(input.statfile, 'r') as hand:
+            for line in hand:
+                fields = line.strip().split(": ")
+                if len(fields) > 1:
+                    stats_prep_cfg[fields[0]] = fields[1]
+
+
+        rrange = stats_prep_cfg["Read Length Range"].replace("[","").replace("]","").split(", ")
+        assert int(rrange[0]) == int(rrange[1]), "Error:\nVariable read length detected!\nRead lengths MUST be consistent within each input BAM/CRAM file!"
+        stats_cfg = {}
+
+        stats_cfg["read_len"] = int(rrange[0])
+        if "tlen_min" in config:
+            stats_cfg["tlen_min"] = config["tlen_min"]
+        else:
+            stats_cfg["tlen_min"] = int(float(stats_prep_cfg["Mean"]) - float(config["n_std_dev"]) * float(stats_prep_cfg["Std"]))  
+        
+        if "tlen_max" in config:
+            stats_cfg["tlen_max"] = config["tlen_max"]
+        else:
+            stats_cfg["tlen_max"] = int(float(stats_prep_cfg["Mean"]) + float(config["n_std_dev"]) * float(stats_prep_cfg["Std"]))  
+
+        with open(output.json, 'w') as jhand:
+            print(json.dumps(stats_cfg, indent=4, sort_keys=True), file=jhand)
+
 rule cram_split:
     input:
         get_cram_name
@@ -1263,6 +1334,7 @@ rule cram_split:
         oea_mapped=config["analysis"]+"/rem-cor/{sample}/{sample}.oea.mapped.fq",
         oea_unmapp=config["analysis"]+"/rem-cor/{sample}/{sample}.oea.unmapped.fq", 
         al=config["analysis"]+"/rem-cor/{sample}/{sample}.all_interleaved.fastq",
+        statfile=config["analysis"]+"/rem-cor/{sample}/{sample}.stat",
     params:
         analysis=config["analysis"]+"/rem-cor",
         REF=config["reference"],
