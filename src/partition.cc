@@ -13,21 +13,24 @@
 
 using namespace std;
 
-genome_partition::genome_partition (const string & out_prefix){
-    partition_out_file = fopen(out_prefix.c_str(), "wb");
-    if (partition_out_file == NULL)
-        throw("[Genome Partition] Cannot open the file.");
-
-    partition_out_index_file = fopen((out_prefix + ".idx").c_str(), "wb");
-    if (partition_out_index_file == NULL)
-        throw("[Genome Partition] Cannot open the file.");
-
-    partition_out_count_file = fopen((out_prefix + ".count").c_str(), "w");
-    if (partition_out_count_file == NULL)
-        throw("[Genome Partition] Cannot open the file.");
+genome_partition::genome_partition (const string & out_prefix, bool write_to_files): partition_out_file(NULL), partition_out_index_file(NULL), partition_out_count_file(NULL), fp(NULL){
+    if(write_to_files){
+        partition_out_file = fopen(out_prefix.c_str(), "wb");
+        if (partition_out_file == NULL){
+            throw("[Genome Partition] Cannot open the file.");
+        }
+        partition_out_index_file = fopen((out_prefix + ".idx").c_str(), "wb");
+        if (partition_out_index_file == NULL){
+            throw("[Genome Partition] Cannot open the file.");
+        }
+        partition_out_count_file = fopen((out_prefix + ".count").c_str(), "w");
+        if (partition_out_count_file == NULL){
+            throw("[Genome Partition] Cannot open the file.");
+        }
+    }
 }
 
-genome_partition::genome_partition (const string &partition_file_path, const string &range):genome_partition(range) {
+genome_partition::genome_partition (const string &partition_file_path, const string &range, bool write_to_file):genome_partition(range, write_to_file) {
     // extracting range [start,end]
     size_t pos;
     start = stoi (range, &pos);
@@ -61,7 +64,7 @@ genome_partition::genome_partition (const string &partition_file_path, const str
     fseek(partition_file, offsets[start-1], SEEK_SET);
 }
 
-genome_partition::genome_partition(int dist, const string &filename, const string &contig_file, const string &oea2orphan, const string& mate_file ,const string &output):genome_partition(output) {
+genome_partition::genome_partition(int dist, const string &filename, const string &contig_file, const string &oea2orphan, const string& mate_file ,const string &output):genome_partition(output, true) {
 
     load_orphan( contig_file, oea2orphan);
     load_oea_mates (mate_file);
@@ -88,21 +91,23 @@ void genome_partition::cluster_reads() {
 }
 
 
-genome_partition::~genome_partition ()
-{
-    fprintf(partition_out_count_file, "%d\n", partition_count);
-
-	if (fp) gzclose(fp);
-
-	if (partition_out_file != NULL)
-	    fclose (partition_out_file);
-
-    if (partition_out_index_file != NULL)
+genome_partition::~genome_partition (){
+    if( fp != NULL){
+        gzclose(fp);
+    }
+    if (partition_file != NULL){
+        fclose(partition_file);
+    }
+    if (partition_out_file != NULL){
+        fclose (partition_out_file);
+    }
+    if (partition_out_index_file != NULL){
         fclose (partition_out_index_file);
-
-    if (partition_out_count_file != NULL)
+    }
+    if (partition_out_count_file != NULL){
+        fprintf(partition_out_count_file, "%d\n", partition_count);
         fclose (partition_out_count_file);
-
+    }
 }
 
 int genome_partition::load_oea_mates ( const string &mate_file) {

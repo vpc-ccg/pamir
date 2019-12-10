@@ -376,7 +376,7 @@ int main(int argc, char **argv)
 //            Logger::instance().info.set_prefix("[PAMIR] ").toggle_time();
             string log_path = string(argv[3])+".cluster";
             Logger::instance().info.set_file(log_path.c_str());
-            genome_partition pt(argv[2], argv[3]);
+            genome_partition pt(argv[2], argv[3], true);
             pt.output_partitions();
         }
 		else if (mode=="header"){

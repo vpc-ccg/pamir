@@ -57,10 +57,10 @@ private:
     void dump();
     bool has_next (void);
 public:
-	genome_partition (const string&, const string&);
+	genome_partition (const string&, const string&, bool write_to_file = false);
 	genome_partition (int, const string&,  const string&, const string&, const string&, const string &);
 	~genome_partition (void);
-	genome_partition(const string&);
+	genome_partition(const string&, bool);
 
 
 
