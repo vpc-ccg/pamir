@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import os, sys, errno, argparse, subprocess, fnmatch, configparser, shutil
 
+import json
 
 def usage():
     print('\nUsage: python filtering.py VCF REF mrsFAST-min mrsFAST-max workdir TLEN THREADS samplenum  read_len')
@@ -40,22 +41,30 @@ def get_bed_seq( ref_dict, ref, start, end):
 ################################
 def main():
     args = sys.argv[1:]
-    if len(args) != 9:
+    if len(args) != 7:
         usage()
     REF            =    sys.argv[2]
     FILE        =    sys.argv[1]
     #mrsfast min
-    MIN            =    sys.argv[3]
+#    MIN            =    sys.argv[3]
     #mrsfast max
-    MAX            =    sys.argv[4]
-    workdir        =     sys.argv[5]
+#    MAX            =    sys.argv[4]
+    workdir        =     sys.argv[3]
     #how many bp before the breakpoint and after the breakpoint on ref to get. (1000 for now)
-    TLEN        =    int(sys.argv[6])
-    THREADS        =   int(sys.argv[7])
+    TLEN        =    int(sys.argv[4])
+    THREADS        =   int(sys.argv[5])
     #samples_txt = sys.argv[8]
-    all_reads_fastq = sys.argv[8]
+    all_reads_fastq = sys.argv[6]
     MRSFAST        = "mrsfast"
-    readlength = int(sys.argv[9])
+#    readlength = int(sys.argv[9])
+    config_json = sys.argv[7]
+    with open(config_json , 'r') as hand:
+        cfg = json.load(hand)
+
+    MIN = cfg["tlen_min"]
+    MAX = cfg["tlen_max"]
+    readlength = cfg["read_len"]
+
     RECALIBRATE = "./pamir recalibrate"
     folder  ="{0}/filtering".format(workdir)
     os.system("mkdir -p {0}".format(folder))

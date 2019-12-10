@@ -779,6 +779,7 @@ rule filter_vcf:
         vcf=config["analysis"]+"/pamir/assembly/{sample}/all.sorted.vcf",
         fq=config["analysis"]+"/rem-cor/{sample}/{sample}.all_interleaved.fastq",
         header=config["analysis"]+"/pamir/header.vcf",
+        statfile=config["analysis"]+"/rem-cor/{sample}/{sample}.stats.json",
     output:
         vcf=config["analysis"]+"/pamir/annotation/{sample}/filtered.vcf",
         sam=config["analysis"]+"/pamir/annotation/{sample}/filtering/seq.mrsfast.recal.sam.sorted",
@@ -787,13 +788,13 @@ rule filter_vcf:
         ref=config["reference"],
         tlen=1000,
         wd=config["analysis"]+"/pamir/annotation",
-        min_insert=0,
-        max_insert=1000,
-        read_len=config["read_length"],
+#        min_insert=0,
+#        max_insert=1000,
+#        read_len=config["read_length"],
     threads:
         config["aligner_threads"]
     shell:
-        "python scripts/filtering.py {input.vcf} {params.ref} {params.min_insert} {params.max_insert} {params.wd}/{wildcards.sample}/ {params.tlen} {threads} {input.fq} {params.read_len} && cat {input.header} {input.vcf}_filtered > {output.vcf}"
+        "python scripts/filtering.py {input.vcf} {params.ref} {params.wd}/{wildcards.sample}/ {params.tlen} {threads} {input.fq} {input.statfile} && cat {input.header} {input.vcf}_filtered > {output.vcf}"
          
 rule sort_vcf:
     input:    
@@ -1065,12 +1066,12 @@ rule filter_contigs:
     output:
         config["analysis"]+"/"+config["assembler"]+"/{sample}.reads.contigs.filtered.clean.fa"
     run:
-        import json
-        with open(input.json, 'r') as jhand:
-            stat_cfg = json.load(jhand)
         if "pamir_min_contig_len" in config:
             min_ctg_len = config["pamir_min_contig_len"]
         else:
+            import json
+            with open(input.json, 'r') as jhand:
+                stat_cfg = json.load(jhand)
             min_ctg_len = stat_cfg["read_len"]
 
         with open(input.fa,'r') as hand, open(output[0],'w+') as arm:
