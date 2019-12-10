@@ -69,7 +69,7 @@ public:
 	vector<pair<pair<string, string>, pair<int,int> > > read_partition ();
 
 	bool has_next (void);
-	size_t dump (const vector<pair<pair<string, string>, pair<int, int>>>&, FILE*, int);
+	size_t update_clusters_with_orphan_contigs (const vector<pair<pair < string, string>, pair<int, int>>>&, FILE*, int);
 
 	int get_start (void);
 	int get_end (void);
