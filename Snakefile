@@ -71,7 +71,8 @@ rule make_results:
         fa=expand("{results}/events.fa",results=config["results"]),
         fai=expand("{results}/events.fa.fai",results=config["results"]),
         rm=expand("{results}/events.repeat.bed",results=config["results"]),
-        #repeats=expand("{results}/ind/{sample}/events.repeat.bed",results=config["results"],sample=config["input"].keys()),
+        seq_stats=config["results"]+"/stats.js"
+
 rule print_event_xml:
     input:
         bam=config["analysis"]+"/vis/{sample}/final.bam",
@@ -248,6 +249,68 @@ rule make_repeat_mask_gff:
         config["other_threads"]
     shell:
         "RepeatMasker -species human -pa {threads} {input}"
+
+
+
+"""
+{
+    "# of Primary Mappings": "1783597",
+    "# of Supp. Mappings": "2",
+    "Chimeric": "0",
+    "Concordant": "1749040",
+    "Discordant": "609",
+    "Mean": "499.50",
+    "OEA": "9509",
+    "Orphan": "24439",
+    "Range": "[454, 545]",
+    "Read Length Range": "[100, 100]",
+    "Std": "26.56",
+    "Total Number of Reads": "1783597"
+}
+
+"""
+rule make_stats_js:
+    input:
+        expand(config["analysis"]+"/rem-cor/{sample}/{sample}.json",sample=config["input"].keys()),
+    output:
+        config["results"]+"/stats.js"
+    run:
+        import json
+        import sys
+        buff= []
+        short = {
+            "# of Primary Mappings": "p",
+            "# of Supp. Mappings": "s",
+            "Chimeric": "c",
+            "Concordant": "C",
+            "Discordant": "D",
+            "Mean": "m",
+            "OEA": "E",
+            "Orphan": "O",
+            "Range": "r",
+            "Read Length Range": "l",
+            "Std": "v",
+            "Total Number of Reads": "t"
+        }
+
+        for f in input:
+            with open( f , 'r') as hand:
+                end = f.rfind(".json")
+                start = f.rfind("/") + 1
+                sample = f[start:end]
+                jsn = json.load(hand)
+                parts = []
+                for k,v in jsn.items():
+                    if k not in short:
+                        continue
+                    parts.append('"{}":"{}"'.format(short[k],v))
+                
+                buff.append('"{}":{}'.format(sample,"{"+ ",".join(parts) + "}"))
+        with open(output[0], 'w') as hand:
+            print("/*{}*/".format(",".join([":".join([k,v]) for k,v in short.items()])),file=hand) # Short to proper comment
+            print("stats = ",end="",file=hand) # variable
+            print("{" + ",".join(buff) + "}",file=hand) # fields
+
 
 rule make_data_js:
     input:
@@ -1297,7 +1360,8 @@ rule make_read_config:
     input:
         statfile=config["analysis"]+"/rem-cor/{sample}/{sample}.stat",
     output:
-        json=config["analysis"]+"/rem-cor/{sample}/{sample}.stats.json",
+        read_stats=config["analysis"]+"/rem-cor/{sample}/{sample}.stats.json",
+        seq_stats=config["analysis"]+"/rem-cor/{sample}/{sample}.json",
     run:
         import json
         stats_prep_cfg = {}       
@@ -1323,9 +1387,12 @@ rule make_read_config:
         else:
             stats_cfg["tlen_max"] = int(float(stats_prep_cfg["Mean"]) + float(config["n_std_dev"]) * float(stats_prep_cfg["Std"]))  
 
-        with open(output.json, 'w') as jhand:
+        with open(output.read_stats, 'w') as jhand:
             print(json.dumps(stats_cfg, indent=4, sort_keys=True), file=jhand)
+        with open(output.seq_stats, 'w') as jhand:
+            print(json.dumps(stats_prep_cfg,indent=4, sort_keys=True), file=jhand)
 
+        
 rule cram_split:
     input:
         get_cram_name

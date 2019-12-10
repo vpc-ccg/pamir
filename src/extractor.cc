@@ -261,7 +261,7 @@ extractor::extractor(string filename, string output_prefix, int ftype, int oea, 
                                 proc_concordant+=2;
                             } else { // discordant
                                 proc_discordant+=2;
-// TODO: REMOVE this after tests.
+                                //Discordants reads end up here
                                 output_record(foea_mapped, ftype, rc);
                                 output_record(foea_unmapped, ftype, it->second);
                                 output_record(fall_int, ftype, rc);
