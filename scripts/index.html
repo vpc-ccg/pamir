@@ -19,6 +19,7 @@
     <script src="http://igv.org/web/snapshot/dist/igv.min.js"></script>
     <script src="./data.js"></script>
     <script src="./summary.js"></script>
+    <script src="./stats.js"></script>
 
 
     <style>
@@ -46,10 +47,10 @@
             <tr>
                 <th data-field="e" data-width="30%" data-sortable="true" data-formatter="eventFiller">Event</th>
                 <th data-field="c" data-sortable="true">Count</th>
-                <th data-field="l" data-sortable="true">Insertion Length</th>
+                <th data-field="l" data-sortable="true">Length</th>
                 <th data-field="c" data-sortable="true" data-formatter="percFormatter">Percentage</th>
                 <th data-field="r" data-sortable="true">Repeat-Type</th>
-                <th data-field="u" data-sortable="true">Insertion Uniqueness</th>
+                <th data-field="u" data-sortable="true" data-formatter="ValueToPerc">Unique Content (%)</th>
 
             </tr>
             </thead>
@@ -88,7 +89,7 @@
 </div>
 
 <div class="row">
-    <div class="col-md-12">
+    <div class="col-md-8">
         <table id="table_mut" data-pagination="true" data-striped="true" data-show-refresh="true" data-page-size="15"
                data-search="true " data-query-params="queryParams" data-show-columns="true">
             <thead>
@@ -104,12 +105,43 @@
                 <th data-formatter="GRRatioFormatter">GRRatio</th>
                 <th data-formatter="GLRatioFormatter">GLRatio</th>
                 <th data-field="x" data-formatter="actionFormatter">Actions</th>
-                <th data-field="r" data-sortable="true">ClusterId</th>
-
             </tr>
             </thead>
         </table>
     </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <h4><span id="cohort"></span> Raw Stats </h4>
+        <table id="stat_table" data-pagination="true" data-striped="true" data-show-refresh="true" data-page-size="15"
+               data-search="true " data-query-params="queryParams" data-show-columns="true">
+            <thead>
+            <tr>
+                <th data-field="x" data-sortable="true">Ind. ID</th>
+                <th data-field="t" data-sortable="true"># of Reads</th>
+                <th data-field="p" data-sortable="true">Pri. Map.</th>
+                <th data-field="c" data-sortable="true">Supp. Map.</th>
+                <th data-field="c" data-sortable="true">Chimeric</th>
+                <th data-field="C" data-sortable="true">Concordant</th>
+                <th data-field="D" data-sortable="true">Discordant</th>
+                <th data-field="E" data-sortable="true">OEA</th>
+                <th data-field="O" data-sortable="true">Orphan</th>
+                <th data-field="r" data-sortable="true">TLEN Range</th>
+                <th data-field="m" data-sortable="true">TLEN Mean</th>
+                <th data-field="v" data-sortable="true">TL Std</th>
+                <th data-field="l" data-sortable="true">RL Range</th>
+            </tr>
+            </thead>
+        </table>
+    </div>
+    <div class="col-md-4" style="padding-top:70px;">
+        <canvas id="dist"></canvas>
+        <canvas id="ins-length-dist"></canvas>
+    </div>
+</div>
+<div class="progress">
+  <div class="progress-bar" role="progressbar" style="width: 10%;" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100">40%</div>
 </div>
 </body>
 
@@ -129,12 +161,21 @@
         return ("<a href=\"javascript:my_filter('" + value + "')\"  data-val=\"" + value + "\">" + name + "</a>");
     }
 
+
+    function ValueToPerc(value, row, id) {
+
+        return('<div class="progress"> <div class="progress-bar" role="progressbar" style="width: ' +parseFloat(value) * 100+'%;" aria-valuenow=" ' +parseFloat(value) * 100+'" aria-valuemin="0" aria-valuemax="100">'+parseFloat(value) * 100+'%</div> </div>');
+    }
+
     
     function percFormatter(value, row, id) {
-
-
-        return ('<progress value="' + value + '" max="' + cohort_size + '"></progress>&nbsp;<span>'
-            + Math.trunc((value / cohort_size) * 10000) / 100 + '</span>');
+// <div class="progress">
+//   <div class="progress-bar" role="progressbar" style="width: 25%;" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100">25%</div>
+// </div>
+        // return ('<progress value="' + value + '" max="' + cohort_size + '"></progress>&nbsp;<span>'
+        //     + Math.trunc((value / cohort_size) * 10000) / 100 + '</span>');
+        temp=Math.trunc((value / cohort_size) * 10000) / 100;
+        return('<div class="progress"> <div class="progress-bar" role="progressbar" style="width: ' +temp+'%;" aria-valuenow=" ' +temp+'" aria-valuemin="0" aria-valuemax="100">'+temp+'%</div> </div>');
 
     }
         /* (left  - ref) / (left  + ref)
@@ -266,6 +307,16 @@
     }
     repeat_type_box += '</div>';
     document.getElementById('repeat-id').innerHTML = repeat_type_box;
+
+    var stat_table = $("#stat_table");
+    var mydata2= Array();
+    for (i in stats){
+        stats[i].x=i;
+    }
+    for (i in stats){
+        mydata2.push(stats[i])
+    }
+    stat_table.bootstrapTable({data: mydata2});
 
 </script>
 </html>
