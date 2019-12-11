@@ -323,7 +323,7 @@ rule make_data_js:
         populations = {}
         cohort = config["population"]
         sn = {"uuid" :"id","qual" :"q","genotype" :"g","Cluster" :"c","Support" :"p","FLSUP" :"flp","FRSUP" :"frp","FSUP" :"fsp","GLeft" :"L","GRight" :"T","GRef" :"R","GLRatio" :"glr","GRRatio" :"gtr","Sample" :"s", "unique_content": "u", "repeat_ranges": "r" }
-        unwanted_tag_list=["FLSUP","FRSUP","FSUP","GLRatio","GRRatio"] 
+        unwanted_tag_list=["FLSUP","FRSUP","FSUP","GLRatio","GRRatio", "repeat_ranges", "unique_content"] 
         with open(output[0], 'w') as ohand:
             print("/*\nid uuid\nq qual\ng genotype\nc Cluster\np Support\nL GLeft\nT GRight\nR GRef\ns Sample\n*/",file=ohand)
             print("var mut_data = ",file=ohand)
