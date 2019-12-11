@@ -40,6 +40,7 @@ for line in sys.stdin:
         #print(line.rstrip())
 
 if content != {}:
+    uniq_count = 0
     for prev,nxt in  zip([["-1"],*reps[:-1]],reps):
         if prev[0] == "-1":
             uniq_count+= int(nxt[1]) - int(nxt[7])
