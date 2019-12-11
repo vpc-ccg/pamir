@@ -534,6 +534,7 @@ rule genotype_vis:
         #vcf=config["analysis"]+"/pamir/genotyping/{sample}/insertions.named.no_centro.vcf",
         vcf=config["analysis"]+"/pamir/annotation/{sample}/annotated.named.no_centro.vcf",
         fasta=config["analysis"]+"/vis/events_ref.fa",
+        read_stats=config["analysis"]+"/rem-cor/{sample}/{sample}.stats.json",
     output:
         sam=config["analysis"]+"/vis/bams/{sample}.sam",
         vcf=config["analysis"]+"/vis/{sample}/genotyped.vcf",
@@ -542,12 +543,18 @@ rule genotype_vis:
     params:
         ref=config["reference"],
         rang=config["genotyping_flank_size"],
-        min_frag=454,
-        max_frag=546,
-        rl=config["read_length"],
     threads:
         config["other_threads"]
     run:
+
+        import json
+        with open(input.read_stats, 'r') as jhand:
+            read_stats =json.load(jhand)
+
+        rl = read_stats["read_len"]
+        min_frag = read_stats["tlen_min"]
+        max_frag = read_stats["tlen_max"]
+ 
         genotype_dic = { 0 : "0/0", 1 : "1/0", 2 : "1/1"}
 
         cmd="samtools view -H {} > {}".format(input.cram,output.head)
@@ -586,7 +593,7 @@ rule genotype_vis:
                     vcfs.append(fields)
                     fasta_cmd="cat  {} | grep {} -A1".format(input.fasta, fields[2])
                     ps.append( subprocess.Popen(fasta_cmd, shell=True, stdout=subprocess.PIPE))
-                    pm.append(view_cmd + " {}:{}-{}".format(fields[0],start+params.rl,end-params.rl) + "|" + in_house_cmd.format(pos,len(seq),params.rang,params.min_frag,params.max_frag,fields[2],"{}"))
+                    pm.append(view_cmd + " {}:{}-{}".format(fields[0],start+rl,end-rl) + "|" + in_house_cmd.format(pos,len(seq),params.rang,min_frag,max_frag,fields[2],"{}"))
                     line = hand.readline()
                     fields = line.rstrip().split("\t")
                 pf = []
@@ -643,40 +650,13 @@ rule genotype_vis:
                     print( infoformat.format(left,right,ref,left_ratio,right_ratio,wildcards.sample),end="\t",file=vcfhand)
                     print( bed,end="\t",file=bedhand)
                     print( infoformat.format(left,right,ref,left_ratio,right_ratio,wildcards.sample),end="\n",file=bedhand)
-                    #print("GLeft={}".format(left),end=";",file=vcfhand)
-                    #print("GRight={}".format(right),end=";",file=vcfhand)
-                    #print("GRef={}".format(ref),end=";",file=vcfhand)
-                    #print("GLRatio={:.3f}".format(left_ratio),end=";",file=vcfhand)
-                    #print("GRRatio={:.3f}".format(right_ratio),end=";",file=vcfhand)
-                    #print("Sample={}".format(wildcards.sample),end="\t",file=vcfhand)
+
                     print("\t".join(v[8:]),file=vcfhand,end="\t")
                     print("GT\t{}".format(genotype),file=vcfhand)
-                    #stdout = stdout.decode('utf-8').splitlines()
-                   
-                #mycmd = cmd + " {}:{}-{}".format(fields[0],start,end)
-                #if(fasta == []):
+
                 if not line:
                     break
-                #mycmd += " | "  + in_house_cmd.format(pos,len(seq),params.rang,params.min_frag,params.max_frag,fields[2],fasta[0])
-                #print(mycmd)
 
-                #process = subprocess.Popen(mycmd, shell=True)
-                
-                #stdout,stderr = process.communicate()
-                #stdout = stdout.decode('utf-8').splitlines()
-
-                #prev_fields = ["-1"]
-                #for line in stdout:
-                #    fields = line.rstrip().split("\t")
-                #    if fields[0] == prev_fields[0]:
-                #        cigar = fields[4] 
-                #        p_cig = prev_fields[4]
-                #        
-                #    else:
-                #        pass
-                #    prev_fields = fields
-                    #do stuff
-        #my_cmd += "-O BAM -o {output}"
 rule get_insertions_sam_header:
     input:
         bam=config["analysis"]+"/vis/{sample}/orphans.bam",
@@ -981,6 +961,7 @@ rule pamir_assemble_full_new:
     input:
         partition=config["analysis"]+"/pamir/partition/{sample}/partition",
         cluster_count=config["analysis"]+"/pamir/partition/{sample}/partition.count",
+        read_stats=config["analysis"]+"/rem-cor/{sample}/{sample}.stats.json",
     output:
         vcf=config["analysis"]+"/pamir/assembly/{sample}/all.vcf",
         vcf_lq=config["analysis"]+"/pamir/assembly/{sample}/all_LOW_QUAL.vcf",
@@ -988,7 +969,6 @@ rule pamir_assemble_full_new:
     params:
         pppt = config["pamir_partition_per_thread"],
         ref=config["reference"],
-        read_length=config["read_length"],
         wd=config["analysis"]+"/pamir/assembly",
     threads:
         config["assembly_threads"],
@@ -999,8 +979,17 @@ rule pamir_assemble_full_new:
         index = 1
         use_threads = threads - 1
         pppt = min(params.pppt,int(cc/use_threads))
+       
+        import json
+        with open(input.read_stats, 'r') as jhand:
+            read_stats =json.load(jhand)
+        rl = read_stats["read_len"]
+        min_frag = read_stats["tlen_min"]
+        max_frag = read_stats["tlen_max"]
+
         
-        cmd_template =  "./pamir assemble {0} {1} {{0}}-{{1}} T{{2}} 30000 {2} {3}/{4} > {3}/{4}/T{{2}}.log".format(input.partition, params.ref, params.read_length, params.wd, wildcards.sample)
+
+        cmd_template =  "./pamir assemble {0} {1} {{0}}-{{1}} T{{2}} 30000 {2} {3}/{4} > {3}/{4}/T{{2}}.log".format(input.partition, params.ref, rl, params.wd, wildcards.sample)
         while index + pppt -1 <= cc:
             tids = []
             procs = []
