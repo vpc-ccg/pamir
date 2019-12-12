@@ -345,8 +345,7 @@ extractor::extractor(string filename, string output_prefix, int ftype, int oea, 
     if (dist.size() > 0) {
         fprintf(f_stat,"TLEN:\n");
         fprintf(f_stat,"Range: [%d, %d]\n", dist.begin()->first, dist.rbegin()->first);
-        auto dist_stats = get_distribution(dist.begin(), dist.end(),
-                                           [](const decltype(dist.begin()) &val) -> int { return val->first; });
+        auto dist_stats = get_distribution_pairs(dist.begin(), dist.end());
         fprintf(f_stat," Mean: %.2lf\n", dist_stats.first);
         fprintf(f_stat,"  Std: %.2lf\n\n", dist_stats.second);
     }

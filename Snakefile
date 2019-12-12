@@ -831,9 +831,6 @@ rule filter_vcf:
         ref=config["reference"],
         tlen=1000,
         wd=config["analysis"]+"/pamir/annotation",
-#        min_insert=0,
-#        max_insert=1000,
-#        read_len=config["read_length"],
     threads:
         config["aligner_threads"]
     shell:

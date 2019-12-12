@@ -243,7 +243,7 @@ def main():
     fil2.close()
     os.system("grep PASS "+FILE+"_filtered | awk '{print $2\"\t\"$4;}' | sort -k 1,1n > "+FILE+"_filtered_PASS_loc")
     os.system("sort -k 1,1 "+FILE+"_filtered_for_setcov > "+FILE+"_filtered_for_setcov.sorted")
-
+    return 0
 #############################################################################################
 if __name__ == "__main__":
     sys.exit(main())
