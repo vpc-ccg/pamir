@@ -4,6 +4,7 @@
 #include <iostream>
 #include <vector>
 #include <fstream>
+#include <map>
 
 using namespace std;
 namespace recalibrate {
@@ -31,15 +32,23 @@ namespace recalibrate {
             exit(1);
         }
 
+        map<string, pair<vector<int> ,vector<string> > > index;
 
         ifstream fin(argv[1]);
         vector<int> starts;
         vector <string> names;
         int start;
-        string name;
-        while (fin >> name >> start) {
-            starts.push_back(start);
-            names.push_back(name);
+        string batch,name;
+        while (fin >> batch >> name >> start) {
+            if (index.find(batch) == index.end()) {
+                vector<string> tmpnames;
+                vector<int> tmpstarts;
+                index[batch]= { tmpstarts, tmpnames };
+            }
+            index[batch].first.push_back(start);
+            index[batch].second.push_back(name);
+//            starts.push_back(start);
+//            names.push_back(name);
         }
 
         char *funmapped = new char[1000];
@@ -53,8 +62,10 @@ namespace recalibrate {
         char *readName = new char[100];
         char *flag = new char[100];
         char *chrName = new char[100];
+        char *prevName = new char[100];
         char *chrLoc = new char[100];
         char *tmp = new char[100];
+        prevName[0] ='\0' ;
         int ichrLoc;
         while (fgets(line, 1000000, fin2) != NULL) {
             readName = strtok(line, "\t");
@@ -63,6 +74,11 @@ namespace recalibrate {
             chrLoc = strtok(NULL, "\t");
             ichrLoc = atoi(chrLoc);
             if (strcmp(chrName, "*") != 0) {
+                if (strcmp (chrName, prevName) != 0) {
+                    starts = index[chrName].first;
+                    names = index[chrName].second;
+                    prevName = chrName;
+                }
                 int x = b_search(starts, ichrLoc, 0, starts.size() - 1);
                 fprintf(fout, "%s\t%s\t%s\t%d", readName, flag, names[x].c_str(), ichrLoc - starts[x] + 1);
                 tmp = strtok(NULL, "\t\n");
