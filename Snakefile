@@ -1080,7 +1080,7 @@ if "blastdb" in config:
         params:
             db=config["blastdb"],
         shell:    
-            "blastn -task megablast -db {params.db} -num_threads {threads} -query {input} > {output}"
+            "blastn -task megablast -db {params.db} -num_threads {threads} -query {input} -outfmt 6 > {output}"
 
     rule find_contaminations:
         input:
@@ -1088,8 +1088,8 @@ if "blastdb" in config:
         output:
             config["analysis"]+"/"+config["assembler"]+"/contigs.megablast.tabular",
         shell:
-            "cat {input} | tr '\\n' '\\t' | sed 's/Query=/\\nQuery=/g'  | grep -v \"No hits found\" |awk 'NR>1' | cut -f 1 | awk '{{print $2;}}' >{output}"
-    
+            "cat {input} | cut -f 1 > {output}"
+
     rule clean_contigs:
         input:
             fasta=config["analysis"]+"/"+config["assembler"]+"/contigs.fasta",
