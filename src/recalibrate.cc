@@ -77,10 +77,10 @@ namespace recalibrate {
                 if (strcmp (chrName, prevName) != 0) {
                     starts = index[chrName].first;
                     names = index[chrName].second;
-                    prevName = chrName;
+					strncpy( prevName, chrName, 100);
                 }
                 int x = b_search(starts, ichrLoc, 0, starts.size() - 1);
-                fprintf(fout, "%s\t%s\t%s\t%d", readName, flag, names[x].c_str(), ichrLoc - starts[x] + 1);
+		fprintf(fout, "%s\t%s\t%s\t%d", readName, flag, names[x].c_str(), ichrLoc - starts[x] + 1);
                 tmp = strtok(NULL, "\t\n");
                 while (tmp != NULL and strcmp(tmp, "") != 0) {
                     fprintf(fout, "\t%s", tmp);
