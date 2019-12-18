@@ -10,50 +10,75 @@
 #include <unordered_set>
 using namespace std;
 
-class genome_partition
-{
+class genome_partition {
+private:
+    FILE* partition_out_file;
+    FILE* partition_out_index_file;
+    FILE* partition_out_count_file;
+
+    int partition_count = 0;
+    int partition_id = 0;
+
 	int distance;
-	vector<pair<pair<string, string>, pair<int,int> > > comp;
-	unordered_set<string> read_cache;
+
+//    int fc;
+    int p_start;
+    int p_end;
+    string p_ref;
+
+    //TODO: more todo
+    int start;
+    int end;
+    FILE* partition_file;
+
+
+
+
+
 	unordered_map<string, string> oea_mate;
-	// for orphan information
-	map<string, vector<vector<string> > > map_token;
+	map<string, vector<vector<string> > > oea2contig;
 	map<string, string> map_cont;
 	// insert orphan into clusters
-	map<string, vector<int> > myset;
 
-	int p_start;
-	int p_end;
-	string p_ref;
+	// Orphan contig stats specific to current cluster
+	map<string, vector<int> > orphan_contig_stats;
+    //TODO: properly rename it to current_cluster;
+    vector<pair<pair<string, string>, pair<int,int> > > current_cluster;
+
 
 	gzFile fp;
 	char prev_string[2000];
-	
+
 	const int INSSIZE=450;
 
 private:
-	bool add_read (string, int, int);
-	int fc;
-
-
+	void add_read (string, int, int);
+    void update_clusters_with_orphan_contigs ( );
+    void dump();
+    bool has_next (void);
 public:
-	genome_partition (void);
-	genome_partition (const string&, int, const unordered_map<string, string>& );
+	genome_partition (const string&, const string&, bool write_to_file = false);
+	genome_partition (int, const string&,  const string&, const string&, const string&, const string &);
 	~genome_partition (void);
+	genome_partition(const string&, bool);
 
+
+
+    void cluster_reads ();
 	int load_orphan( const string &orphan_contig, const string &oea2orphan);
+	int load_oea_mates (const string &mate_file) ;
 
-	vector<pair<pair<string, string>, pair<int,int> > > get_next (void);
-	vector<pair<pair<string, string>, pair<int,int> > > read_partition (const string&, const string&);
+	void get_next (void);
+	vector<pair<pair<string, string>, pair<int,int> > > read_partition ();
 
-	bool has_next (void);
-	size_t dump (const vector<pair<pair<string, string>, pair<int, int>>>&, FILE*, int);
+
+
 
 	int get_start (void);
 	int get_end (void);
 	string get_reference (void);
-	int output_partition (const string &, const string &);
-	int get_cluster_id ();
+	void output_partitions();
+	int get_id ();
 };
 
 

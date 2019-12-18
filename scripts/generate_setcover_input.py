@@ -4,71 +4,84 @@ import sys
 import math
 import os
 class Usage(Exception):
-	def __init__(self, msg):
-		self.msg = msg
+    def __init__(self, msg):
+        self.msg = msg
 def usage():
-	print '\nUsage: python generateClustersForSetCover.py VCF SAM forSetCover'
-	sys.exit(-1)
+    print('\nUsage: python generateClustersForSetCover.py VCF SAM forSetCover')
+    sys.exit(-1)
 
 def main():
-	args = sys.argv[1:]
-	if len(args) !=3:
-		usage()
+    args = sys.argv[1:]
+    if len(args) !=3:
+        usage()
 
-	vcffile = open(sys.argv[1],"r").readlines()
-	samfile = open(sys.argv[2],"r")
-	fout = open(sys.argv[3],"w")
-	
-	vcfnum = 0
-	readnames = set()
-	clusterId =1
-	samel = samfile.readline().strip().split()
-	while vcfnum < len(vcffile):
-		readnames.clear()
-		elem = vcffile[vcfnum].strip().split()
-		while vcfnum< len(vcffile) and elem[5]=="FAIL":
-			vcfnum+=1
-			if vcfnum < len(vcffile):
-				elem = vcffile[vcfnum].strip().split()
-			else:
-				break
-		name = elem[0]
-		if(elem[0].count("-")>1):
-			name = elem[0][0:elem[0].rfind("-")]
+    vcffile = open(sys.argv[1],"r").readlines()
+    samfile = open(sys.argv[2],"r")
+    fout = open(sys.argv[3],"w")
+    exit_type = 1
+    vcfnum = 0
+    readnames = set()
+    clusterId =1
+    samel = samfile.readline().strip().split()
+    while vcfnum < len(vcffile):
+        if vcffile[vcfnum][0]== "#":
+            vcfnum+=1
+            continue
 
-		while vcfnum < len(vcffile) and len(samel) > 0 and elem[0]>samel[2]:
-			samel = samfile.readline().strip().split()
-		if elem[0]==samel[2]:
-			while vcfnum < len(vcffile) and len(samel) > 0 and elem[0]==samel[2]:
-				readnames.add(samel[0])
-				samel = samfile.readline().strip().split()
+        readnames.clear()
+        elem = vcffile[vcfnum].strip().split()
 
-		if vcfnum+1 < len(vcffile):
-			nextelem = vcffile[vcfnum+1].strip().split()
-		while vcfnum+1 < len(vcffile) and nextelem[0].count("-") >1 and nextelem[0][0:nextelem[0].rfind("-")]==name and nextelem[5]=="FAIL":
-			vcfnum+=1
-			if(vcfnum+1< len(vcffile)):
-				nextelem = vcffile[vcfnum+1].strip().split()
-		while vcfnum + 1 < len(vcffile) and nextelem[0].count("-") >1 and nextelem[0][0:nextelem[0].rfind("-")]==name:
-			while vcfnum + 1 < len(vcffile) and len(samel) > 0 and nextelem[0]==samel[2]:
-				readnames.add(samel[0])
-				samel = samfile.readline().strip().split()
-			vcfnum+=1
-			if(vcfnum+1 < len(vcffile)):
-				nextelem = vcffile[vcfnum+1].strip().split()
-			while(vcfnum < len(vcffile) and nextelem[5]=="FAIL"):
-				vcfnum+=1
-				if(vcfnum+1 < len(vcffile)):
-					nextelem = vcffile[vcfnum+1].strip().split()
+        while vcfnum< len(vcffile) and elem[5]=="FAIL":
+            vcfnum+=1
+            if vcfnum < len(vcffile):
+                elem = vcffile[vcfnum].strip().split()
+            else:
+                break
+        name = elem[0]
+        if "HLA" in elem[0]:
+            if(elem[0].count("-")>2):
+                name = elem[0][0:elem[0].rfind("-")]
+        else:
+            if(elem[0].count("-")>1):
+                name = elem[0][0:elem[0].rfind("-")]
 
-		if len(readnames)>0:
-			fout.write(str(clusterId)+ " "+ str(len(readnames))+ " "+name+"\n")
-			clusterId+=1
-			for a in readnames:
-				fout.write(a+"\n")
-		vcfnum+=1
+        while vcfnum < len(vcffile) and len(samel) > 0 and elem[0]>samel[2]:
+            samel = samfile.readline().strip().split()
 
-	fout.close()
+        if  len(samel) == 0:
+            break
+        if elem[0]==samel[2]:
+            while vcfnum < len(vcffile) and len(samel) > 0 and elem[0]==samel[2]:
+                readnames.add(samel[0])
+                samel = samfile.readline().strip().split()
 
+        if vcfnum+1 < len(vcffile):
+            nextelem = vcffile[vcfnum+1].strip().split()
+        while vcfnum+1 < len(vcffile) and nextelem[0].count("-") >1 and nextelem[0][0:nextelem[0].rfind("-")]==name and nextelem[5]=="FAIL":
+            vcfnum+=1
+            if(vcfnum+1< len(vcffile)):
+                nextelem = vcffile[vcfnum+1].strip().split()
+        while vcfnum + 1 < len(vcffile) and nextelem[0].count("-") >1 and nextelem[0][0:nextelem[0].rfind("-")]==name:
+            while vcfnum + 1 < len(vcffile) and len(samel) > 0 and nextelem[0]==samel[2]:
+                readnames.add(samel[0])
+                samel = samfile.readline().strip().split()
+            vcfnum+=1
+            if(vcfnum+1 < len(vcffile)):
+                nextelem = vcffile[vcfnum+1].strip().split()
+            while(vcfnum < len(vcffile) and nextelem[5]=="FAIL"):
+                vcfnum+=1
+                if(vcfnum+1 < len(vcffile)):
+                    nextelem = vcffile[vcfnum+1].strip().split()
+
+        if len(readnames)>0:
+            fout.write(str(clusterId)+ " "+ str(len(readnames))+ " "+name+"\n")
+            clusterId+=1
+            for a in readnames:
+                fout.write(a+"\n")
+                exit_type = 0;
+        vcfnum+=1
+
+    fout.close()
+    return exit_type
 if __name__ == "__main__":
-	sys.exit(main())
+    sys.exit(main())

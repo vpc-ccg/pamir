@@ -1,0 +1,15 @@
+name: pamir-deps
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - samtools  >= 1.9
+  - mrsfast   >= 3.4.0
+  - blast     >= 2.9.0
+  - bedtools  >= 2.26.0
+  - snakemake >= 5.0.0 
+  - bwa       >= 0.7.17
+  - gxx_linux-64 >= 7.2.0
+  - gcc_linux-64 >= 7.2.0
+  - zlib >= 1.2.11
+  - repeatmasker == 4.0.9_p2

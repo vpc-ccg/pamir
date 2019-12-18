@@ -7,15 +7,13 @@ using namespace std;
 
 SAMParser::SAMParser (const string &filename)
 {
-	Parser::fname = filename;
+	fname = filename;
 
 	input = fopen(filename.c_str(), "r");
-	if (input == NULL)	
-		{	exit(1);	}
+	if (input == NULL){
+	    exit(1);
+	}
 
-	fseek(input, 0L, SEEK_END);
-	file_size = ftell(input);
-	fseek(input, 0L, SEEK_SET);
 }
 
 SAMParser::~SAMParser (void) 
@@ -57,11 +55,6 @@ size_t SAMParser::fpos (void)
 	return ftell(input);
 }
 
-size_t SAMParser::fsize (void) 
-{
-	return file_size;
-}
-
 void SAMParser::parse (Record &record) 
 {
 	char *line = &record.line[0];
@@ -82,7 +75,7 @@ void SAMParser::parse (Record &record)
 			if (f == 12) {
 				c++;
 				while (*c) {
-					if (*c == '\t') *c = 0;
+					//if (*c == '\t') *c = 0;
 					c++;
 				}
 				break;

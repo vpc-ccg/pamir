@@ -1,0 +1,147 @@
+{
+
+    "__default__" :
+    {
+        "name" : "pamir-job",
+        "c" : 4,
+        "mem" : "40G",
+        "time": "5:59:00",
+        "part": "normal,express",
+    },
+
+    "get_final_bam" :
+    {
+        "name" : "final-bam",
+        "c" : 16,
+        "mem" : "120G",
+        "time": "5:59:00",
+        "part": "normal,express",
+    },
+    "convert_vis_sam_to_bam" :
+    {
+        "name" : "sam2bam",
+        "c" : 16,
+        "mem" : "120G",
+        "time": "5:59:00",
+        "part": "normal,express",
+    },
+
+    "get_all_reads_from_cram" :
+    {
+        "name" : "getreads",
+        "c" : 1,
+        "mem" : "50G",
+        "time": "23:59:59",
+        "part": "normal,express,long",
+
+    },
+    "genotype_vis" :
+    {
+        "name" : "fetchconc",
+        "c" : 62,
+        "mem" : "700G",
+        "time": "23:59:59",
+        "part": "normal,express,long",
+    },
+    "convert_orphans_to_bam" :
+    {
+        "name" : "sam2bamorphans",
+        "c" : 16,
+        "mem" : "100G",
+        "time": "5:59:59",
+        "part": "normal,express,long",
+    },
+    "filter_vcf" :
+    {
+        "name" : "filter_vcf",
+        "c" : 16,
+        "mem" : "100G",
+        "time": "5:59:59",
+        "part": "normal,express,long",
+    },
+    "map_orphans_to_vis_fasta" :
+    {
+        "name" : "sam2bamorphans",
+        "c" : 16,
+        "mem" : "100G",
+        "time": "5:59:59",
+        "part": "normal,express,long",
+    },
+    "abyss_all" :
+    {
+        "name" : "minia-all",
+        "c" : 62,
+        "mem" : "700G",
+        "time": "23:59:59",
+        "part": "normal,express,long",
+    },
+    "spades_all" :
+    {
+        "name" : "minia-all",
+        "c" : 62,
+        "mem" : "700G",
+        "time": "23:59:59",
+        "part": "normal,express,long",
+    },
+    "minia_all" :
+    {
+        "name" : "minia-all",
+        "c" : 62,
+        "mem" : "700G",
+        "time": "23:59:59",
+        "part": "normal,express,long",
+    },
+    "pamir_partition" :
+    {
+        "name" : "pamir-part",
+        "c" : 1,
+        "mem" : "120G",
+        "time": "5:59:59",
+        "part": "normal,express",
+    },
+    "pamir_assemble_part" :
+    {
+        "name" : "pamir-as",
+        "c" : 1,
+        "mem" : "120G",
+        "time": "23:59:59",
+        "part": "long,normal,express",
+    },
+    "mrsfast_oea_unmapped_contig_map":
+    {
+        "name" : "mrsfast",
+        "c" : 16,
+        "mem" : "20G",
+        "time": "5:59:59",
+        "part": "normal,express",
+    },
+    "pamir_assemble_full_new":
+    {
+        "name" : "pamir_assemble",
+        "c" : 62,
+        "mem" : "700G",
+        "time": "23:59:59",
+        "part": "normal,express,long",
+    },
+    "mrsfast_oea_unmapped_contig_map_cropped":{
+        "name" : "mrsfast",
+        "c" : 16,
+        "mem" : "80G",
+        "time": "5:59:59",
+        "part": "normal,express",
+    },
+    "mrsfast_oea_unmapped_contig_map_tail_cropped":{
+        "name" : "mrsfast",
+        "c" : 16,
+        "mem" : "80G",
+        "time": "5:59:59",
+        "part": "normal,express",
+    },
+    "mrsfast_anchor_wg_map":{
+        "name" : "mrsfast",
+        "c" : 16,
+        "mem" : "80G",
+        "time": "5:59:59",
+        "part": "normal,express",
+    },
+}

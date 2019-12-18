@@ -19,8 +19,6 @@
 
 #define ERROR(c,...)\
 	fprintf(stderr, c"\n", ##__VA_ARGS__)
-#define LOG(c,...)\
-	fprintf(stderr, c"\n", ##__VA_ARGS__)
 #define MAX_CHAR 1000000
 
 using namespace std;
@@ -138,7 +136,7 @@ inline uint64_t zaman()
 					s += "/" + f[i];
 			}
 			p = f;
-			LOG("  %-40s: %'8.1lfs", s.c_str(), tt.second/1000000.0);
+			Logger::instance().info("  %-40s: %'8.1lfs", s.c_str(), tt.second/1000000.0);
 		}
 	}
 #else

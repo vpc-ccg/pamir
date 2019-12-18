@@ -9,7 +9,7 @@ class Usage(Exception):
 
 
 def usage():
-	print '\nUsage: python extractContaminants.py contaminationFile orphan.fq.contigs.fa orphan.fq.contigs.wocontamination.fa'
+	print('\nUsage: python extractContaminants.py contaminationFile orphan.fq.contigs.fa orphan.fq.contigs.wocontamination.fa')
 	sys.exit(-1)
 
 def main():
@@ -17,31 +17,31 @@ def main():
 	if len(args) !=3:
 		usage()
 
-	fcontamination = open(sys.argv[1], 'r')
+	cont = {}
+	sr = open(sys.argv[1], 'r')
+	for line in sr:
+		cont_id = line.strip().split()[0]
+		cont[cont_id] = 1
+	sr.close()
+
+
+
 	fcontig = open(sys.argv[2], 'r')
 	fout = open(sys.argv[3],'w')
 	
-	contamination = fcontamination.readline()
-	while contamination!='':
-		contamination = contamination.split()[0]
-		contig = fcontig.readline()
-		if(contig!=''):
-			contig = contig.strip().split(">")[1]
-			while contamination !=contig and contig !='':
-				fout.write(">" + contig + "\n")
-				fout.write(fcontig.readline())
-				contig = fcontig.readline()
-				if(contig!=''):
-					contig = contig.strip().split(">")[1]
-			if(contamination==contig and contig!=''):
-				fcontig.readline()
-			contamination = fcontamination.readline()
-	contig = fcontig.readline()
-	while contig !='':
-		fout.write(contig)
-		fout.write(fcontig.readline())
-		contig = fcontig.readline()
-	fout.close()
+	sw = open( sys.argv[3], 'w')
+	sr = open( sys.argv[2], 'r')
+	flag = 1
+	for line in sr:
+		if ">" == line[0]:
+			flag = 1
+			c_id = line.strip().split()[0][1:]
+			if c_id in cont:
+				flag = 0
+		if 1 == flag:
+			sw.write(line)
+	sw.close()
+	sw.close()
 
 if __name__ == "__main__":
 	sys.exit(main())
