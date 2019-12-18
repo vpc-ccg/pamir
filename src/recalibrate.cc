@@ -32,23 +32,21 @@ namespace recalibrate {
             exit(1);
         }
 
-        map<string, pair<vector<int> ,vector<string> > > index;
+        map < string, pair < vector < int >, vector < string > > > index;
 
         ifstream fin(argv[1]);
         vector<int> starts;
         vector <string> names;
         int start;
-        string batch,name;
+        string batch, name;
         while (fin >> batch >> name >> start) {
             if (index.find(batch) == index.end()) {
-                vector<string> tmpnames;
+                vector <string> tmpnames;
                 vector<int> tmpstarts;
-                index[batch]= { tmpstarts, tmpnames };
+                index[batch] = {tmpstarts, tmpnames};
             }
             index[batch].first.push_back(start);
             index[batch].second.push_back(name);
-//            starts.push_back(start);
-//            names.push_back(name);
         }
 
         char *funmapped = new char[1000];
@@ -65,7 +63,7 @@ namespace recalibrate {
         char *prevName = new char[100];
         char *chrLoc = new char[100];
         char *tmp = new char[100];
-        prevName[0] ='\0' ;
+        prevName[0] = '\0';
         int ichrLoc;
         while (fgets(line, 1000000, fin2) != NULL) {
             readName = strtok(line, "\t");
@@ -74,13 +72,13 @@ namespace recalibrate {
             chrLoc = strtok(NULL, "\t");
             ichrLoc = atoi(chrLoc);
             if (strcmp(chrName, "*") != 0) {
-                if (strcmp (chrName, prevName) != 0) {
+                if (strcmp(chrName, prevName) != 0) {
                     starts = index[chrName].first;
                     names = index[chrName].second;
-					strncpy( prevName, chrName, 100);
+                    strncpy(prevName, chrName, 100);
                 }
                 int x = b_search(starts, ichrLoc, 0, starts.size() - 1);
-		fprintf(fout, "%s\t%s\t%s\t%d", readName, flag, names[x].c_str(), ichrLoc - starts[x] + 1);
+                fprintf(fout, "%s\t%s\t%s\t%d", readName, flag, names[x].c_str(), ichrLoc - starts[x] + 1);
                 tmp = strtok(NULL, "\t\n");
                 while (tmp != NULL and strcmp(tmp, "") != 0) {
                     fprintf(fout, "\t%s", tmp);
@@ -102,7 +100,7 @@ namespace recalibrate {
         fclose(fin2);
         fclose(fout);
         fclose(fout2);
-    
+
         return 0;
     }
 

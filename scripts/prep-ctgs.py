@@ -28,8 +28,6 @@ while line != '':
     if (cnt_loc+len(line)-1 > 1000000000):
         cnt_loc = 1;
         cnt_num = cnt_num+1;
-    #if cnt_num > 1:
-      #sw_s.write("\n")
         sw_s.write(">"+str(cnt_num)+"\n")
 
     sw_s.write(line+"NNNNNNNNNN\n")
