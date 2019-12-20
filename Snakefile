@@ -1065,7 +1065,7 @@ rule merge_contigs:
     output:
 #         single=config["analysis"]+"/"+config["assembler"]+"/{sample}.reads.contigs.filtered.clean.single.fa",
         merged=config["analysis"]+"/"+config["assembler"]+"/{sample}.reads.contigs.filtered.clean.merged.fa",
-#         index=config["analysis"]+"/"+config["assembler"]+"/{sample}.reads.contigs.filtered.clean.merged.fa.lookup",
+        index=config["analysis"]+"/"+config["assembler"]+"/{sample}.reads.contigs.filtered.clean.merged.fa.lookup",
     shell:
         "python ./scripts/prep-ctgs.py {input} {output.merged} 10"
 
