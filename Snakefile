@@ -564,19 +564,19 @@ rule genotype_vis:
         sort_cmd = "samtools sort -n | samtools view"
         in_house_cmd = "./pamir process_range {} {} {} {} {} {} {}"
 
-    id2seq = {}
+        id2seq = {}
 
-    with open(input.fasta,"r") as hand:
-        line = hand.readline()
-        while line:
-            fields = line.rstrip().split()
-            name = fields[0][1:]
+        with open(input.fasta,"r") as hand:
             line = hand.readline()
-            id2seq[name] = (line.rstrip(),fields[1],fields[2])
-            line = hand.readline()
+            while line:
+                fields = line.rstrip().split()
+                name = fields[0][1:]
+                line = hand.readline()
+                id2seq[name] = (line.rstrip(),fields[1],fields[2])
+                line = hand.readline()
 
 
-    with open(input.vcf,"r") as hand , open( output.sam, "w") as samhand, open(output.vcf, "w") as vcfhand, open(output.bed, "w") as bedhand:
+        with open(input.vcf,"r") as hand , open( output.sam, "w") as samhand, open(output.vcf, "w") as vcfhand, open(output.bed, "w") as bedhand:
 
 
 
@@ -619,7 +619,7 @@ rule genotype_vis:
 
                     fasta = tup[0]
                     bedinfo = tup[1:]
-                    bedinfo = fasta[0].split(" ")
+
 
                     beds.append("{}\t{}\t{}".format(name,bedinfo[0],int(bedinfo[0]) + int(bedinfo[1])))
 
