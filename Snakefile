@@ -1063,11 +1063,11 @@ rule merge_contigs:
     input:
         config["analysis"]+"/"+config["assembler"]+"/{sample}.reads.contigs.filtered.clean.fa"
     output:
-        single=config["analysis"]+"/"+config["assembler"]+"/{sample}.reads.contigs.filtered.clean.single.fa", 
+#         single=config["analysis"]+"/"+config["assembler"]+"/{sample}.reads.contigs.filtered.clean.single.fa",
         merged=config["analysis"]+"/"+config["assembler"]+"/{sample}.reads.contigs.filtered.clean.merged.fa",
-        index=config["analysis"]+"/"+config["assembler"]+"/{sample}.reads.contigs.filtered.clean.merged.fa.lookup", 
-    script:
-        "./scripts/prep-ctgs.py"
+#         index=config["analysis"]+"/"+config["assembler"]+"/{sample}.reads.contigs.filtered.clean.merged.fa.lookup",
+    shell:
+        "python ./scripts/prep-ctgs.py {input} {output.merged} 10"
 
 if "blastdb" in config:
     rule blast_contigs:
