@@ -563,7 +563,20 @@ rule genotype_vis:
         view_cmd="samtools view -T {} {}".format(params.ref,input.cram)
         sort_cmd = "samtools sort -n | samtools view"
         in_house_cmd = "./pamir process_range {} {} {} {} {} {} {}"
-        with open(input.vcf,"r") as hand , open( output.sam, "w") as samhand, open(output.vcf, "w") as vcfhand, open(output.bed, "w") as bedhand:
+
+    id2seq = {}
+
+    with open(input.fasta,"r") as hand:
+        line = hand.readline()
+        while line:
+            fields = line.rstrip().split()
+            name = fields[0][1:]
+            line = hand.readline()
+            id2seq[name] = (line.rstrip(),fields[1],fields[2])
+            line = hand.readline()
+
+
+    with open(input.vcf,"r") as hand , open( output.sam, "w") as samhand, open(output.vcf, "w") as vcfhand, open(output.bed, "w") as bedhand:
 
 
 
@@ -591,26 +604,30 @@ rule genotype_vis:
                     end   = pos + params.rang - 1
                     seq = fields[4][1:]
                     vcfs.append(fields)
-                    fasta_cmd="cat  {} | grep {} -A1".format(input.fasta, fields[2])
-                    ps.append( subprocess.Popen(fasta_cmd, shell=True, stdout=subprocess.PIPE))
+            #fasta_cmd="cat  {} | grep {} -A1".format(input.fasta, fields[2])
+            #ps.append( subprocess.Popen(fasta_cmd, shell=True, stdout=subprocess.PIPE))
+                    ps.append(fields[2])
                     pm.append(view_cmd + " {}:{}-{}".format(fields[0],start+rl,end-rl) + "|" + in_house_cmd.format(pos,len(seq),params.rang,min_frag,max_frag,fields[2],"{}"))
                     line = hand.readline()
                     fields = line.rstrip().split("\t")
                 pf = []
-                for p,m in zip(ps,pm):
-                    stdout,stderr = p.communicate()
-                    fasta = stdout.decode('utf-8').splitlines()
+                for name,m in zip(ps,pm):
+
+                    if name not in id2seq:
+                        continue
+                    tup = id2seq[name]
+
+                    fasta = tup[0]
+                    bedinfo = tup[1:]
                     bedinfo = fasta[0].split(" ")
 
-                    beds.append("{}\t{}\t{}".format(bedinfo[0][1:],bedinfo[1],int(bedinfo[1]) + int(bedinfo[2])))
-                    if(fasta == []):
-                        continue
-                    pf.append(m.format(fasta[1]))
+                    beds.append("{}\t{}\t{}".format(name,bedinfo[0],int(bedinfo[0]) + int(bedinfo[1])))
+
+                    pf.append(m.format(fasta))
 
                     
 
                 for f in pf:
-
                     processes.append(subprocess.Popen(f, shell=True,stdout=subprocess.PIPE))
 
 
