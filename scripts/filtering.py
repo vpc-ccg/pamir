@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-import os, sys, errno, argparse, subprocess, fnmatch, configparser, shutil
+#import os, sys, errno, argparse, subprocess, fnmatch, configparser, shutil
+import os, sys, errno, argparse, subprocess, fnmatch, shutil
 
 import json
 
@@ -65,13 +66,16 @@ def main():
     MAX = cfg["tlen_max"]
     readlength = cfg["read_len"]
 
-    RECALIBRATE = "./pamir recalibrate"
+    script_folder=os.path.dirname(os.path.abspath(__file__))
+    #sys.stderr.write(os.getcwd())
+    RECALIBRATE = script_folder + "/../pamir recalibrate"
     folder  ="{0}/filtering".format(workdir)
     os.system("mkdir -p {0}".format(folder))
     start=1
-    f = open("{0}/allinsertions.fa".format(folder),"w")
-    coor = open("{0}/allinsertions.coor".format(folder),"w")
-    f.write(">1\n")
+    PREP_CTGS=script_folder + "/prep-ctgs.py"
+    #f = open("{0}/allinsertions.fa".format(folder),"w")
+    #coor = open("{0}/allinsertions.coor".format(folder),"w")
+    #f.write(">1\n")
     prev_loc=""
     prev_chrN=""
     failed = 0
@@ -82,8 +86,11 @@ def main():
     fil2 = open (FILE + "_filtered_for_setcov","w")
 
     ref_dict, ref_list = load_fasta(REF)
+    f_fasta = open("{0}/seq.fa".format(folder),"w")
 
 
+	# todo: clean-up pack/unpack segment
+	
 
     with open(FILE) as insertions:
         for line in insertions:
@@ -115,7 +122,7 @@ def main():
                 left  = get_bed_seq( ref_dict, chrN, be, int(loc))
                 right = get_bed_seq( ref_dict, chrN, int(loc), en)
                 seqfa = left + seq + right
-                f.write(seqfa)
+     #           f.write(seqfa)
                 loc2 =loc
                 if(chrN==prev_chrN and loc==prev_loc):
                     loc2 = loc+"-"+str(a)
@@ -148,14 +155,23 @@ def main():
                     vcfcontent[key].append(r6)
                     vcfcontent[key].append(r7)
                     a=2
-                coor.write("{0}-{1}\t{2}\n".format(chrN, loc2, start ))
+      #          coor.write("{0}-{1}\t{2}\n".format(chrN, loc2, start ))
+                f_fasta.write(">{0}-{1}\n{2}\n".format(chrN, loc2, seqfa ))
                 start=start+len(left)+len(seq)+len(right)
-    f.close()
-    coor.close()
+    #f.close()
+    #coor.close()
+    f_fasta.close()	
+    os.system("python {0} {1}/{2} {1}/{3} {4}".format( PREP_CTGS, folder, "seq.fa", "allinsertions.fa", 1000))
+    
     input_file = all_reads_fastq
     
+
     cmd = MRSFAST + " --search {0}/allinsertions.fa --pe --min {1} --max {2} -o {0}/seq.mrsfast.sam -e 3 --threads {4} --disable-sam-header --disable-nohits --seq {3} > {0}/seq.mrsfast.sam.log".format(folder, MIN, MAX,input_file,THREADS)
-    print(cmd,file=sys.stderr)
+    #print(cmd,file=sys.stderr)
+    sys.stderr.write(os.getcwd()+"\n")
+    sys.stderr.write(script_folder + __file__ +"\n" + "\n")
+ 
+    sys.stderr.write( cmd + "\n" + "\n")
     os.system(MRSFAST + " --index {0}/allinsertions.fa > {0}/mrsfast.index.log".format(folder))
 
 #    with open(samples_txt,'r') as hand:
@@ -173,7 +189,7 @@ def main():
     f.close()
     cmd           =  'cat {0} | xargs -I CMD --max-procs=1 bash -c CMD'.format(fname)    
     os.system(cmd)
-    os.system("{1} {0}/allinsertions.coor {0}/seq.mrsfast.sam {0}/seq.mrsfast.recal.sam".format(folder, RECALIBRATE) )
+    os.system("{1} {0}/allinsertions.fa.lookup {0}/seq.mrsfast.sam {0}/seq.mrsfast.recal.sam".format(folder, RECALIBRATE) )
     os.system("sort -k 3,3 -k 4,4n {0}/seq.mrsfast.recal.sam > {0}/seq.mrsfast.recal.sam.sorted".format(folder))
     msamlist = open("{0}/seq.mrsfast.recal.sam.sorted".format(folder),"r")
     chrName=""
