@@ -13,3 +13,4 @@ dependencies:
   - gcc_linux-64 >= 7.2.0
   - zlib >= 1.2.11
   - repeatmasker == 4.0.9_p2
+  - minia == 3.2.1
