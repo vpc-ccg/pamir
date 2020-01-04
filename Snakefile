@@ -842,7 +842,7 @@ rule prep_for_set_cover:
 rule filter_vcf:
     input:
         vcf=path_names["pamass"] +"/{sample}/all.sorted.vcf",
-        fq=path_names["remcor"]+"/{sample}/{sample}.all_interleaved.fastq",
+        fq=path_names["remcor"]+"/{sample}/{sample}.all_interleaved.fq",
         header=path_names["pamann"]+"/header.vcf",
         statfile=path_names["remcor"]+"/{sample}/{sample}.stats.json",
     output:
@@ -1409,14 +1409,14 @@ rule cram_split:
         orphan_ex=path_names["remcor"] + "/{sample}/{sample}.orphan.almost.fq",
         oea_mapped=path_names["remcor"] + "/{sample}/{sample}.oea.mapped.fq",
         oea_unmapp=path_names["remcor"] + "/{sample}/{sample}.oea.unmapped.fq", 
-        al=path_names["remcor"] + "/{sample}/{sample}.all_interleaved.fastq",
+        al=path_names["remcor"] + "/{sample}/{sample}.all_interleaved.fq",
         statfile=path_names["remcor"] + "/{sample}/{sample}.stat",
     params:
         analysis=path_names["remcor"],
         REF=config["reference"],
         PAMIR="./pamir",
         CRAMS= path_names["linkeddata"],
-        pamir_params="2 1 1 0.95",
+        pamir_params="fq 1 1 0.95",
     threads:
         1
     shell:
