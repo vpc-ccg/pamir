@@ -11,9 +11,54 @@
 
 using namespace std;
 /****************************************************************/
-inline void output_record(FILE *fp, int ftype, const Record &rc)
-{
-	string record;
+
+
+
+
+
+class FileManager {
+public:
+
+    gzFile gzfile;
+    FILE   *refile;
+
+    void gzw(const string &record){
+        gzwrite( gzfile, record.c_str(), record.size() );
+    }
+
+    void nw(const string &record){
+        fwrite(record.c_str(), 1, record.size(), refile);
+    }
+    typedef void(FileManager::*write_ptr)(const string &);
+    write_ptr ffwrite;
+
+    FileManager(const string &str) : gzfile(NULL), refile(NULL){
+        if( str.find(".gz") != string::npos){
+            ffwrite = &FileManager::gzw;
+            gzfile = gzopen(str.c_str(), "w6");
+        }
+        else{
+            ffwrite = &FileManager::nw;
+            refile = fopen(str.c_str(), "w");
+        }
+    }
+    void write(const string &rec){
+        (this->*(ffwrite))(rec);
+    }
+    ~FileManager(){
+        if(gzfile != NULL){
+            gzclose(gzfile);
+        }
+        if(refile != NULL){
+            fclose(refile);
+        }
+    }
+
+};
+
+inline void output_record(unique_ptr<FileManager> &fm, int ftype, const Record &rc){
+    string record;
+
 	uint32_t flag = rc.getMappingFlag();
 	
 	string mate = ((flag & 0x40)==0x40)?"/1":"/2";
@@ -21,11 +66,12 @@ inline void output_record(FILE *fp, int ftype, const Record &rc)
 	string seq = (reversed) ? reverse_complement (rc.getSequence()) : rc.getSequence();
 	string qual = (reversed) ? reverse (rc.getQuality()): rc.getQuality();
 
-	if (ftype == 1)
+
+	if (ftype == 0)
 		record = S(">%s%s\n%s\n", rc.getReadName(), mate.c_str(), seq.c_str());
-	else if (ftype==2)
+	else if (ftype==1)
 		record = S("@%s%s\n%s\n+\n%s\n", rc.getReadName(), mate.c_str(), seq.c_str(), qual.c_str());
-	else if (ftype==3)
+	else if (ftype==2)
 		record = S("%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\t%s\n",
 				rc.getReadName(),
 				rc.getMappingFlag(),
@@ -40,47 +86,11 @@ inline void output_record(FILE *fp, int ftype, const Record &rc)
 				rc.getQuality(),
 				rc.getOptional()
 				);
-	else if (ftype==4)
-		record = S("@%s\n%s\n+\n%s\n", rc.getReadName(),  seq.c_str(), qual.c_str());
 
-	fwrite(record.c_str(), 1, record.size(), fp);
+
+    fm->write(record);
 }
-/****************************************************************/
-inline void gz_record( gzFile fp, int ftype, const Record &rc)
-{
-	string record;
-	uint32_t flag = rc.getMappingFlag();
-	
-	string mate = ((flag & 0x40)==0x40)?"/1":"/2";
-	int reversed = ((flag & 0x10) == 0x10);
-	string seq = (reversed) ? reverse_complement (rc.getSequence()) : rc.getSequence();
-	string qual = (reversed) ? reverse (rc.getQuality()): rc.getQuality();
 
-	if (ftype == 1)
-		record = S(">%s%s\n%s\n", rc.getReadName(), mate.c_str(), seq.c_str());
-	else if (ftype==2)
-		record = S("@%s%s\n%s\n+\n%s\n", rc.getReadName(), mate.c_str(), seq.c_str(), qual.c_str());
-	else if (ftype==3)
-		record = S("%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s\t%s\n",
-				rc.getReadName(),
-				rc.getMappingFlag(),
-				rc.getChromosome(),
-				rc.getLocation(),
-				rc.getMappingQuality(),
-				rc.getCigar(),
-				rc.getPairChromosome(),
-				rc.getPairLocation(),
-				rc.getTemplateLength(),
-				rc.getSequence(),
-				rc.getQuality(),
-				rc.getOptional()
-				);
-	else if (ftype==4)
-		record = S("@%s\n%s\n+\n%s\n", rc.getReadName(),  seq.c_str(), qual.c_str());
-
-	//fwrite(record.c_str(), 1, record.size(), fp);
-	gzwrite( fp, record.c_str(), record.size() );
-}
 /****************************************************************/
 int parse_sc( const char *cigar, int &match_l, int &read_l )
 {	
@@ -107,7 +117,7 @@ int parse_sc( const char *cigar, int &match_l, int &read_l )
 	return 0;
 }
 
-void output_mates(const Record &mate1, const Record &mate2, FILE *fout, int ftype) {
+void output_mates(const Record &mate1, const Record &mate2, unique_ptr<FileManager> &fout, int ftype) {
     u_int32_t FIRST_MATE = 0x40;
     if ((mate1.getMappingFlag() & FIRST_MATE) == FIRST_MATE) {
         output_record(fout, ftype, mate1);
@@ -132,7 +142,7 @@ int is_good_mapping (const Record &mapping, float clip_ratio) {
         return 1;
 }
 
-extractor::extractor(string filename, string output_prefix, int ftype, int oea, int orphan, double clip_ratio = 0.99) {
+extractor::extractor(string filename, string output_prefix, string ftype_str, int oea, int orphan, double clip_ratio = 0.99) {
     SAMParser *parser = new SAMParser(filename);
     string comment = parser->readComment();
 
@@ -142,6 +152,8 @@ extractor::extractor(string filename, string output_prefix, int ftype, int oea, 
     map <string, Record> map_read;
     map <string, Record> map_orphan;
     map <string, Record> map_oea;
+
+    int ftype; 
 
     int supp_cnt = 0;
     int orig_concordant = 0;
@@ -156,22 +168,38 @@ extractor::extractor(string filename, string output_prefix, int ftype, int oea, 
     int proc_oea = 0;
     int proc_orphan = 0;
 
-    string extensions[] = {"", "fa", "fq", "sam"};
+    string extensions[] = {"fa", "fq", "sam", "fa.gz", "fq.gz", "sam.gz"};
 
-    FILE *foea_mapped, *foea_unmapped, *forphan, *forphan_sup, *fall_int, *f_min_length;
-    fall_int = fopen((output_prefix + ".all_interleaved.fastq").c_str(), "w");
+    for (int i=0; i < 6; i++) {
+        if (ftype_str == extensions[i]) {
+               ftype = i;
+               break;
+        }
+    }
+    ftype = ftype % 3;
+
+
+    std::unique_ptr<FileManager> foea_mapped, foea_unmapped, forphan, forphan_sup, fall_int, f_min_length;
+   
+    fall_int = std::make_unique<FileManager>((output_prefix + ".all_interleaved." + extensions[ftype]));
     if (oea) {
         string foea_mapped_name = output_prefix + ".oea.mapped." + extensions[ftype];
         string foea_unmapped_name = output_prefix + ".oea.unmapped." + extensions[ftype];
-        foea_mapped = fopen(foea_mapped_name.c_str(), "w");
-        foea_unmapped = fopen(foea_unmapped_name.c_str(), "w");
+//        foea_mapped = fopen(foea_mapped_name.c_str(), "w");
+//       foea_unmapped = fopen(foea_unmapped_name.c_str(), "w");
+
+        foea_mapped = std::make_unique<FileManager>(foea_mapped_name);
+        foea_unmapped = std::make_unique<FileManager>(foea_unmapped_name);
     }
 
     if (orphan) {
         string forphan_name = output_prefix + ".orphan.canonical." + extensions[ftype];
         string forphan_name_sup = output_prefix + ".orphan.almost." + extensions[ftype];
-        forphan = fopen(forphan_name.c_str(), "w");
-        forphan_sup = fopen(forphan_name_sup.c_str(), "w");
+ 
+
+
+        forphan = std::make_unique<FileManager>(forphan_name);
+        forphan_sup = std::make_unique<FileManager>(forphan_name_sup);
     }
 
     int count = 0;
@@ -359,18 +387,6 @@ extractor::extractor(string filename, string output_prefix, int ftype, int oea, 
 
 
     fclose(f_stat);
-
-    // close file
-    if (oea) {
-        fclose(foea_mapped);
-        fclose(foea_unmapped);
-    }
-    if (orphan) {
-
-        fclose(forphan);
-        fclose(forphan_sup);
-    }
-    fclose(fall_int);
 }
 /***************************************************************/
 extractor::~extractor()

@@ -7,7 +7,7 @@ class extractor
 {
 
 public:
-	extractor(string, string, int, int, int, double);
+	extractor(string, string, string, int, int, double);
 	~extractor();
 
 };
