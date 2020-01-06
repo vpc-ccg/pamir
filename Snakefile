@@ -37,9 +37,13 @@ cfg_default("aligner_threads", 16)
 cfg_default("other_threads",16)
 cfg_default("minia_min_abundance",5)
 cfg_default("n_std_dev",3)
+cfg_default("seq_ext", "fq.gz")
 
 cfg_optional("pamir_min_contig_len")
 cfg_optional("blastdb")
+
+sext = config["seq_ext"]
+mrsfast_comp_param = "" if ".gz" not in sext else " --seqcomp "
 
 path_names = {
 "linkeddata"  : "linked-data",
@@ -702,7 +706,7 @@ rule map_orphans_to_vis_fasta:
     input:
         fasta=path_names["pamgen"]+"/events_ref.fa",
         fasta_index=path_names["pamgen"]+"/events_ref.fa.bwt",
-        fastq=path_names["remcor"] + "/{sample}/{sample}.orphan.canonical.fq",
+        fastq=path_names["remcor"] + "/{sample}/{sample}.orphan.canonical."+sext,
     output: 
         sam=temp(path_names["pamgen"]+"/{sample}/orphans.sam"),
     threads:
@@ -842,7 +846,7 @@ rule prep_for_set_cover:
 rule filter_vcf:
     input:
         vcf=path_names["pamass"] +"/{sample}/all.sorted.vcf",
-        fq=path_names["remcor"]+"/{sample}/{sample}.all_interleaved.fq",
+        fq=path_names["remcor"]+"/{sample}/{sample}.all_interleaved."+sext,
         header=path_names["pamann"]+"/header.vcf",
         statfile=path_names["remcor"]+"/{sample}/{sample}.stats.json",
     output:
@@ -913,12 +917,12 @@ rule all_cc:
         "touch {output}"
 
 
-
+print(sext)
 def get_assembly_input():
-    return expand( "{Path}/{sample}/{sample}.orphan.{typ}.fq", Path=path_names["remcor"], sample=[x[0][0:x[0].find(".")] for x in config["input"].values()],typ=["canonical","almost"])
+    return expand( "{Path}/{sample}/{sample}.orphan.{typ}."+sext, Path=path_names["remcor"], sample=[x[0][0:x[0].find(".")] for x in config["input"].values()],typ=["canonical","almost"])
 
 def format_spades_inputs():
-    return " ".join([ " --pe{0}-12 {2}/{3}/{3}.orphan.canonical.fq --pe{1}-12 {2}/{3}/{3}.orphan.almost.fq".format(1+i*2,1+i*2+2,path_names["remcor"],x[0][0:x[0].find(".")]) for i,x in enumerate(config["input"].values())])
+    return " ".join([ " --pe{0}-12 {2}/{3}/{3}.orphan.canonical.{4} --pe{1}-12 {2}/{3}/{3}.orphan.almost.{4}".format(1+i*2,1+i*2+2,path_names["remcor"],x[0][0:x[0].find(".")],sext) for i,x in enumerate(config["input"].values())])
 
 if config["assembler"] == "minia":
     rule minia_cf:
@@ -929,7 +933,7 @@ if config["assembler"] == "minia":
         params:
             analysis=config["analysis"],
         shell:
-            "ls {}/*/*.orphan.*.fq > {{output}}".format(path_names["remcor"])
+            "ls {}/*/*.orphan.*.{} > {{output}}".format(path_names["remcor"],sext)
 
     rule minia_all:
         input:     
@@ -964,7 +968,7 @@ elif config["assembler"] == "spades":
 elif config["assembler"] == "abyss":
      rule abyss_all:
         input:
-            expand(path_names["remcor"]+"/{sample}/{sample}.orphan.canonical.fq "+ path_names["remcor"] + "/{sample}/{sample}.orphan.almost.fq",sample=[x[0][0:x[0].find(".")] for x in config["input"].values()]),
+            expand(path_names["remcor"]+"/{sample}/{sample}.orphan.canonical." + sext + " " + path_names["remcor"] + "/{sample}/{sample}.orphan.almost." + sext,sample=[x[0][0:x[0].find(".")] for x in config["input"].values()]),
         output:
             path_names["extass"] + "/contigs.fasta"
         params:
@@ -1070,7 +1074,7 @@ rule pamir_partition:
     input:
         sam=path_names["remcor"] + "/{sample}/{sample}.anchor.sorted.sam",
         oea2orphan=path_names["remcor"] + "/{sample}/{sample}.oea2orphan.recalib.sam",
-        oea_unmapped=path_names["remcor"] + "/{sample}/{sample}.oea.unmapped.fq",
+        oea_unmapped=path_names["remcor"] + "/{sample}/{sample}.oea.unmapped."+sext,
         contigs=path_names["lenfilter"] + "/{sample}.reads.contigs.filtered.clean.fa",
     output:
         partition=path_names["partition"] +"/{sample}/partition",
@@ -1266,7 +1270,7 @@ rule mrsfast_oea_unmapped_contig_map_cropped:
            
 rule mrsfast_oea_unmapped_contig_map:
     input:
-        oea=path_names["remcor"] + "/{sample}/{sample}.oea.unmapped.fq", 
+        oea=path_names["remcor"] + "/{sample}/{sample}.oea.unmapped."+sext, 
         contigs=path_names["lenfilter"] + "/{sample}.reads.contigs.filtered.clean.merged.fa",
         index=path_names["lenfilter"] + "/{sample}.reads.contigs.filtered.clean.merged.fa.index",
     output:
@@ -1278,11 +1282,11 @@ rule mrsfast_oea_unmapped_contig_map:
     threads:
         8
     shell: 
-        "mrsfast --search {input.contigs} --seq {input.oea} --threads {threads} -e {params.error} -o {output.sam} --mem {params.mem}"
+        "mrsfast --search {input.contigs} --seq {input.oea} --threads {threads} -e {params.error} -o {output.sam} --mem {params.mem}" + mrsfast_comp_param 
 
 rule mrsfast_anchor_wg_map:
     input:
-        path_names["remcor"] + "/{sample}/{sample}.oea.mapped.fq", 
+        path_names["remcor"] + "/{sample}/{sample}.oea.mapped."+sext, 
     output:
         path_names["remcor"] + "/{sample}/{sample}.anchor.sam",
     params:
@@ -1293,7 +1297,7 @@ rule mrsfast_anchor_wg_map:
     threads:
         config["aligner_threads"]
     shell:
-        "mrsfast --search {params.ref} --seq {input} --threads {threads}  -e {params.error} -o {output} --mem {params.mem} -n {params.N}"
+        "mrsfast --search {params.ref} --seq {input} --threads {threads}  -e {params.error} -o {output} --mem {params.mem} -n {params.N}" + mrsfast_comp_param
 
 rule velvet_all:
     input:
@@ -1405,18 +1409,18 @@ rule cram_split:
     input:
         get_cram_name
     output:
-        orphan_can=path_names["remcor"] + "/{sample}/{sample}.orphan.canonical.fq",
-        orphan_ex=path_names["remcor"] + "/{sample}/{sample}.orphan.almost.fq",
-        oea_mapped=path_names["remcor"] + "/{sample}/{sample}.oea.mapped.fq",
-        oea_unmapp=path_names["remcor"] + "/{sample}/{sample}.oea.unmapped.fq", 
-        al=path_names["remcor"] + "/{sample}/{sample}.all_interleaved.fq",
+        orphan_can=path_names["remcor"] + "/{sample}/{sample}.orphan.canonical."+sext,
+        orphan_ex=path_names["remcor"] + "/{sample}/{sample}.orphan.almost."+sext,
+        oea_mapped=path_names["remcor"] + "/{sample}/{sample}.oea.mapped."+sext,
+        oea_unmapp=path_names["remcor"] + "/{sample}/{sample}.oea.unmapped."+sext, 
+        al=path_names["remcor"] + "/{sample}/{sample}.all_interleaved."+sext,
         statfile=path_names["remcor"] + "/{sample}/{sample}.stat",
     params:
         analysis=path_names["remcor"],
         REF=config["reference"],
         PAMIR="./pamir",
         CRAMS= path_names["linkeddata"],
-        pamir_params="fq 1 1 0.95",
+        pamir_params="{} 1 1 0.95".format(sext),
     threads:
         1
     shell:

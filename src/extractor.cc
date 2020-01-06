@@ -176,7 +176,7 @@ extractor::extractor(string filename, string output_prefix, string ftype_str, in
                break;
         }
     }
-    ftype = ftype % 3;
+
 
 
     std::unique_ptr<FileManager> foea_mapped, foea_unmapped, forphan, forphan_sup, fall_int, f_min_length;
@@ -201,6 +201,7 @@ extractor::extractor(string filename, string output_prefix, string ftype_str, in
         forphan = std::make_unique<FileManager>(forphan_name);
         forphan_sup = std::make_unique<FileManager>(forphan_name_sup);
     }
+    ftype = ftype % 3;
 
     int count = 0;
     while (parser->hasNext()) {

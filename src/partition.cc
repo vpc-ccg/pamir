@@ -111,18 +111,18 @@ genome_partition::~genome_partition (){
 }
 
 int genome_partition::load_oea_mates ( const string &mate_file) {
-    FILE *fin = fopen(mate_file.c_str(), "r");
+    gzFile fin = gzopen(mate_file.c_str(), "r");
     char name[MAXB], read[MAXB], tmp[MAXB];
-    while (fgets(name, MAXB, fin)) {
-        fgets(read, MAXB, fin);
-        fgets(tmp, MAXB, fin);
-        fgets(tmp, MAXB, fin);
+    while (gzgets(fin, name, MAXB)) {
+        gzgets(fin, read, MAXB);
+        gzgets(fin, tmp, MAXB);
+        gzgets(fin, tmp, MAXB);
         if (strlen(name)>2 && name[strlen(name) - 3] == '/')
             name[strlen(name)-3]='\0';
         read[strlen(read)-1]='\0';
         oea_mate[string(name+1)] = read;
     }
-    fclose(fin);
+    gzclose(fin);
     return 0;
 }
 

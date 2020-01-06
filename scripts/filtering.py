@@ -166,7 +166,7 @@ def main():
     input_file = all_reads_fastq
     
 
-    cmd = MRSFAST + " --search {0}/allinsertions.fa --pe --min {1} --max {2} -o {0}/seq.mrsfast.sam -e 3 --threads {4} --disable-sam-header --disable-nohits --seq {3} > {0}/seq.mrsfast.sam.log".format(folder, MIN, MAX,input_file,THREADS)
+    cmd = MRSFAST + " --search {0}/allinsertions.fa --pe --min {1} --max {2} -o {0}/seq.mrsfast.sam -e 3 --threads {4} --disable-sam-header --disable-nohits --seq {3} {5} > {0}/seq.mrsfast.sam.log".format(folder, MIN, MAX,input_file,THREADS,"" if ".gz" not in input_file else "--seqcomp")
     #print(cmd,file=sys.stderr)
     sys.stderr.write(os.getcwd()+"\n")
     sys.stderr.write(script_folder + __file__ +"\n" + "\n")
