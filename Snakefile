@@ -1,5 +1,4 @@
 
-
 def cfg_default( key, val):
     if key not in config:
         config[key] = val
@@ -35,6 +34,7 @@ cfg_default("assembler_k", 64)
 cfg_default("assembly_threads",62)
 cfg_default("aligner_threads", 16)
 cfg_default("other_threads",16)
+cfg_default("repeatmasker_threads",63)
 cfg_default("minia_min_abundance",5)
 cfg_default("n_std_dev",3)
 cfg_default("seq_ext", "fq.gz")
@@ -256,7 +256,7 @@ rule make_repeat_mask_gff:
         path_names["pamgen"]+"/events_ref.fa.out"
         #config["results"]+"/events.fa.out" 
     threads:
-        config["other_threads"]
+        config["repeatmasker_threads"]
     shell:
         "RepeatMasker -species human -pa {threads} {input}"
 
@@ -917,7 +917,7 @@ rule all_cc:
         "touch {output}"
 
 
-print(sext)
+#print(sext)
 def get_assembly_input():
     return expand( "{Path}/{sample}/{sample}.orphan.{typ}."+sext, Path=path_names["remcor"], sample=[x[0][0:x[0].find(".")] for x in config["input"].values()],typ=["canonical","almost"])
 
