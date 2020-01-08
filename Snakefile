@@ -663,9 +663,9 @@ rule genotype_vis:
 
                     lg = []
                     for ratio in [left_ratio, right_ratio]:
-                        if left_ratio >= 0.3:
+                        if ratio >= 0.3:
                             lg.append(2)
-                        elif left_ratio <= -0.3:
+                        elif ratio <= -0.3:
                             lg.append(0)
                         else:
                             lg.append(1)
