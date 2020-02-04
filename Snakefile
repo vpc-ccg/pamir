@@ -978,7 +978,15 @@ elif config["assembler"] == "abyss":
             config["assembly_threads"]
         shell:
             "cd {params.dr} && abyss-pe name=temp in='{input}' k={params.k} && mv temp-contigs.fa contigs.fasta"
-
+elif config["assembler"] == "present":
+    assert( "assembly" in config, '"assembly" should be present in config to use present option')
+    rule present_assembly_copy:
+        input:
+            config["assembly"]
+        output:
+            path_names["extass"] + "/contigs.fasta"
+        shell:
+            "cp {input} {output}"
 
 rule pamir_assemble_full_new:
     input:
