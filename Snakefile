@@ -9,7 +9,7 @@ def cfg_mandatory( key):
 def cfg_optional( key):
     pass
 
-assembler_binaries = {"minia":"minia","abyss":"abyss-pe","spades":"spades.py"}
+assembler_binaries = {"minia":"minia","abyss":"abyss-pe","spades":"spades.py", "present":"ls"}
 
 cfg_mandatory("path")
 cfg_mandatory("reference")
@@ -979,7 +979,7 @@ elif config["assembler"] == "abyss":
         shell:
             "cd {params.dr} && abyss-pe name=temp in='{input}' k={params.k} && mv temp-contigs.fa contigs.fasta"
 elif config["assembler"] == "present":
-    assert( "assembly" in config, '"assembly" should be present in config to use present option')
+    assert "assembly" in config, '"assembly" should be present in config to use present option'
     rule present_assembly_copy:
         input:
             config["assembly"]
