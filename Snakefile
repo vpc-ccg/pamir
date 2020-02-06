@@ -968,7 +968,8 @@ elif config["assembler"] == "spades":
 elif config["assembler"] == "abyss":
      rule abyss_all:
         input:
-            expand(path_names["remcor"]+"/{sample}/{sample}.orphan.canonical." + sext + " " + path_names["remcor"] + "/{sample}/{sample}.orphan.almost." + sext,sample=[x[0][0:x[0].find(".")] for x in config["input"].values()]),
+            expand(path_names["remcor"]+"/{sample}/{sample}.orphan.{orphan_type}." + sext ,orphan_type=["canonical", "almost"],sample=[x[0][0:x[0].find(".")] for x in config["input"].values()]),
+            #expand(path_names["remcor"]+"/{sample}/{sample}.orphan.canonical." + sext + " " + path_names["remcor"] + "/{sample}/{sample}.orphan.almost." + sext,sample=[x[0][0:x[0].find(".")] for x in config["input"].values()]),
         output:
             path_names["extass"] + "/contigs.fasta"
         params:
