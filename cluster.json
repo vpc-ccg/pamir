@@ -72,7 +72,7 @@
         "name" : "abyss-all",
         "c" : 62,
         "mem" : "700G",
-        "time": "23:59:59",
+        "time": "300:59:59",
         "part": "normal,express,long",
     },
     "spades_all" :
