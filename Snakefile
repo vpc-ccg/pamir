@@ -516,7 +516,7 @@ rule convert_vis_sam_to_bam:
         sam=path_names["pamgen"]+"/bams/{sample}.sam",
         header=path_names["pamgen"]+"/{sample}/header.sam",
     output:
-        path_names["pamgen"]+"/bams/{sample}.bam",
+        temp(path_names["pamgen"]+"/bams/{sample}.bam"),
     threads:
         16
     shell:
@@ -546,7 +546,7 @@ rule genotype_vis:
         fasta=path_names["pamgen"]+"/events_ref.fa",
         read_stats=path_names["remcor"] +"/{sample}/{sample}.stats.json",
     output:
-        sam=path_names["pamgen"]+"/bams/{sample}.sam",
+        sam=temp(path_names["pamgen"]+"/bams/{sample}.sam"),
         vcf=path_names["pamgen"]+"/{sample}/genotyped.vcf",
         head=path_names["pamgen"]+"/bams/{sample}.header",
         bed  =path_names["pamgen"]+"/{sample}/events_ins_pos.bed",
@@ -1245,8 +1245,8 @@ rule bam_sort:
  
 rule mrsfast_oea_unmapped_contig_map_tail_cropped:
     input:
-        nohit=path_names["remcor"] + "/{sample}/{sample}.oea.unmapped.sam.nohit",
-        contigs=path_names["lenfilter"] + "/{sample}.reads.contigs.filtered.clean.merged.fa",
+        nohit=path_names["remcor"] + "/{sample}/{sample}.oea.unmapped.nohit.fq.gz",
+	contigs=path_names["lenfilter"] + "/{sample}.reads.contigs.filtered.clean.merged.fa",
         index=path_names["lenfilter"] + "/{sample}.reads.contigs.filtered.clean.merged.fa.index",
     output:
         sam=path_names["remcor"] + "/{sample}/{sample}.oea.unmapped.tail.sam",
@@ -1258,11 +1258,16 @@ rule mrsfast_oea_unmapped_contig_map_tail_cropped:
     threads:
         8
     shell:
-        "mrsfast --search {input.contigs} --seq {input.nohit} --threads {threads} -e {params.error} -o {output.sam} --mem {params.mem} --tail-crop {params.crop} -n {params.N}"
+        "mrsfast --disable-nohits --search {input.contigs} --seq {input.nohit} --threads {threads} -e {params.error} -o {output.sam} --mem {params.mem} --tail-crop {params.crop} -n {params.N}"+ mrsfast_comp_param 
+
+def remove_gz(st):
+	if st[-2:] == ".gz":
+		return st[:-2]
+	return st
 
 rule mrsfast_oea_unmapped_contig_map_cropped:
     input:
-        nohit=path_names["remcor"] + "/{sample}/{sample}.oea.unmapped.sam.nohit",
+        nohit=path_names["remcor"] + "/{sample}/{sample}.oea.unmapped.nohit.fq.gz",
         contigs=path_names["lenfilter"] + "/{sample}.reads.contigs.filtered.clean.merged.fa",
         index=path_names["lenfilter"] + "/{sample}.reads.contigs.filtered.clean.merged.fa.index",
     output:
@@ -1275,8 +1280,9 @@ rule mrsfast_oea_unmapped_contig_map_cropped:
     threads:
         8
     shell:
-        "mrsfast --search {input.contigs} --seq {input.nohit} --threads {threads} -e {params.error} -o {output.sam} --mem {params.mem} --crop {params.crop} -n {params.N}"
-           
+        "mrsfast --disable-nohits --search {input.contigs} --seq {input.nohit} --threads {threads} -e {params.error} -o {output.sam} --mem {params.mem} --crop {params.crop} -n {params.N}"+ mrsfast_comp_param
+
+
 rule mrsfast_oea_unmapped_contig_map:
     input:
         oea=path_names["remcor"] + "/{sample}/{sample}.oea.unmapped."+sext, 
@@ -1284,15 +1290,15 @@ rule mrsfast_oea_unmapped_contig_map:
         index=path_names["lenfilter"] + "/{sample}.reads.contigs.filtered.clean.merged.fa.index",
     output:
         sam=path_names["remcor"] + "/{sample}/{sample}.oea.unmapped.sam",
-        nohit=path_names["remcor"] + "/{sample}/{sample}.oea.unmapped.sam.nohit"
+        nohit=path_names["remcor"] + "/{sample}/{sample}.oea.unmapped.nohit.fq.gz"
     params:
         mem="8G",
         error=0,
+	nh_path=lambda wildcards, output: remove_gz(output[1]),
     threads:
         8
     shell: 
-        "mrsfast --search {input.contigs} --seq {input.oea} --threads {threads} -e {params.error} -o {output.sam} --mem {params.mem}" + mrsfast_comp_param 
-
+        "mrsfast --search {input.contigs} --seq {input.oea}  --threads {threads} -e {params.error} -o {output.sam} -u {params.nh_path} --mem {params.mem}" + mrsfast_comp_param + " && gzip {params.nh_path}"
 rule mrsfast_anchor_wg_map:
     input:
         path_names["remcor"] + "/{sample}/{sample}.oea.mapped."+sext, 
@@ -1306,7 +1312,7 @@ rule mrsfast_anchor_wg_map:
     threads:
         config["aligner_threads"]
     shell:
-        "mrsfast --search {params.ref} --seq {input} --threads {threads}  -e {params.error} -o {output} --mem {params.mem} -n {params.N}" + mrsfast_comp_param
+        "mrsfast --disable-nohits --search {params.ref} --seq {input} --threads {threads}  -e {params.error} -o {output} --mem {params.mem} -n {params.N}" + mrsfast_comp_param
 
 rule velvet_all:
     input:
