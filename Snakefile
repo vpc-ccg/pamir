@@ -49,6 +49,7 @@ path_names = {
 "linkeddata"  : "linked-data",
 "remcor"      : "pamir-remove-concordants",
 "extass"      :  config["assembler"],
+"pamoea"      : "pamir-oea-processing",
 "blast"       : "blast-filtering",
 "lenfilter"   : "length-filtering",
 "partition"   : "pamir-partition",
@@ -1073,16 +1074,16 @@ rule pamir_assemble_full_new:
 rule recalibrate_oea_to_orphan:
     input:
         lookup=path_names["lenfilter"] + "/{sample}.reads.contigs.filtered.clean.merged.fa.lookup",
-        bam=path_names["remcor"] + "/{sample}/{sample}.oea2orphan.bam"
+        bam=path_names["pamoea"] + "/{sample}/{sample}.oea2orphan.bam"
     output:
-        path_names["remcor"] + "/{sample}/{sample}.oea2orphan.recalib.sam"
+        path_names["pamoea"] + "/{sample}/{sample}.oea2orphan.recalib.sam"
     shell:
         "./pamir recalibrate {input.lookup} <(samtools view {input.bam}) {output}"
 
 rule pamir_partition:
     input:
-        sam=path_names["remcor"] + "/{sample}/{sample}.anchor.sorted.sam",
-        oea2orphan=path_names["remcor"] + "/{sample}/{sample}.oea2orphan.recalib.sam",
+        sam=path_names["pamoea"] + "/{sample}/{sample}.anchor.sorted.sam",
+        oea2orphan=path_names["pamoea"] + "/{sample}/{sample}.oea2orphan.recalib.sam",
         oea_unmapped=path_names["remcor"] + "/{sample}/{sample}.oea.unmapped."+sext,
         contigs=path_names["lenfilter"] + "/{sample}.reads.contigs.filtered.clean.fa",
     output:
@@ -1201,11 +1202,11 @@ rule mrsfast_index_contigs:
 
 rule merge_oea_bams:
     input:
-        full  = path_names["remcor"] + "/{sample}/{sample}.oea.unmapped.sorted.bam",
-        front = path_names["remcor"] + "/{sample}/{sample}.oea.unmapped.front.sorted.bam",
-        tail  = path_names["remcor"] + "/{sample}/{sample}.oea.unmapped.tail.sorted.bam",
+        full  = path_names["pamoea"] + "/{sample}/{sample}.oea.unmapped.sorted.bam",
+        front = path_names["pamoea"] + "/{sample}/{sample}.oea.unmapped.front.sorted.bam",
+        tail  = path_names["pamoea"] + "/{sample}/{sample}.oea.unmapped.tail.sorted.bam",
     output:
-       path_names["remcor"] + "/{sample}/{sample}.oea2orphan.bam",
+       temp(path_names["pamoea"] + "/{sample}/{sample}.oea2orphan.bam"),
     shell:
         "samtools merge {output} {input.full} {input.front} {input.tail} -@ {threads}" 
 
@@ -1245,11 +1246,11 @@ rule bam_sort:
  
 rule mrsfast_oea_unmapped_contig_map_tail_cropped:
     input:
-        nohit=path_names["remcor"] + "/{sample}/{sample}.oea.unmapped.nohit.fq.gz",
+        nohit=path_names["pamoea"] + "/{sample}/{sample}.oea.unmapped.nohit.fq.gz",
 	contigs=path_names["lenfilter"] + "/{sample}.reads.contigs.filtered.clean.merged.fa",
         index=path_names["lenfilter"] + "/{sample}.reads.contigs.filtered.clean.merged.fa.index",
     output:
-        sam=path_names["remcor"] + "/{sample}/{sample}.oea.unmapped.tail.sam",
+        sam=temp(path_names["pamoea"] + "/{sample}/{sample}.oea.unmapped.tail.sam"),
     params:
         mem="8G",
         error=0,
@@ -1267,11 +1268,11 @@ def remove_gz(st):
 
 rule mrsfast_oea_unmapped_contig_map_cropped:
     input:
-        nohit=path_names["remcor"] + "/{sample}/{sample}.oea.unmapped.nohit.fq.gz",
+        nohit=path_names["pamoea"] + "/{sample}/{sample}.oea.unmapped.nohit.fq.gz",
         contigs=path_names["lenfilter"] + "/{sample}.reads.contigs.filtered.clean.merged.fa",
         index=path_names["lenfilter"] + "/{sample}.reads.contigs.filtered.clean.merged.fa.index",
     output:
-        sam=path_names["remcor"] + "/{sample}/{sample}.oea.unmapped.front.sam",
+        sam=temp(path_names["pamoea"] + "/{sample}/{sample}.oea.unmapped.front.sam"),
     params:
         mem="8G",
         error=0,
@@ -1289,8 +1290,8 @@ rule mrsfast_oea_unmapped_contig_map:
         contigs=path_names["lenfilter"] + "/{sample}.reads.contigs.filtered.clean.merged.fa",
         index=path_names["lenfilter"] + "/{sample}.reads.contigs.filtered.clean.merged.fa.index",
     output:
-        sam=path_names["remcor"] + "/{sample}/{sample}.oea.unmapped.sam",
-        nohit=path_names["remcor"] + "/{sample}/{sample}.oea.unmapped.nohit.fq.gz"
+        sam=temp(path_names["pamoea"] + "/{sample}/{sample}.oea.unmapped.sam"),
+        nohit=path_names["pamoea"] + "/{sample}/{sample}.oea.unmapped.nohit.fq.gz"
     params:
         mem="8G",
         error=0,
@@ -1303,7 +1304,7 @@ rule mrsfast_anchor_wg_map:
     input:
         path_names["remcor"] + "/{sample}/{sample}.oea.mapped."+sext, 
     output:
-        path_names["remcor"] + "/{sample}/{sample}.anchor.sam",
+        temp(path_names["pamoea"] + "/{sample}/{sample}.anchor.sam"),
     params:
         mem="8G",
         ref=config["reference"],
