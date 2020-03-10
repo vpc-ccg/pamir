@@ -96,11 +96,11 @@ rule make_results:
 
 rule print_event_xml:
     input:
-        bam=path_names["pamgen"]+"/{sample}/final.bam",
+        bam=path_names["pamgen"]+"/ind/{sample}/final.bam",
         fasta=path_names["pamgen"]+"/events_ref.fa",
-        bed  =path_names["pamgen"]+"/{sample}/events_ins_pos.bed",
+        bed  =path_names["pamgen"]+"/ind/{sample}/events_ins_pos.bed",
     output:
-        dne =path_names["pamgen"]+"/{sample}/cfg.xml"
+        dne =path_names["pamgen"]+"/ind/{sample}/cfg.xml"
     run:
         with open(output.dne,'w') as out_hand:
             genome_str = '<Global genome="{}" version="3">'
@@ -155,7 +155,7 @@ rule make_html:
 
 rule move_bams:
     input:
-        path_names["pamgen"]+"/{sample}/final.bam" 
+        path_names["pamgen"]+"/ind/{sample}/final.bam" 
     output:
         config["results"]+"/ind/{sample}/events.bam" 
     shell:
@@ -163,7 +163,7 @@ rule move_bams:
 
 rule move_vcf:
     input:
-        path_names["pamgen"]+"/{sample}/final.vcf" 
+        path_names["pamgen"]+"/ind/{sample}/final.vcf" 
     output:
         config["results"]+"/ind/{sample}/events.vcf" 
     shell:
@@ -172,7 +172,7 @@ rule move_vcf:
 
 rule move_bed:
     input:
-        path_names["pamgen"]+"/{sample}/events_ins_pos.bed" 
+        path_names["pamgen"]+"/ind/{sample}/events_ins_pos.bed" 
     output:
         config["results"]+"/ind/{sample}/events.bed" 
     shell:
@@ -206,28 +206,28 @@ rule move_repeat_bed:
 
 rule merge_repeat_beds:
     input:
-        uniq=path_names["pamgen"]+"/{sample}/uniq_seq_ins.bed",
-        rep=path_names["pamgen"]+"/{sample}/repeat_overlap_ins.bed",
+        uniq=path_names["pamgen"]+"/ind/{sample}/uniq_seq_ins.bed",
+        rep=path_names["pamgen"]+"/ind/{sample}/repeat_overlap_ins.bed",
     output:
-        path_names["pamgen"]+"/{sample}/events_ins_pos_and_repeat.bed",
+        path_names["pamgen"]+"/ind/{sample}/events_ins_pos_and_repeat.bed",
     shell:
         "cat {input.uniq} {input.rep} | bedtools sort  -i stdin > {output}"
 
 rule non_repeat_bed:
     input:
-        bed=path_names["pamgen"]+"/{sample}/events_ins_pos.bed",
+        bed=path_names["pamgen"]+"/ind/{sample}/events_ins_pos.bed",
         rpt=path_names["pamgen"]+"/events_ref.repeat.bed",
     output:
-        path_names["pamgen"]+"/{sample}/uniq_seq_ins.bed",
+        path_names["pamgen"]+"/ind/{sample}/uniq_seq_ins.bed",
     shell:
         "bedtools intersect -b {input.rpt} -a {input.bed} -v  | python scripts/process_unique.py > {output}"
 
 rule repeat_bed:
     input:
-        bed=path_names["pamgen"]+"/{sample}/events_ins_pos.bed",
+        bed=path_names["pamgen"]+"/ind/{sample}/events_ins_pos.bed",
         rpt=path_names["pamgen"]+"/events_ref.repeat.bed",
     output:
-        path_names["pamgen"]+"/{sample}/repeat_overlap_ins.bed",
+        temp(path_names["pamgen"]+"/ind/{sample}/repeat_overlap_ins.bed"),
     shell:
         "bedtools intersect -a {input.rpt} -b {input.bed} -wb | python scripts/process_repeats.py > {output}"
 
@@ -325,7 +325,7 @@ rule make_stats_js:
 
 rule make_data_js:
     input:
-        expand(path_names["pamgen"]+"/{sample}/final.vcf",sample=config["input"].keys()),
+        expand(path_names["pamgen"]+"/ind/{sample}/final.vcf",sample=config["input"].keys()),
     output:
         config["results"]+"/data.js"
     run:
@@ -429,10 +429,10 @@ rule make_summary_js:
 
 rule annotate_repeats_in_vcf:
     input:
-        bed=path_names["pamgen"]+"/{sample}/events_ins_pos_and_repeat.bed",
-        vcf=path_names["pamgen"]+"/{sample}/genotyped.vcf",
+        bed=path_names["pamgen"]+"/ind/{sample}/events_ins_pos_and_repeat.bed",
+        vcf=path_names["pamgen"]+"/ind/{sample}/genotyped.vcf",
     output:
-        vcf=path_names["pamgen"]+"/{sample}/final.vcf",
+        vcf=path_names["pamgen"]+"/ind/{sample}/final.vcf",
     run:
 
         bedl = []
@@ -463,7 +463,7 @@ rule annotate_repeats_in_vcf:
 
 rule all_vis_table:
     input:
-        expand(path_names["pamgen"]+"/{sample}/final.vcf",sample=[x[0][0:x[0].find(".")] for x in config["input"].values()]) 
+        expand(path_names["pamgen"]+"/ind/{sample}/final.vcf",sample=[x[0][0:x[0].find(".")] for x in config["input"].values()]) 
     output:
         path_names["pamgen"]+"/table.tsv"
     run:
@@ -504,9 +504,9 @@ rule all_vis_table:
 rule get_final_bam:
     input:
         bam=path_names["pamgen"]+"/bams/{sample}.bam",
-        orphan_bam=path_names["pamgen"]+"/{sample}/orphans.bam",
+        orphan_bam=path_names["pamgen"]+"/ind/{sample}/orphans.bam",
     output:
-        orphan_bam=path_names["pamgen"]+"/{sample}/final.bam",
+        orphan_bam=path_names["pamgen"]+"/ind/{sample}/final.bam",
     threads:
         config["other_threads"]
     shell:
@@ -515,7 +515,7 @@ rule get_final_bam:
 rule convert_vis_sam_to_bam:
     input:
         sam=path_names["pamgen"]+"/bams/{sample}.sam",
-        header=path_names["pamgen"]+"/{sample}/header.sam",
+        header=path_names["pamgen"]+"/ind/{sample}/header.sam",
     output:
         temp(path_names["pamgen"]+"/bams/{sample}.bam"),
     threads:
@@ -548,9 +548,9 @@ rule genotype_vis:
         read_stats=path_names["remcor"] +"/{sample}/{sample}.stats.json",
     output:
         sam=temp(path_names["pamgen"]+"/bams/{sample}.sam"),
-        vcf=path_names["pamgen"]+"/{sample}/genotyped.vcf",
-        head=path_names["pamgen"]+"/bams/{sample}.header",
-        bed  =path_names["pamgen"]+"/{sample}/events_ins_pos.bed",
+        vcf=temp(path_names["pamgen"]+"/ind/{sample}/genotyped.vcf"),
+        head=temp(path_names["pamgen"]+"/bams/{sample}.header"),
+        bed  =temp(path_names["pamgen"]+"/ind/{sample}/events_ins_pos.bed"),
     params:
         ref=config["reference"],
         rang=config["genotyping_flank_size"],
@@ -687,18 +687,18 @@ rule genotype_vis:
 
 rule get_insertions_sam_header:
     input:
-        bam=path_names["pamgen"]+"/{sample}/orphans.bam",
+        bam=path_names["pamgen"]+"/ind/{sample}/orphans.bam",
     output:
-        temp(path_names["pamgen"]+"/{sample}/header.sam"),
+        temp(path_names["pamgen"]+"/ind/{sample}/header.sam"),
     shell:
         "samtools view {input} -H > {output}"
        
 rule convert_orphans_to_bam:
     input:
-        sam=path_names["pamgen"]+"/{sample}/orphans.sam",
+        sam=path_names["pamgen"]+"/ind/{sample}/orphans.sam",
         rgs=path_names["pamgen"]+"/rg.head",
     output:
-        bam=temp(path_names["pamgen"]+"/{sample}/orphans.bam"),
+        bam=temp(path_names["pamgen"]+"/ind/{sample}/orphans.bam"),
     threads:
         16
     shell:
@@ -709,7 +709,7 @@ rule map_orphans_to_vis_fasta:
         fasta_index=path_names["pamgen"]+"/events_ref.fa.bwt",
         fastq=path_names["remcor"] + "/{sample}/{sample}.orphan.canonical."+sext,
     output: 
-        sam=temp(path_names["pamgen"]+"/{sample}/orphans.sam"),
+        sam=temp(path_names["pamgen"]+"/ind/{sample}/orphans.sam"),
     threads:
         config["aligner_threads"]
     shell:
@@ -726,7 +726,7 @@ rule bwa_index:
 
 rule merge_fastas:
     input:
-        expand(path_names["pamgen"]+"/{sample}/events_ref.fa",sample=config["input"].keys())
+        expand(path_names["pamgen"]+"/ind/{sample}/events_ref.fa",sample=config["input"].keys())
     output:
         fasta=path_names["pamgen"]+"/events_ref.fa",
         fasta_index=path_names["pamgen"]+"/events_ref.fa.fai",
@@ -738,7 +738,7 @@ rule make_vis_fasta:
     input:
         vcf=path_names["pamann"]+"/{sample}/annotated.named.no_centro.vcf",
     output:
-        fasta=temp(path_names["pamgen"]+"/{sample}/events_ref.fa"),
+        fasta=temp(path_names["pamgen"]+"/ind/{sample}/events_ref.fa"),
     params:
         ref=config["reference"],
         flank=config["genotyping_flank_size"],
