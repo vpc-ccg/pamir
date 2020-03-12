@@ -42,7 +42,7 @@ def get_bed_seq( ref_dict, ref, start, end):
 ################################
 def main():
     args = sys.argv[1:]
-    if len(args) != 8:
+    if len(args) != 9:
         usage()
     REF            =    sys.argv[2]
     FILE        =    sys.argv[1]
@@ -60,7 +60,9 @@ def main():
 #    readlength = int(sys.argv[9])
     config_json = sys.argv[7]
 
-    fsc_path = sys.argv[8]
+
+    nohead_path = sys.argv[8]
+    sam_path = sys.argv[9]
     with open(config_json , 'r') as hand:
         cfg = json.load(hand)
 
@@ -84,8 +86,8 @@ def main():
     passed = 0
     a = 2
     vcfcontent = dict()
-    fil = open (fsc_path,"w")
-    fil2 = open (fsc_path + "_for_setcov","w")
+    fil = open (nohead_path,"w")
+
 
     ref_dict, ref_list = load_fasta(REF)
     f_fasta = open("{0}/seq.fa".format(folder),"w")
@@ -168,32 +170,32 @@ def main():
     input_file = all_reads_fastq
     
 
-    cmd = MRSFAST + " --search {0}/allinsertions.fa --pe --min {1} --max {2} -o {0}/seq.mrsfast.sam -e 3 --threads {4} --disable-sam-header --disable-nohits --seq {3} {5} > {0}/seq.mrsfast.sam.log".format(folder, MIN, MAX,input_file,THREADS,"" if ".gz" not in input_file else "--seqcomp")
+
     #print(cmd,file=sys.stderr)
-    sys.stderr.write(os.getcwd()+"\n")
-    sys.stderr.write(script_folder + __file__ +"\n" + "\n")
- 
-    sys.stderr.write( cmd + "\n" + "\n")
+     
+
     os.system(MRSFAST + " --index {0}/allinsertions.fa > {0}/mrsfast.index.log".format(folder))
 
-#    with open(samples_txt,'r') as hand:
-#        for line in hand:
-#            input_file = input_file + "{0}/{1}/{1}.all_interleaved.fastq".format(workdir, line.rstrip())
+    cmd = MRSFAST + " --search {0}/allinsertions.fa --pe --min {1} --max {2} -o {0}/seq.mrsfast.sam -e 3 --threads {4} --disable-sam-header --disable-nohits --seq {3} {5} > {0}/seq.mrsfast.sam.log".format(folder, MIN, MAX,input_file,THREADS,"" if ".gz" not in input_file else "--seqcomp")
 
-
-
-
-
-    fname = "{0}/run_filtering.sh".format(workdir)
-    f     = open(fname,"w")
-    f.write("#!/bin/bash\n")
-    f.write(cmd+'\n')
-    f.close()
-    cmd           =  'cat {0} | xargs -I CMD --max-procs=1 bash -c CMD'.format(fname)    
+    sys.stderr.write( cmd + "\n" + "\n")
+    #fname = "{0}/run_filtering.sh".format(workdir)
+    #f     = open(fname,"w")
+    #f.write("#!/bin/bash\n")
+    #f.write(cmd+'\n')
+    #f.close()
+    
+    #cmd           =  'cat {0} | xargs -I CMD --max-procs=1 bash -c CMD'.format(fname)    
     os.system(cmd)
-    os.system("{1} {0}/allinsertions.fa.lookup {0}/seq.mrsfast.sam {0}/seq.mrsfast.recal.sam".format(folder, RECALIBRATE) )
-    os.system("sort -k 3,3 -k 4,4n {0}/seq.mrsfast.recal.sam > {0}/seq.mrsfast.recal.sam.sorted".format(folder))
-    msamlist = open("{0}/seq.mrsfast.recal.sam.sorted".format(folder),"r")
+    
+    cmd = "{1} {0}/allinsertions.fa.lookup {0}/seq.mrsfast.sam {0}/seq.mrsfast.recal.sam".format(folder, RECALIBRATE)
+    sys.stderr.write(cmd+"\n")
+    os.system(cmd)
+
+    cmd = "sort -k 3,3 -k 4,4n {0}/seq.mrsfast.recal.sam > {1}".format(folder,sam_path)
+    sys.stderr.write(cmd+"\n")
+    os.system(cmd)
+    msamlist = open(sam_path,"r")
     chrName=""
     passNum =0 
     line = msamlist.readline()
@@ -211,12 +213,7 @@ def main():
         if contig_parts[0] == "HLA":
             location = contig_parts[2]
             chrName = "{}-{}".format(contig_parts[0],contig_parts[1])
-#        first_sep = locName.find("-")
-#        last_sep = locName.rfind("-")
-#        chrName = locName[0:first_sep]
-#        if(first_sep ==last_sep):
-#            last_sep = len(locName)
-#        location = locName[first_sep+1:last_sep]
+
         firstloc = int(splitmsam[3])
         tlen     = int(splitmsam[8])
         rightCl = int(TLEN+int(vcfcontent[locName][0])+1)
@@ -251,16 +248,14 @@ def main():
         elem = vcfcontent[locName]
         if ispass ==1:
             fil.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7};FLSUP={8};FRSUP={9};FSUP={10}\n".format(chrName, location, elem[4], elem[5], elem[6], elem[7], "PASS", elem[9], lsupport, rsupport, tsupport) )
-            fil2.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6};FLSUP={7};FRSUP={8};FSUP={9}\n".format(locName, elem[4], elem[5], elem[6], elem[7], "PASS", elem[9], lsupport, rsupport, tsupport) )
+
             passed+=1
         else:
             fil.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7};FLSUP={8};FRSUP={9};FSUP={10}\n".format(chrName, location, elem[4], elem[5], elem[6], elem[7], "FAIL", elem[9], lsupport, rsupport, tsupport) )
-            fil2.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6};FLSUP={7};FRSUP={8};FSUP={9}\n".format(locName, elem[4], elem[5], elem[6], elem[7], "FAIL", elem[9], lsupport, rsupport, tsupport) )
+
             failed+=1
     fil.close()
-    fil2.close()
-    os.system("grep PASS "+ fsc_path +"| awk '{print $2\"\t\"$4;}' | sort -k 1,1n > "+fsc_path+"_PASS_loc")
-    os.system("sort -k 1,1 "+fsc_path+"_for_setcov > "+fsc_path+"_for_setcov.sorted")
+
     return 0
 #############################################################################################
 if __name__ == "__main__":

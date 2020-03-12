@@ -16,6 +16,7 @@ if "DEBUG" in config:
     def temp(st):
         return st
 
+new_prep = True
 assembler_binaries = {"minia":"minia","abyss":"abyss-pe","spades":"spades.py", "present":"ls"}
 
 cfg_mandatory("path")
@@ -853,14 +854,25 @@ rule smoother:
     shell:
         "./pamir smoother {input} >  {output}"
 
-rule prep_for_set_cover:
-    input:
-        fsc=path_names["pamann"] +"/{sample}/all.sorted.vcf_filtered_for_setcov.sorted",
-        sam=path_names["pamann"]+"/{sample}/seq.mrsfast.recal.sam.sorted",
-    output:
-        temp(path_names["pamscv"]+"/{sample}/prep"),
-    shell:
-        "python scripts/generate_setcover_input.py {input.fsc} {input.sam} {output}"
+
+if new_prep:
+    rule prep_for_set_cover:
+        input:
+            fsc=path_names["pamann"] +"/{sample}/filtered.vcf",
+            sam=path_names["pamann"]+"/{sample}/seq.mrsfast.recalsorted.sam",
+        output:
+            temp(path_names["pamscv"]+"/{sample}/prep"),
+        shell:
+            "python scripts/new_generate_setcover.py {input.sam} {input.fsc} {output}"
+else: 
+    rule prep_for_set_cover:
+        input:
+            fsc=path_names["pamann"] +"/{sample}/all.sorted.vcf_filtered_for_setcov.sorted",
+            sam=path_names["pamann"]+"/{sample}/seq.mrsfast.recalsorted.sam",
+        output:
+            temp(path_names["pamscv"]+"/{sample}/prep"),
+        shell:
+            "python scripts/generate_setcover_input.py {input.fsc} {input.sam} {output}"
  
 rule filter_vcf:
     input:
@@ -870,9 +882,8 @@ rule filter_vcf:
         statfile=path_names["remcor"]+"/{sample}/{sample}.stats.json",
     output:
         vcf=path_names["pamann"]+"/{sample}/filtered.vcf",
-        sam=path_names["pamann"]+"/{sample}/seq.mrsfast.recal.sam.sorted",
-        fsc=path_names["pamann"] +"/{sample}/all.sorted.vcf_filtered",
-        fsc_s=path_names["pamann"] +"/{sample}/all.sorted.vcf_filtered_for_setcov.sorted",
+        vcf_nh=temp(path_names["pamann"]+"/{sample}/filtered.vcf_nohead"),
+        sam=path_names["pamann"]+"/{sample}/seq.mrsfast.recalsorted.sam",
     params:
         ref=config["reference"],
         tlen=1000,
@@ -880,7 +891,7 @@ rule filter_vcf:
     threads:
         config["aligner_threads"]
     shell:
-        "python scripts/filtering.py {input.vcf} {params.ref} {params.wd}/{wildcards.sample}/ {params.tlen} {threads} {input.fq} {input.statfile} {output.fsc} && cat {input.header} {output.fsc} > {output.vcf}"
+        "python scripts/filtering.py {input.vcf} {params.ref} {params.wd}/{wildcards.sample}/ {params.tlen} {threads} {input.fq} {input.statfile}  {output.vcf_nh} {output.sam} && cat {input.header} {output.vcf_nh} > {output.vcf}"
          
 rule sort_vcf:
     input:    

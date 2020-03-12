@@ -26,6 +26,20 @@ def main():
         spline = line.split()
 
         key = spline[0]+"-"+spline[1]
+        keytemplate = key + "-{}"
+        cnt = 2
+        while key in dictvcf:
+            key = keytemplate.format(cnt)
+            cnt+=1
+
+        dictvcf[key]=[]
+        dictvcf[key].append(spline[2])
+        dictvcf[key].append(spline[3])
+        dictvcf[key].append(spline[4])
+        dictvcf[key].append(spline[5])
+        dictvcf[key].append(spline[6])
+        dictvcf[key].append(spline[7])
+        """
         if key in dictvcf:
             dictvcf[key].append(spline[2])
             dictvcf[key].append(spline[3])
@@ -41,8 +55,11 @@ def main():
             dictvcf[key].append(spline[5])
             dictvcf[key].append(spline[6])
             dictvcf[key].append(spline[7])
+         """
     for line in fromSetCover:
         spline = line.split()
+        if spline[2] not in dictvcf:
+            continue
         if spline[0]!="Removed:":
             nameloc = spline[2].split("-")
             if(nameloc[0] == "HLA"):
@@ -51,15 +68,14 @@ def main():
             else:
                 chrname = nameloc[0]
                 chrloc  = nameloc[1]
-            lenkeyelem = 0
-            roundnum =0
-            while lenkeyelem < len(dictvcf[spline[2]])-1:
-                fout.write(chrname+"\t"+chrloc)
-                for i in range(0,6):
-                    fout.write("\t"+dictvcf[spline[2]][(roundnum*6)+i])
-                    lenkeyelem+=1
-                fout.write("\n")
-                roundnum+=1
+
+
+            fout.write(chrname+"\t"+chrloc)
+            for v in dictvcf[spline[2]]:
+                fout.write("\t"+v)
+
+            fout.write("\n")
+
     fout.close()
 
 if __name__ == "__main__":
