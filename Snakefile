@@ -9,6 +9,13 @@ def cfg_mandatory( key):
 def cfg_optional( key):
     pass
 
+def cfg_internal( key):
+    assert key not in config, "{} is an internal parameter! Do not use.".format(key)
+
+if "DEBUG" in config:
+    def temp(st):
+        return st
+
 assembler_binaries = {"minia":"minia","abyss":"abyss-pe","spades":"spades.py", "present":"ls"}
 
 cfg_mandatory("path")
@@ -41,7 +48,7 @@ cfg_default("seq_ext", "fq.gz")
 
 cfg_optional("pamir_min_contig_len")
 cfg_optional("blastdb")
-
+cfg_optional("DEBUG")
 sext = config["seq_ext"]
 mrsfast_comp_param = "" if ".gz" not in sext else " --seqcomp "
 
@@ -49,12 +56,14 @@ path_names = {
 "linkeddata"  : "linked-data",
 "remcor"      : "pamir-remove-concordants",
 "extass"      :  config["assembler"],
-"pamoea"      : "pamir-oea-processing",
 "blast"       : "blast-filtering",
 "lenfilter"   : "length-filtering",
+"pamoea"      : "pamir-oea-processing",
 "partition"   : "pamir-partition",
 "pamass"      : "pamir-assembly",
-"pamann"      : "pamir-annotation",
+"pamann"      : "pamir-filtering",
+"pamscv"      : "pamir-setcover",
+"pamref"      : "pamir-flank-reference",
 "pamgen"      : "pamir-genotyping",
 }
 
@@ -96,11 +105,11 @@ rule make_results:
 
 rule print_event_xml:
     input:
-        bam=path_names["pamgen"]+"/ind/{sample}/final.bam",
-        fasta=path_names["pamgen"]+"/events_ref.fa",
-        bed  =path_names["pamgen"]+"/ind/{sample}/events_ins_pos.bed",
+        bam=path_names["pamgen"]+"/{sample}/final.bam",
+        fasta=path_names["pamref"]+"/events_ref.fa",
+        bed  =path_names["pamgen"]+"/{sample}/events_ins_pos.bed",
     output:
-        dne =path_names["pamgen"]+"/ind/{sample}/cfg.xml"
+        dne =path_names["pamgen"]+"/{sample}/cfg.xml"
     run:
         with open(output.dne,'w') as out_hand:
             genome_str = '<Global genome="{}" version="3">'
@@ -155,7 +164,7 @@ rule make_html:
 
 rule move_bams:
     input:
-        path_names["pamgen"]+"/ind/{sample}/final.bam" 
+        path_names["pamgen"]+"/{sample}/final.bam" 
     output:
         config["results"]+"/ind/{sample}/events.bam" 
     shell:
@@ -163,16 +172,17 @@ rule move_bams:
 
 rule move_vcf:
     input:
-        path_names["pamgen"]+"/ind/{sample}/final.vcf" 
+        rem=config["results"] + "/rem.done",
+        vcf=path_names["pamgen"]+"/{sample}/final.vcf" 
     output:
         config["results"]+"/ind/{sample}/events.vcf" 
     shell:
-        "cp {input} {output}"
+        "cp {input.vcf} {output}"
 
 
 rule move_bed:
     input:
-        path_names["pamgen"]+"/ind/{sample}/events_ins_pos.bed" 
+        path_names["pamref"]+"/ind/{sample}/events_ins_pos.bed" 
     output:
         config["results"]+"/ind/{sample}/events.bed" 
     shell:
@@ -180,7 +190,7 @@ rule move_bed:
 
 rule move_fa:
     input:
-        path_names["pamgen"]+"/events_ref.fa" 
+        path_names["pamref"]+"/events_ref.fa" 
     output:
         config["results"]+"/events.fa" 
     shell:
@@ -188,7 +198,7 @@ rule move_fa:
 
 rule move_fai:
     input:
-        path_names["pamgen"]+"/events_ref.fa.fai" 
+        path_names["pamref"]+"/events_ref.fa.fai" 
     output:
         config["results"]+"/events.fa.fai" 
     shell:
@@ -196,7 +206,7 @@ rule move_fai:
 
 rule move_repeat_bed:
     input:
-        path_names["pamgen"]+"/events_ref.repeat.bed",
+        path_names["pamref"]+"/events_ref.repeat.bed",
     output:
         config["results"]+"/events.repeat.bed" 
     shell:
@@ -206,37 +216,37 @@ rule move_repeat_bed:
 
 rule merge_repeat_beds:
     input:
-        uniq=path_names["pamgen"]+"/ind/{sample}/uniq_seq_ins.bed",
-        rep=path_names["pamgen"]+"/ind/{sample}/repeat_overlap_ins.bed",
+        uniq=path_names["pamref"]+"/ind/{sample}/uniq_seq_ins.bed",
+        rep=path_names["pamref"]+"/ind/{sample}/repeat_overlap_ins.bed",
     output:
-        path_names["pamgen"]+"/ind/{sample}/events_ins_pos_and_repeat.bed",
+        temp(path_names["pamref"]+"/ind/{sample}/events_ins_pos_and_repeat.bed"),
     shell:
         "cat {input.uniq} {input.rep} | bedtools sort  -i stdin > {output}"
 
 rule non_repeat_bed:
     input:
-        bed=path_names["pamgen"]+"/ind/{sample}/events_ins_pos.bed",
-        rpt=path_names["pamgen"]+"/events_ref.repeat.bed",
+        bed=path_names["pamref"]+"/ind/{sample}/events_ins_pos.bed",
+        rpt=path_names["pamref"]+"/events_ref.repeat.bed",
     output:
-        path_names["pamgen"]+"/ind/{sample}/uniq_seq_ins.bed",
+        temp(path_names["pamref"]+"/ind/{sample}/uniq_seq_ins.bed"),
     shell:
         "bedtools intersect -b {input.rpt} -a {input.bed} -v  | python scripts/process_unique.py > {output}"
 
 rule repeat_bed:
     input:
-        bed=path_names["pamgen"]+"/ind/{sample}/events_ins_pos.bed",
-        rpt=path_names["pamgen"]+"/events_ref.repeat.bed",
+        bed=path_names["pamref"]+"/ind/{sample}/events_ins_pos.bed",
+        rpt=path_names["pamref"]+"/events_ref.repeat.bed",
     output:
-        temp(path_names["pamgen"]+"/ind/{sample}/repeat_overlap_ins.bed"),
+        temp(path_names["pamref"]+"/ind/{sample}/repeat_overlap_ins.bed"),
     shell:
         "bedtools intersect -a {input.rpt} -b {input.bed} -wb | python scripts/process_repeats.py > {output}"
 
 
 rule make_unique_repeats:
     input:
-        path_names["pamgen"]+"/events_ref.repeat.bed"
+        path_names["pamref"]+"/events_ref.repeat.bed"
     output: 
-        path_names["pamgen"]+"/unique_repeats.tsv"
+        path_names["pamref"]+"/unique_repeats.tsv"
     shell:
         "cat {input} | cut -f 4 | sed 's/::/\\t/g' | cut -f 2 |  sort | uniq -c > {output}"
 
@@ -251,10 +261,10 @@ rule format_repeat_masking:
 
 rule make_repeat_mask_gff:
     input:
-        path_names["pamgen"]+"/events_ref.fa"
+        path_names["pamref"]+"/events_ref.fa"
         #config["results"]+"/events.fa" 
     output:
-        path_names["pamgen"]+"/events_ref.fa.out"
+        path_names["pamref"]+"/events_ref.fa.out"
         #config["results"]+"/events.fa.out" 
     threads:
         config["repeatmasker_threads"]
@@ -325,7 +335,7 @@ rule make_stats_js:
 
 rule make_data_js:
     input:
-        expand(path_names["pamgen"]+"/ind/{sample}/final.vcf",sample=config["input"].keys()),
+        expand(path_names["pamgen"]+"/{sample}/final.vcf",sample=config["input"].keys()),
     output:
         config["results"]+"/data.js"
     run:
@@ -372,6 +382,15 @@ rule make_data_js:
                 
             ohand.write(json.dumps(populations))
             ohand.write(";")
+
+rule all_rem_temp_vcfs:
+    input:
+        vcf=expand(path_names["pamass"] +"/{sample}/all.vcf",sample=config["input"].keys())
+    output:
+        temp(config["results"] + "/rem.done"),
+    shell:
+        "rm -f " + path_names["pamass"] + "/*/T*; touch {output}"
+   
 
 rule make_summary_js:
     input:
@@ -429,10 +448,10 @@ rule make_summary_js:
 
 rule annotate_repeats_in_vcf:
     input:
-        bed=path_names["pamgen"]+"/ind/{sample}/events_ins_pos_and_repeat.bed",
-        vcf=path_names["pamgen"]+"/ind/{sample}/genotyped.vcf",
+        bed=path_names["pamref"]+"/ind/{sample}/events_ins_pos_and_repeat.bed",
+        vcf=path_names["pamgen"]+"/{sample}/genotyped.vcf",
     output:
-        vcf=path_names["pamgen"]+"/ind/{sample}/final.vcf",
+        vcf=path_names["pamgen"]+"/{sample}/final.vcf",
     run:
 
         bedl = []
@@ -463,7 +482,7 @@ rule annotate_repeats_in_vcf:
 
 rule all_vis_table:
     input:
-        expand(path_names["pamgen"]+"/ind/{sample}/final.vcf",sample=[x[0][0:x[0].find(".")] for x in config["input"].values()]) 
+        expand(path_names["pamgen"]+"/{sample}/final.vcf",sample=[x[0][0:x[0].find(".")] for x in config["input"].values()]) 
     output:
         path_names["pamgen"]+"/table.tsv"
     run:
@@ -503,10 +522,10 @@ rule all_vis_table:
 
 rule get_final_bam:
     input:
-        bam=path_names["pamgen"]+"/bams/{sample}.bam",
-        orphan_bam=path_names["pamgen"]+"/ind/{sample}/orphans.bam",
+        bam=path_names["pamgen"]+"/{sample}/{sample}.bam",
+        orphan_bam=path_names["pamgen"]+"/{sample}/orphans.bam",
     output:
-        orphan_bam=path_names["pamgen"]+"/ind/{sample}/final.bam",
+        orphan_bam=path_names["pamgen"]+"/{sample}/final.bam",
     threads:
         config["other_threads"]
     shell:
@@ -514,10 +533,10 @@ rule get_final_bam:
 
 rule convert_vis_sam_to_bam:
     input:
-        sam=path_names["pamgen"]+"/bams/{sample}.sam",
-        header=path_names["pamgen"]+"/ind/{sample}/header.sam",
+        sam=path_names["pamgen"]+"/{sample}/{sample}.sam",
+        header=path_names["pamgen"]+"/{sample}/header.sam",
     output:
-        temp(path_names["pamgen"]+"/bams/{sample}.bam"),
+        temp(path_names["pamgen"]+"/{sample}/{sample}.bam"),
     threads:
         16
     shell:
@@ -542,15 +561,14 @@ rule genotype_vis:
     input:
         cram=get_cram_name,
         cram_index=get_cram_index,
-        #vcf=config["analysis"]+"/pamir/genotyping/{sample}/insertions.named.no_centro.vcf",
-        vcf=path_names["pamann"]+"/{sample}/annotated.named.no_centro.vcf",
-        fasta=path_names["pamgen"]+"/events_ref.fa",
+        vcf=path_names["pamscv"]+"/{sample}/setcover-filtered.named.no-centro.vcf",
+        fasta=path_names["pamref"]+"/events_ref.fa",
         read_stats=path_names["remcor"] +"/{sample}/{sample}.stats.json",
     output:
-        sam=temp(path_names["pamgen"]+"/bams/{sample}.sam"),
-        vcf=temp(path_names["pamgen"]+"/ind/{sample}/genotyped.vcf"),
-        head=temp(path_names["pamgen"]+"/bams/{sample}.header"),
-        bed  =temp(path_names["pamgen"]+"/ind/{sample}/events_ins_pos.bed"),
+        sam=temp(path_names["pamgen"]+"/{sample}/{sample}.sam"),
+        vcf=temp(path_names["pamgen"]+"/{sample}/genotyped.vcf"),
+        head=temp(path_names["pamgen"]+"/{sample}/{sample}.header"),
+        bed  =temp(path_names["pamref"]+"/ind/{sample}/events_ins_pos.bed"),
     params:
         ref=config["reference"],
         rang=config["genotyping_flank_size"],
@@ -687,29 +705,29 @@ rule genotype_vis:
 
 rule get_insertions_sam_header:
     input:
-        bam=path_names["pamgen"]+"/ind/{sample}/orphans.bam",
+        bam=path_names["pamgen"]+"/{sample}/orphans.bam",
     output:
-        temp(path_names["pamgen"]+"/ind/{sample}/header.sam"),
+        temp(path_names["pamgen"]+"/{sample}/header.sam"),
     shell:
         "samtools view {input} -H > {output}"
        
 rule convert_orphans_to_bam:
     input:
-        sam=path_names["pamgen"]+"/ind/{sample}/orphans.sam",
+        sam=path_names["pamgen"]+"/{sample}/orphans.sam",
         rgs=path_names["pamgen"]+"/rg.head",
     output:
-        bam=temp(path_names["pamgen"]+"/ind/{sample}/orphans.bam"),
+        bam=temp(path_names["pamgen"]+"/{sample}/orphans.bam"),
     threads:
         16
     shell:
         "cat <(samtools view -H {input.sam}) {input.rgs} <(samtools view {input.sam}) | samtools view -Shb | samtools sort -m4G -@ {threads} -o {output.bam}"
 rule map_orphans_to_vis_fasta:
     input:
-        fasta=path_names["pamgen"]+"/events_ref.fa",
-        fasta_index=path_names["pamgen"]+"/events_ref.fa.bwt",
+        fasta=path_names["pamref"]+"/events_ref.fa",
+        fasta_index=path_names["pamref"]+"/events_ref.fa.bwt",
         fastq=path_names["remcor"] + "/{sample}/{sample}.orphan.canonical."+sext,
     output: 
-        sam=temp(path_names["pamgen"]+"/ind/{sample}/orphans.sam"),
+        sam=temp(path_names["pamgen"]+"/{sample}/orphans.sam"),
     threads:
         config["aligner_threads"]
     shell:
@@ -726,19 +744,19 @@ rule bwa_index:
 
 rule merge_fastas:
     input:
-        expand(path_names["pamgen"]+"/ind/{sample}/events_ref.fa",sample=config["input"].keys())
+        expand(path_names["pamref"]+"/ind/{sample}/events_ref.fa",sample=config["input"].keys())
     output:
-        fasta=path_names["pamgen"]+"/events_ref.fa",
-        fasta_index=path_names["pamgen"]+"/events_ref.fa.fai",
-        fasta_lookup=path_names["pamgen"]+"/events_ref.fa.lookup",
+        fasta=path_names["pamref"]+"/events_ref.fa",
+        fasta_index=path_names["pamref"]+"/events_ref.fa.fai",
+        fasta_lookup=path_names["pamref"]+"/events_ref.fa.lookup",
     shell:
         "echo {input} | tr ' ' '\n' | python scripts/merge_refs.py {output.fasta_lookup} > {output.fasta} && samtools faidx {output.fasta}"
    
 rule make_vis_fasta:
     input:
-        vcf=path_names["pamann"]+"/{sample}/annotated.named.no_centro.vcf",
+        vcf=path_names["pamscv"]+"/{sample}/setcover-filtered.named.no-centro.vcf",
     output:
-        fasta=temp(path_names["pamgen"]+"/ind/{sample}/events_ref.fa"),
+        fasta=temp(path_names["pamref"]+"/ind/{sample}/events_ref.fa"),
     params:
         ref=config["reference"],
         flank=config["genotyping_flank_size"],
@@ -785,7 +803,7 @@ rule make_vis_fasta:
 
 rule all_filtered_vcf:
     input:
-        expand(path_names["pamann"]+"/{sample}/annotated.vcf",sample=[x[0][0:x[0].find(".")] for x in config["input"].values()]) 
+        expand(path_names["pamscv"]+"/{sample}/setcover-filtered.vcf",sample=[x[0][0:x[0].find(".")] for x in config["input"].values()]) 
     output:
         path_names["pamann"]+"/done"
     shell:
@@ -795,7 +813,7 @@ rule remove_centromeres_from_vcf:
     input:
         "{sample}.vcf",
     output:
-        "{sample}.no_centro.vcf",
+        "{sample}.no-centro.vcf",
     params:
         centromeres=config["centromeres"],
     shell:
@@ -805,7 +823,7 @@ rule rename_events:
     input:
         "{sample}.vcf"
     output: 
-        "{sample}.named.vcf"
+        temp("{sample}.named.vcf")
     run:
         import hashlib
         with open(input[0], 'r') as ihand, open(output[0], 'w') as ohand:
@@ -820,27 +838,27 @@ rule rename_events:
                
 rule filter_by_setcover:
     input:
-        smooth=path_names["pamann"]+"/{sample}/smooth",
+        smooth=path_names["pamscv"]+"/{sample}/smooth",
         fvcf=path_names["pamann"]+"/{sample}/filtered.vcf",
     output:
-        path_names["pamann"]+"/{sample}/annotated.vcf",
+        temp(path_names["pamscv"]+"/{sample}/setcover-filtered.vcf"),
     shell:
         "python scripts/filter_by_setcover.py {input.smooth} {input.fvcf}  {output}"
 
 rule smoother:
     input:
-        path_names["pamann"]+"/{sample}/prep",
+        path_names["pamscv"]+"/{sample}/prep",
     output:
-        path_names["pamann"]+"/{sample}/smooth",
+        temp(path_names["pamscv"]+"/{sample}/smooth"),
     shell:
         "./pamir smoother {input} >  {output}"
 
 rule prep_for_set_cover:
     input:
-        fsc=path_names["pamass"] +"/{sample}/all.sorted.vcf_filtered_for_setcov.sorted",
-        sam=path_names["pamann"]+"/{sample}/filtering/seq.mrsfast.recal.sam.sorted",
+        fsc=path_names["pamann"] +"/{sample}/all.sorted.vcf_filtered_for_setcov.sorted",
+        sam=path_names["pamann"]+"/{sample}/seq.mrsfast.recal.sam.sorted",
     output:
-        path_names["pamann"]+"/{sample}/prep",
+        temp(path_names["pamscv"]+"/{sample}/prep"),
     shell:
         "python scripts/generate_setcover_input.py {input.fsc} {input.sam} {output}"
  
@@ -852,8 +870,9 @@ rule filter_vcf:
         statfile=path_names["remcor"]+"/{sample}/{sample}.stats.json",
     output:
         vcf=path_names["pamann"]+"/{sample}/filtered.vcf",
-        sam=path_names["pamann"]+"/{sample}/filtering/seq.mrsfast.recal.sam.sorted",
-        fsc=path_names["pamass"] +"/{sample}/all.sorted.vcf_filtered_for_setcov.sorted",
+        sam=path_names["pamann"]+"/{sample}/seq.mrsfast.recal.sam.sorted",
+        fsc=path_names["pamann"] +"/{sample}/all.sorted.vcf_filtered",
+        fsc_s=path_names["pamann"] +"/{sample}/all.sorted.vcf_filtered_for_setcov.sorted",
     params:
         ref=config["reference"],
         tlen=1000,
@@ -861,7 +880,7 @@ rule filter_vcf:
     threads:
         config["aligner_threads"]
     shell:
-        "python scripts/filtering.py {input.vcf} {params.ref} {params.wd}/{wildcards.sample}/ {params.tlen} {threads} {input.fq} {input.statfile} && cat {input.header} {input.vcf}_filtered > {output.vcf}"
+        "python scripts/filtering.py {input.vcf} {params.ref} {params.wd}/{wildcards.sample}/ {params.tlen} {threads} {input.fq} {input.statfile} {output.fsc} && cat {input.header} {output.fsc} > {output.vcf}"
          
 rule sort_vcf:
     input:    
@@ -949,7 +968,7 @@ if config["assembler"] == "minia":
         threads:
             config["assembly_threads"]
         shell:
-           "cd {params.dr} && minia  -verbose 0 -in {input} -kmer-size {params.k} -abundance-min {params.min_abundance} -max-memory {params.max_memory} -nb-cores {threads} && mv reads.contigs.fa contigs.fasta"
+           "cd {params.dr} && minia  -verbose 0 -in {input} -kmer-size {params.k} -abundance-min {params.min_abundance} -max-memory {params.max_memory} -nb-cores {threads} && mv reads.contigs.fa contigs.fasta && rm -f reads.unitigs.fa* reads.h5"
 elif config["assembler"] == "spades": 
     rule spades_all:
         input:     
@@ -996,8 +1015,8 @@ rule pamir_assemble_full_new:
         cluster_count=path_names["partition"] +"/{sample}/partition.count",
         read_stats=path_names["remcor"] + "/{sample}/{sample}.stats.json",
     output:
-        vcf=path_names["pamass"] +"/{sample}/all.vcf",
-        vcf_lq=path_names["pamass"] +"/{sample}/all_LOW_QUAL.vcf",
+        vcf=temp(path_names["pamass"] +"/{sample}/all.vcf"),
+        vcf_lq=temp(path_names["pamass"] +"/{sample}/all_LOW_QUAL.vcf"),
         logs=path_names["pamass"] +"/{sample}/all.log",
     params:
         pppt = config["pamir_partition_per_thread"],
@@ -1149,7 +1168,7 @@ rule filter_contigs:
         fa=path_names["blast"] + "/contigs.clean.fa",
         json=path_names["remcor"] + "/{sample}/{sample}.stats.json",
     output:
-        path_names["lenfilter"] + "/{sample}.reads.contigs.filtered.clean.fa"
+        temp(path_names["lenfilter"] + "/{sample}.reads.contigs.filtered.clean.fa")
     run:
         if "pamir_min_contig_len" in config:
             min_ctg_len = config["pamir_min_contig_len"]
@@ -1240,7 +1259,7 @@ rule bam_sort:
     input:
         "{sample}.sam",
     output:
-        "{sample}.sorted.bam"
+        temp("{sample}.sorted.bam")
     shell:
         "samtools sort  {input} -m 8G -@ {threads} -o {output}"
  

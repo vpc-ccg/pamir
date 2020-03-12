@@ -42,7 +42,7 @@ def get_bed_seq( ref_dict, ref, start, end):
 ################################
 def main():
     args = sys.argv[1:]
-    if len(args) != 7:
+    if len(args) != 8:
         usage()
     REF            =    sys.argv[2]
     FILE        =    sys.argv[1]
@@ -59,6 +59,8 @@ def main():
     MRSFAST        = "mrsfast"
 #    readlength = int(sys.argv[9])
     config_json = sys.argv[7]
+
+    fsc_path = sys.argv[8]
     with open(config_json , 'r') as hand:
         cfg = json.load(hand)
 
@@ -69,8 +71,8 @@ def main():
     script_folder=os.path.dirname(os.path.abspath(__file__))
     #sys.stderr.write(os.getcwd())
     RECALIBRATE = script_folder + "/../pamir recalibrate"
-    folder  ="{0}/filtering".format(workdir)
-    os.system("mkdir -p {0}".format(folder))
+    folder  ="{0}".format(workdir)
+    #os.system("mkdir -p {0}".format(folder))
     start=1
     PREP_CTGS=script_folder + "/prep-ctgs.py"
     #f = open("{0}/allinsertions.fa".format(folder),"w")
@@ -82,8 +84,8 @@ def main():
     passed = 0
     a = 2
     vcfcontent = dict()
-    fil = open (FILE + "_filtered","w")
-    fil2 = open (FILE + "_filtered_for_setcov","w")
+    fil = open (fsc_path,"w")
+    fil2 = open (fsc_path + "_for_setcov","w")
 
     ref_dict, ref_list = load_fasta(REF)
     f_fasta = open("{0}/seq.fa".format(folder),"w")
@@ -257,8 +259,8 @@ def main():
             failed+=1
     fil.close()
     fil2.close()
-    os.system("grep PASS "+FILE+"_filtered | awk '{print $2\"\t\"$4;}' | sort -k 1,1n > "+FILE+"_filtered_PASS_loc")
-    os.system("sort -k 1,1 "+FILE+"_filtered_for_setcov > "+FILE+"_filtered_for_setcov.sorted")
+    os.system("grep PASS "+ fsc_path +"| awk '{print $2\"\t\"$4;}' | sort -k 1,1n > "+fsc_path+"_PASS_loc")
+    os.system("sort -k 1,1 "+fsc_path+"_for_setcov > "+fsc_path+"_for_setcov.sorted")
     return 0
 #############################################################################################
 if __name__ == "__main__":
