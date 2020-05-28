@@ -88,7 +88,11 @@ def get_cram_name(wildcards):
 
 
 def get_cram_index(wildcards):
-    return "{}.crai".format(get_cram_name(wildcards))
+    cram_name = get_cram_name(wildcards)
+    if cram_name[-4:] == ".bam":  
+        return "{}.bai".format(cram_name)
+    elif cram_name[-5:] == ".cram":
+        return "{}.crai".format(cram_name)
 
 rule make_results:
     input:
