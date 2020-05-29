@@ -96,7 +96,7 @@ input:
  "samplename1":
   - A.cram
  "samplename2":
-  - B.cram/bam
+  - B.bam
 ```
 
 Now, to run pamir on such a config file, you have to run the following command.
@@ -118,7 +118,7 @@ Pamir generates a [VCF file](https://samtools.github.io/hts-specs/VCFv4.2.pdf) f
 [path]/
 ├── raw-data                       -> OR [raw-data]
 │   ├── A.cram
-│   ├── B.cram
+│   ├── B.bam
 ├── analysis                       -> OR [analysis-base]
 │   └── my-pop
 └── results                        -> OR [results-base]
@@ -144,9 +144,11 @@ Pamir generates a [VCF file](https://samtools.github.io/hts-specs/VCFv4.2.pdf) f
 
 # Example
 ```shell
-curl -L https://ndownloader.figshare.com/files/20021672?private_link=ce133e9aaa4d38a6d6b0 --output example.tar.gz
+curl -L https://ndownloader.figshare.com/files/22813988 --output example.tar.gz
 tar xzvf example.tar.gz
-cd example; ./configure.sh
+cd example
+chmod +x configure.sh
+./configure.sh
 pamir.sh -j16 --configfile config.yaml
 ```
 
