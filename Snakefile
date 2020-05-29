@@ -763,7 +763,7 @@ rule merge_fastas:
         fasta_index=path_names["pamref"]+"/events_ref.fa.fai",
         fasta_lookup=path_names["pamref"]+"/events_ref.fa.lookup",
     shell:
-        "echo {input} | tr ' ' '\n' | python scripts/merge_refs.py {output.fasta_lookup} > {output.fasta} && samtools faidx {output.fasta}"
+        "printf \"{input}\n\" | tr ' ' '\n' | python scripts/merge_refs.py {output.fasta_lookup} > {output.fasta} && samtools faidx {output.fasta}"
    
 rule make_vis_fasta:
     input:
@@ -801,7 +801,7 @@ rule make_vis_fasta:
                     start = 0
                 if end > contig_sizes[ch]:
                     end = contig_sizes[ch] - 1
-                cmd = "echo -e \"{}\\t{}\\t{}\\n\" | bedtools getfasta -fi {} -bed stdin".format(ch,start,end,params["ref"])
+                cmd = "printf \"{}\\t{}\\t{}\\n\" | bedtools getfasta -fi {} -bed stdin".format(ch,start,end,params["ref"])
 
                 ins = fields[4][1:]
                 process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
