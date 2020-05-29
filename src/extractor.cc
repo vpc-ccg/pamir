@@ -343,7 +343,7 @@ extractor::extractor(string filename, string output_prefix, string ftype_str, in
     }
 
     if (0 < map_read.size()) {
-        Logger::instance().error("Big Queue  is not cleared:\n");
+        Logger::instance().error("Big Queue is not cleared:\n");
         map<string, Record>::iterator it;
         for (it = map_read.begin(); it != map_read.end(); it++) {
             Logger::instance().error("%s\n", it->second.getReadName());

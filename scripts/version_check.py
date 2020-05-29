@@ -4,12 +4,12 @@
 import sys
 
 def main():
-    comp_ops = {'gt' : (lambda x,y: x >  y), 
-               'gte' : (lambda x,y: x >= y),
-               'lt'  : (lambda x,y: x <  y),
-               'lte' : (lambda x,y: x <= y),
-               'eq'  : (lambda x,y: x == y),
-               'neq' : (lambda x,y: x != y)}
+    comp_ops = {'>' : (lambda x,y: x >  y), 
+               '>=' : (lambda x,y: x >= y),
+               '<'  : (lambda x,y: x <  y),
+               '<=' : (lambda x,y: x <= y),
+               '=='  : (lambda x,y: x == y),
+               '!=' : (lambda x,y: x != y)}
     cmp_type = sys.argv[1]
     if(cmp_type not in comp_ops):
         print( "operator {} is not defined. Use one of the following".format(cmp_type),file=sys.stderr)
@@ -18,7 +18,8 @@ def main():
         exit(-1)
     required = sys.argv[2]
     toolvers = sys.argv[3]
-  
+    
+   
     MAXFIELD = 10000
     
     refields = reversed(required.split("."))

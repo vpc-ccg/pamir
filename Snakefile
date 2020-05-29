@@ -83,16 +83,24 @@ def assert_tool(tool):
 assert_tool(assembler_binaries[config["assembler"]])
 
 def get_cram_name(wildcards):
-    cram_name = config["input"][wildcards.sample][0]
-    return path_names["linkeddata"] +"/"+cram_name
+    orig_cram_name = config["input"][wildcards.sample][0]
+    extension = os.path.splitext(orig_cram_name)[1]
+   
+    if extension not in [".bam", ".cram"]:
+        print("Input should be in bam or cram format.", file=sys.stderr)
+        sys.exit(1)
+    
+    return path_names["linkeddata"] +"/"+ wildcards.sample + extension
 
 
 def get_cram_index(wildcards):
     cram_name = get_cram_name(wildcards)
-    if cram_name[-4:] == ".bam":  
-        return "{}.bai".format(cram_name)
-    elif cram_name[-5:] == ".cram":
-        return "{}.crai".format(cram_name)
+    extension = os.path.splitext(cram_name)[1]
+    extension = {".bam":".bai",".cram":".crai"}[extension]
+
+    return "{}{}".format(cram_name,extension)
+
+
 
 rule make_results:
     input:
@@ -107,7 +115,7 @@ rule make_results:
         fai=expand("{results}/events.fa.fai",results=config["results"]),
         rm=expand("{results}/events.repeat.bed",results=config["results"]),
         seq_stats=config["results"]+"/stats.js"
-
+    
 rule print_event_xml:
     input:
         bam=path_names["pamgen"]+"/{sample}/final.bam",
@@ -487,7 +495,7 @@ rule annotate_repeats_in_vcf:
 
 rule all_vis_table:
     input:
-        expand(path_names["pamgen"]+"/{sample}/final.vcf",sample=[x[0][0:x[0].find(".")] for x in config["input"].values()]) 
+        expand(path_names["pamgen"]+"/{sample}/final.vcf",sample=config["input"].keys()) 
     output:
         path_names["pamgen"]+"/table.tsv"
     run:
@@ -808,7 +816,7 @@ rule make_vis_fasta:
 
 rule all_filtered_vcf:
     input:
-        expand(path_names["pamscv"]+"/{sample}/setcover-filtered.vcf",sample=[x[0][0:x[0].find(".")] for x in config["input"].values()]) 
+        expand(path_names["pamscv"]+"/{sample}/setcover-filtered.vcf",sample=config["input"].keys()) 
     output:
         path_names["pamann"]+"/done"
     shell:
@@ -937,7 +945,7 @@ rule generate_vcf_header:
    
 rule all_vcf:
     input:
-        expand(path_names["pamass"] +"/{sample}/all.vcf",sample=[x[0][0:x[0].find(".")] for x in config["input"].values()]) 
+        expand(path_names["pamass"] +"/{sample}/all.vcf",sample=config["input"].keys()) 
     output:
         path_names["pamass"] +"/merged.vcf"
     shell:
@@ -945,7 +953,7 @@ rule all_vcf:
 
 rule all_cc:
     input:
-        expand(path_names["partition"] +"/{sample}/cc",sample=[x[0][0:x[0].find(".")] for x in config["input"].values()])
+        expand(path_names["partition"] +"/{sample}/cc",sample=config["input"].keys())
     output:
         path_names["partition"] +"/done"
     shell:
@@ -954,10 +962,10 @@ rule all_cc:
 
 #print(sext)
 def get_assembly_input():
-    return expand( "{Path}/{sample}/{sample}.orphan.{typ}."+sext, Path=path_names["remcor"], sample=[x[0][0:x[0].find(".")] for x in config["input"].values()],typ=["canonical","almost"])
+    return expand( "{Path}/{sample}/{sample}.orphan.{typ}."+sext, Path=path_names["remcor"], sample=config["input"].keys(),typ=["canonical","almost"])
 
 def format_spades_inputs():
-    return " ".join([ " --pe{0}-12 {2}/{3}/{3}.orphan.canonical.{4} --pe{1}-12 {2}/{3}/{3}.orphan.almost.{4}".format(1+i*2,1+i*2+2,path_names["remcor"],x[0][0:x[0].find(".")],sext) for i,x in enumerate(config["input"].values())])
+    return " ".join([ " --pe{0}-12 {2}/{3}/{3}.orphan.canonical.{4} --pe{1}-12 {2}/{3}/{3}.orphan.almost.{4}".format(1+i*2,1+i*2+2,path_names["remcor"],x,sext) for i,x in enumerate(config["input"].keys())])
 
 if config["assembler"] == "minia":
     rule minia_cf:
@@ -983,7 +991,7 @@ if config["assembler"] == "minia":
         threads:
             config["assembly_threads"]
         shell:
-           "cd {params.dr} && minia  -verbose 0 -in {input} -kmer-size {params.k} -abundance-min {params.min_abundance} -max-memory {params.max_memory} -nb-cores {threads} && mv reads.contigs.fa contigs.fasta && rm -f reads.unitigs.fa* reads.h5"
+           "cd {params.dr} && minia  -verbose 0 -in {input} -kmer-size {params.k} -abundance-min {params.min_abundance} -nb-cores {threads} && mv reads.contigs.fa contigs.fasta && rm -f reads.unitigs.fa* reads.h5"
 elif config["assembler"] == "spades": 
     rule spades_all:
         input:     
@@ -1003,7 +1011,7 @@ elif config["assembler"] == "spades":
 elif config["assembler"] == "abyss":
      rule abyss_all:
         input:
-            expand(path_names["remcor"]+"/{sample}/{sample}.orphan.{orphan_type}." + sext ,orphan_type=["canonical", "almost"],sample=[x[0][0:x[0].find(".")] for x in config["input"].values()]),
+            expand(path_names["remcor"]+"/{sample}/{sample}.orphan.{orphan_type}." + sext ,orphan_type=["canonical", "almost"],sample=config["input"].keys()),
             #expand(path_names["remcor"]+"/{sample}/{sample}.orphan.canonical." + sext + " " + path_names["remcor"] + "/{sample}/{sample}.orphan.almost." + sext,sample=[x[0][0:x[0].find(".")] for x in config["input"].values()]),
         output:
             path_names["extass"] + "/contigs.fasta"
@@ -1044,7 +1052,7 @@ rule pamir_assemble_full_new:
             cc = int(chand.readline())
         
         index = 1
-        use_threads = threads - 1
+        use_threads = max(1,threads - 1)
         pppt = min(params.pppt,int(cc/use_threads))
        
         import json
@@ -1351,7 +1359,7 @@ rule mrsfast_anchor_wg_map:
 
 rule velvet_all:
     input:
-        expand(path_names["remcor"] + "/{sample}/{sample}.orphan.fq",sample=[x[0][0:x[0].find(".")] for x in  config["input"].values()])
+        expand(path_names["remcor"] + "/{sample}/{sample}.orphan.fq",sample=config["input"].keys())
     output:
         config["analysis"]+"/velvet/contigs.fasta"
     params:
@@ -1375,22 +1383,25 @@ rule get_all_reads_from_cram:
     shell:
         "cd {params.wd} && ./pamir getfastq <(samtools view -T {params.ref} {input}) {wildcards.sample} && mv {wildcards.sample}_1.fastq.gz {output.m1} && mv {wildcards.sample}_2.fastq.gz {output.m2}"
 
+def replace_sample_name(wildcards):
+    return config["path"] + config["raw-data"] + "/" + config["input"][wildcards.sample][0]
+
 rule link_bam:
     input:
-        config["path"]+config["raw-data"]+"/{sample}.bam"
+        replace_sample_name
     output:
          path_names["linkeddata"]+"/{sample}.bam"
     shell:
         "ln -s {input} {output}"
+
 rule link_cram:
     input:
-        config["path"]+config["raw-data"]+"/{sample}.cram"
+        replace_sample_name
     output:
         path_names["linkeddata"]+"/{sample}.cram"
     shell:
         "ln -s {input} {output}"
 
-       # CRAMS=config["path"]+config["raw-data"],
 """
 Total Number of Reads: 1790291
 # of Primary Mappings: 1790291
