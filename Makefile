@@ -94,6 +94,8 @@ bin_clean:
 	$(RM)  $(BIN_PATH)/$(EXE)
 	$(RM)	$(BIN_PATH)/.snakemake/ -r	
 	$(RM)  $(BIN_PATH)/Snakefile
+	$(RM)  $(BIN_PATH)/version
+	$(RM)  $(BIN_PATH)/environment.yaml
 	$(RM) -dr $(SCRIPT_PATH)
 	$(RM) -d $(BIN_PATH)
 	
@@ -101,7 +103,7 @@ $(COPIED_SCRIPTS): dirs $(SCRIPTS)
 	@mkdir -p $(BIN_PATH)/scripts
 	@cp scripts/* $(BIN_PATH)/scripts
 	@cp Snakefile $(BIN_PATH)
-
+	@cp environment.yaml $(BIN_PATH)
 -include $(DEPS)
 
 $(LOGGER_EXT_PATH): 
@@ -125,7 +127,7 @@ $(EDLIB_HED_PATH): $(EDLIB_EXT_HED_PATH)
 
 .PHONY: all
 all: $(EDLIB_HED_PATH) $(EDLIB_SRC_PATH) $(LOGGER_HED_PATH) $(BIN_PATH)/$(EXE)  $(COPIED_SCRIPTS)
-
+	@git rev-parse  --short HEAD > $(BIN_PATH)/version
 .PHONY: install_helper
 
 install_helper: $(BIN_PATH)/$(EXE) $(COPIED_SCRIPTS)

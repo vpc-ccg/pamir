@@ -1,13 +1,14 @@
 #!/bin/bash
 #set -e
-echo "Running Pamir ($(git rev-parse  --short HEAD))"
+
 SCRIPT_PATH="$(dirname `which $0`)/pamir"
 
 #command -v conda && echo "Found conda, skipping checks :)" >&2 || { NO_CONDA=1; }
 
 VERS_CHECKER="$SCRIPT_PATH/scripts/version_check.py"
 
-
+ENVIRO_PATH="$SCRIPT_PATH/environment.yaml"
+VERS_PATH="$SCRIPT_PATH/version"
 ex(){
     command -v $1 1> /dev/null 2> /dev/null
 
@@ -26,7 +27,7 @@ vx(){
         echo " OK, Version not checked."
         return
     fi
-    vers_checker_str=$(cat environment.yaml | grep $1 | awk '{print $(NF-1)" "$(NF)}')
+    vers_checker_str=$(cat $ENVIRO_PATH | grep $1 | awk '{print $(NF-1)" "$(NF)}')
     
 
     python $VERS_CHECKER  $vers_checker_str $2
@@ -46,6 +47,7 @@ vx(){
 
 CFG_PATH=$(echo $@ | sed 's/=/ /g' |awk '{for(i=1;i <= NF;i++){if($i=="--configfile"){print $(i+1)}}}')
 
+echo "Running Pamir ($(cat $VERS_PATH))"
 ex "snakemake" 
 vx "snakemake" $(snakemake --version |head -n 1| sed 's/[A-Za-z\+]//g') 1
 
