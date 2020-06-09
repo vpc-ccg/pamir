@@ -67,7 +67,10 @@ path_names = {
 "pamref"      : "pamir-flank-reference",
 "pamgen"      : "pamir-genotyping",
 }
-
+if "SCPA" in config:
+    SCPA = config["SCPA"]
+else:
+    SCPA = "."
 index = 0
 for k,v in path_names.items():
     path_names[k] = config["analysis"] + "/{:0>3d}-{}".format(index,v)
@@ -172,8 +175,10 @@ rule print_event_xml:
 rule make_html:
     output:
         config["results"]+"/index.html",
+    params:
+        scpa=SCPA,
     shell:
-        "cp scripts/index.html {output}"
+        "cp {params.scpa}/scripts/index.html {output}"
 
 rule move_bams:
     input:
@@ -242,8 +247,10 @@ rule non_repeat_bed:
         rpt=path_names["pamref"]+"/events_ref.repeat.bed",
     output:
         temp(path_names["pamref"]+"/ind/{sample}/uniq_seq_ins.bed"),
+    params:
+        scpa=SCPA,
     shell:
-        "bedtools intersect -b {input.rpt} -a {input.bed} -v  | python scripts/process_unique.py > {output}"
+        "bedtools intersect -b {input.rpt} -a {input.bed} -v  | python {params.scpa}/scripts/process_unique.py > {output}"
 
 rule repeat_bed:
     input:
@@ -251,8 +258,10 @@ rule repeat_bed:
         rpt=path_names["pamref"]+"/events_ref.repeat.bed",
     output:
         temp(path_names["pamref"]+"/ind/{sample}/repeat_overlap_ins.bed"),
+    params:
+        scpa=SCPA,
     shell:
-        "bedtools intersect -a {input.rpt} -b {input.bed} -wb | python scripts/process_repeats.py > {output}"
+        "bedtools intersect -a {input.rpt} -b {input.bed} -wb | python {params.scpa}/scripts/process_repeats.py > {output}"
 
 
 rule make_unique_repeats:
@@ -604,7 +613,7 @@ rule genotype_vis:
         process.communicate()
         view_cmd="samtools view -T {} {}".format(params.ref,input.cram)
         sort_cmd = "samtools sort -n | samtools view"
-        in_house_cmd = "./pamir process_range {} {} {} {} {} {} {}"
+        in_house_cmd = SCPA + "/pamir process_range {} {} {} {} {} {} {}"
 
         id2seq = {}
 
@@ -743,8 +752,10 @@ rule map_orphans_to_vis_fasta:
         sam=temp(path_names["pamgen"]+"/{sample}/orphans.sam"),
     threads:
         config["aligner_threads"]
+    params:
+        scpa=SCPA
     shell:
-        "bwa mem -t {threads} {input.fasta} {input.fastq} -p | ./pamir process_orphan > {output}"
+        "bwa mem -t {threads} {input.fasta} {input.fastq} -p | {params.scpa}/pamir process_orphan > {output}"
 
 rule bwa_index:
     input:
@@ -762,8 +773,10 @@ rule merge_fastas:
         fasta=path_names["pamref"]+"/events_ref.fa",
         fasta_index=path_names["pamref"]+"/events_ref.fa.fai",
         fasta_lookup=path_names["pamref"]+"/events_ref.fa.lookup",
+    params:
+        scpa=SCPA,
     shell:
-        "printf \"{input}\n\" | tr ' ' '\n' | python scripts/merge_refs.py {output.fasta_lookup} > {output.fasta} && samtools faidx {output.fasta}"
+        "printf \"{input}\n\" | tr ' ' '\n' | python {params.scpa}/scripts/merge_refs.py {output.fasta_lookup} > {output.fasta} && samtools faidx {output.fasta}"
    
 rule make_vis_fasta:
     input:
@@ -855,16 +868,20 @@ rule filter_by_setcover:
         fvcf=path_names["pamann"]+"/{sample}/filtered.vcf",
     output:
         temp(path_names["pamscv"]+"/{sample}/setcover-filtered.vcf"),
+    params:
+        scpa=SCPA,
     shell:
-        "python scripts/filter_by_setcover.py {input.smooth} {input.fvcf}  {output}"
+        "python {params.scpa}/scripts/filter_by_setcover.py {input.smooth} {input.fvcf}  {output}"
 
 rule smoother:
     input:
         path_names["pamscv"]+"/{sample}/prep",
     output:
         temp(path_names["pamscv"]+"/{sample}/smooth"),
+    params:
+        scpa=SCPA
     shell:
-        "./pamir smoother {input} >  {output}"
+        "{params.scpa}/pamir smoother {input} >  {output}"
 
 
 if new_prep:
@@ -874,8 +891,10 @@ if new_prep:
             sam=path_names["pamann"]+"/{sample}/seq.mrsfast.recalsorted.sam",
         output:
             temp(path_names["pamscv"]+"/{sample}/prep"),
+        params:
+            scpa=SCPA,
         shell:
-            "python scripts/new_generate_setcover.py {input.sam} {input.fsc} {output}"
+            "python {params.scpa}/scripts/new_generate_setcover.py {input.sam} {input.fsc} {output}"
 else: 
     rule prep_for_set_cover:
         input:
@@ -883,8 +902,10 @@ else:
             sam=path_names["pamann"]+"/{sample}/seq.mrsfast.recalsorted.sam",
         output:
             temp(path_names["pamscv"]+"/{sample}/prep"),
+        params:
+            scpa=SCPA,
         shell:
-            "python scripts/generate_setcover_input.py {input.fsc} {input.sam} {output}"
+            "python {params.scpa}/scripts/generate_setcover_input.py {input.fsc} {input.sam} {output}"
  
 rule filter_vcf:
     input:
@@ -900,10 +921,11 @@ rule filter_vcf:
         ref=config["reference"],
         tlen=1000,
         wd=path_names["pamann"],
+        scpa=SCPA,
     threads:
         config["aligner_threads"]
     shell:
-        "python scripts/filtering.py {input.vcf} {params.ref} {params.wd}/{wildcards.sample}/ {params.tlen} {threads} {input.fq} {input.statfile}  {output.vcf_nh} {output.sam} && cat {input.header} {output.vcf_nh} > {output.vcf}"
+        "python {params.scpa}/scripts/filtering.py {input.vcf} {params.ref} {params.wd}/{wildcards.sample}/ {params.tlen} {threads} {input.fq} {input.statfile}  {output.vcf_nh} {output.sam} && cat {input.header} {output.vcf_nh} > {output.vcf}"
          
 rule sort_vcf:
     input:    
@@ -911,9 +933,10 @@ rule sort_vcf:
     output:
         "{sample}.sorted.vcf"
     params:
+        scpa=SCPA,
         dupc=1,
     shell:
-        "python scripts/sort_vcf.py {input} {output} {params.dupc}"
+        "python {params.scpa}/scripts/sort_vcf.py {input} {output} {params.dupc}"
 
 
 
@@ -1064,7 +1087,7 @@ rule pamir_assemble_full_new:
 
         
 
-        cmd_template =  "./pamir assemble {0} {1} {{0}}-{{1}} T{{2}} 30000 {2} {3}/{4} > {3}/{4}/T{{2}}.log".format(input.partition, params.ref, rl, params.wd, wildcards.sample)
+        cmd_template =  SCPA + "/pamir assemble {0} {1} {{0}}-{{1}} T{{2}} 30000 {2} {3}/{4} > {3}/{4}/T{{2}}.log".format(input.partition, params.ref, rl, params.wd, wildcards.sample)
         while index + pppt -1 <= cc:
             tids = []
             procs = []
@@ -1120,7 +1143,7 @@ rule recalibrate_oea_to_orphan:
     output:
         path_names["pamoea"] + "/{sample}/{sample}.oea2orphan.recalib.sam"
     shell:
-        "./pamir recalibrate {input.lookup} <(samtools view {input.bam}) {output}"
+        SCPA + "/pamir recalibrate {input.lookup} <(samtools view {input.bam}) {output}"
 
 rule pamir_partition:
     input:
@@ -1134,7 +1157,7 @@ rule pamir_partition:
     params:
         rang=1000,
     shell:
-        "./pamir partition {input.sam} {output.partition} {params.rang} {input.contigs} {input.oea2orphan} {input.oea_unmapped}"
+        SCPA + "/pamir partition {input.sam} {output.partition} {params.rang} {input.contigs} {input.oea2orphan} {input.oea_unmapped}"
 
 
 rule merge_contigs:
@@ -1144,8 +1167,10 @@ rule merge_contigs:
 #         single=config["analysis"]+"/"+config["assembler"]+"/{sample}.reads.contigs.filtered.clean.single.fa",
         merged=path_names["lenfilter"] + "/{sample}.reads.contigs.filtered.clean.merged.fa",
         index=path_names["lenfilter"] + "/{sample}.reads.contigs.filtered.clean.merged.fa.lookup",
+    params:
+        scpa=SCPA,
     shell:
-        "python ./scripts/prep-ctgs.py {input} {output.merged} 10"
+        "python {params.scpa}/scripts/prep-ctgs.py {input} {output.merged} 10"
 
 if "blastdb" in config:
     rule blast_contigs:
@@ -1174,8 +1199,10 @@ if "blastdb" in config:
             mb=path_names["blast"] + "/contigs.megablast.tabular",
         output:
             path_names["blast"] + "/contigs.clean.fa"
+        params:
+            scpa=SCPA,
         shell:
-            "python scripts/remove_contaminations.py {input.mb} {input.fasta} {output}"
+            "python {params.scpa}/scripts/remove_contaminations.py {input.mb} {input.fasta} {output}"
 
 else:
     rule mock_clean_contigs:
@@ -1379,9 +1406,10 @@ rule get_all_reads_from_cram:
         m2=config["analysis"]+"/fastqs/{sample}/{sample}.mate2.gz",        
     params:
         ref=config["reference"],
-        wd=path_names["remcor"] + "/{sample}"
+        wd=path_names["remcor"] + "/{sample}",
+        scpa = SCPA,
     shell:
-        "cd {params.wd} && ./pamir getfastq <(samtools view -T {params.ref} {input}) {wildcards.sample} && mv {wildcards.sample}_1.fastq.gz {output.m1} && mv {wildcards.sample}_2.fastq.gz {output.m2}"
+        "cd {params.wd} && {params.scpa}/pamir getfastq <(samtools view -T {params.ref} {input}) {wildcards.sample} && mv {wildcards.sample}_1.fastq.gz {output.m1} && mv {wildcards.sample}_2.fastq.gz {output.m2}"
 
 def replace_sample_name(wildcards):
     return config["path"] + config["raw-data"] + "/" + config["input"][wildcards.sample][0]
@@ -1479,12 +1507,13 @@ rule cram_split:
     params:
         analysis=path_names["remcor"],
         REF=config["reference"],
+        scpa=SCPA,
         PAMIR="./pamir",
         CRAMS= path_names["linkeddata"],
         pamir_params="{} 1 1 0.95".format(sext),
     threads:
         1
     shell:
-        "CRPW=$(pwd) && cd {params.analysis}/{wildcards.sample} && samtools view {input} -T {params.REF} | $CRPW/{params.PAMIR} remove_concordant /dev/stdin {wildcards.sample} {params.pamir_params}"
+        "CRPW={params.scpa} && cd {params.analysis}/{wildcards.sample} && samtools view {input} -T {params.REF} | $CRPW/{params.PAMIR} remove_concordant /dev/stdin {wildcards.sample} {params.pamir_params}"
 
 

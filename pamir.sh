@@ -81,8 +81,8 @@ fi
 
 if [[ "$@" == *"cluster-config"* ]]; then
     mkdir -p ~/.slurm-logs
-    snakemake -s "${SCRIPT_PATH}/Snakefile" -d ${SCRIPT_PATH}  "$@" --cluster "sbatch --parsable -J {cluster.name} -p {cluster.part} -c {cluster.c} --mem {cluster.mem}  -t {cluster.time} --output '$HOME/.slurm-logs/%j.out' --error '$HOME/.slurm-logs/%j.err'";
+    snakemake -s "${SCRIPT_PATH}/Snakefile" --config SCPA=${SCRIPT_PATH}  "$@" --cluster "sbatch --parsable -J {cluster.name} -p {cluster.part} -c {cluster.c} --mem {cluster.mem}  -t {cluster.time} --output '$HOME/.slurm-logs/%j.out' --error '$HOME/.slurm-logs/%j.err'";
 else
-    snakemake -s "${SCRIPT_PATH}/Snakefile" -d ${SCRIPT_PATH}  "$@";
+    snakemake -s "${SCRIPT_PATH}/Snakefile" --config SCPA=${SCRIPT_PATH}  "$@";
 fi
 
