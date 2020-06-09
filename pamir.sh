@@ -47,6 +47,13 @@ vx(){
 
 CFG_PATH=$(echo $@ | sed 's/=/ /g' |awk '{for(i=1;i <= NF;i++){if($i=="--configfile"){print $(i+1)}}}')
 
+
+if [ -z "$CFG_PATH" ] 
+then
+    echo "Run configuration should be provided as ./pamir.sh --configfile /path/to/config"
+    exit 1
+fi
+
 echo "Running Pamir ($(cat $VERS_PATH))"
 ex "snakemake" 
 vx "snakemake" $(snakemake --version |head -n 1| sed 's/[A-Za-z\+]//g') 1
