@@ -22,7 +22,7 @@ assembler_binaries = {"minia":"minia","abyss":"abyss-pe","spades":"spades.py", "
 cfg_mandatory("path")
 cfg_mandatory("reference")
 cfg_mandatory("raw-data")
-cfg_mandatory("centromeres")
+
 
 cfg_mandatory("input")
 cfg_mandatory("population")
@@ -50,6 +50,8 @@ cfg_default("seq_ext", "fq.gz")
 cfg_optional("pamir_min_contig_len")
 cfg_optional("blastdb")
 cfg_optional("DEBUG")
+cfg_optional("centromeres")
+
 sext = config["seq_ext"]
 mrsfast_comp_param = "" if ".gz" not in sext else " --seqcomp "
 
@@ -835,15 +837,24 @@ rule all_filtered_vcf:
     shell:
         "touch {output}"
 
-rule remove_centromeres_from_vcf:
-    input:
-        "{sample}.vcf",
-    output:
-        "{sample}.no-centro.vcf",
-    params:
-        centromeres=config["centromeres"],
-    shell:
-        "bedtools intersect -a {input} -b <(cat {params.centromeres} | sed 's/chr//') -v -header > {output}"
+if "centromeres" in config:
+    rule remove_centromeres_from_vcf:
+        input:
+            "{sample}.vcf",
+        output:
+            "{sample}.no-centro.vcf",
+        params:
+            centromeres=config["centromeres"],
+        shell:
+            "bedtools intersect -a {input} -b <(cat {params.centromeres} | sed 's/chr//') -v -header > {output}"
+else:
+    rule mock_remove_centromeres_from_vcf:
+        input:
+            "{sample}.vcf",
+        output:
+            "{sample}.no-centro.vcf",
+        shell:
+            "cp {input} {output}"
 
 rule rename_events:
     input:
