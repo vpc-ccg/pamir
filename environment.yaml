@@ -4,7 +4,7 @@ channels:
   - conda-forge
 dependencies:
   - samtools  == 1.9
-  - mrsfast   == 3.4.1
+  - mrsfast   >= 3.4.1
   - blast     == 2.9.0
   - bedtools  == 2.29.2
   - snakemake == 5.9.1 
