@@ -1422,9 +1422,10 @@ rule get_all_reads_from_cram:
     shell:
         "cd {params.wd} && {params.scpa}/pamir getfastq <(samtools view -T {params.ref} {input}) {wildcards.sample} && mv {wildcards.sample}_1.fastq.gz {output.m1} && mv {wildcards.sample}_2.fastq.gz {output.m2}"
 
-def replace_sample_name(wildcards):
-    return config["path"] + config["raw-data"] + "/" + config["input"][wildcards.sample][0]
+from os import path
 
+def replace_sample_name(wildcards):
+    return path.normpath(config["path"] + "/" + config["raw-data"] + "/" + config["input"][wildcards.sample][0])
 rule link_bam:
     input:
         replace_sample_name
