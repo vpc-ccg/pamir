@@ -1363,7 +1363,6 @@ rule mrsfast_oea_unmapped_contig_map_cropped:
     shell:
         "mrsfast --disable-nohits --search {input.contigs} --seq {input.nohit} --threads {threads} -e {params.error} -o {output.sam} --mem {params.mem} --crop {params.crop} -n {params.N}"+ mrsfast_comp_param
 
-
 rule mrsfast_oea_unmapped_contig_map:
     input:
         oea=path_names["remcor"] + "/{sample}/{sample}.oea.unmapped."+sext, 
@@ -1380,6 +1379,13 @@ rule mrsfast_oea_unmapped_contig_map:
         8
     shell: 
         "mrsfast --search {input.contigs} --seq {input.oea}  --threads {threads} -e {params.error} -o {output.sam} -u {params.nh_path} --mem {params.mem}" + mrsfast_comp_param + " && gzip {params.nh_path}"
+
+def check_reference_index(reference):
+    import os.path
+    index_exists = os.path.isfile(reference+".index")
+    mrs_fast_index_cmd="mrsfast --index " + str(reference) + "; "
+    return "echo Index file exists.; " if index_exists else mrs_fast_index_cmd
+
 rule mrsfast_anchor_wg_map:
     input:
         path_names["remcor"] + "/{sample}/{sample}.oea.mapped."+sext, 
@@ -1390,10 +1396,11 @@ rule mrsfast_anchor_wg_map:
         ref=config["reference"],
         error=7,
         N=50,
+        create_index=check_reference_index(config["reference"]),
     threads:
         config["aligner_threads"]
     shell:
-        "mrsfast --disable-nohits --search {params.ref} --seq {input} --threads {threads}  -e {params.error} -o {output} --mem {params.mem} -n {params.N}" + mrsfast_comp_param
+        "{params.create_index} mrsfast --disable-nohits --search {params.ref} --seq {input} --threads {threads}  -e {params.error} -o {output} --mem {params.mem} -n {params.N}" + mrsfast_comp_param
 
 rule velvet_all:
     input:
