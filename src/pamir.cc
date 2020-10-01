@@ -27,6 +27,7 @@
 #include "p2_partition.h"
 #include "p3_partition.h"
 #include "cut_ranges.h"
+#include "spoa/spoa.hpp"
 
 
 using namespace std;
@@ -449,6 +450,150 @@ void extract_reads(const string &partition_file, const string &longread, const s
 	}
 }
 /*********************************************************************************************/
+void consensus (const string &partition_file, const string &reference, const string &range, const string &name, int max_len, const string &prefix)
+{
+	const double MAX_AT_GC 		= 0.7;
+	const int MAX_REF_LEN		= 300000000;
+	int LENFLAG					= 1000;//500;//1000;
+	char *line 					= new char[MAX_CHAR];
+    string out_vcf = prefix + "/" + name + ".vcf";
+	FILE *fo_vcf 				= fopen(out_vcf.c_str(), "w");
+    string out_vcf_del = prefix + "/" + name + "_DELS.vcf";
+    string out_vcf_lq = prefix  + "/" + name + "_LOW_QUAL.vcf";
+    FILE *fo_vcf_del 			= fopen(out_vcf_del.c_str(), "w");
+	FILE *fo_vcf_lq 			= fopen(out_vcf_lq.c_str(), "w");
+	
+	assembler as(max_len, 15);
+	genome ref(reference.c_str());
+	map<string,string> chroms;
+	p3_partition pt(partition_file, range);
+	aligner al(max_len + 2010 );
+	
+	string tmp_ref; tmp_ref.reserve(4);
+	string tmp_ref_lq; tmp_ref_lq.reserve(4);
+	string vcf_info=""; vcf_info.reserve(10000000);
+	string vcf_info_lq=""; vcf_info_lq.reserve(10000000);
+	string vcf_info_del=""; vcf_info.reserve(10000000);
+	const int MAX_BUFFER = 500;
+	int n_buffer         =   0;
+	int n_buffer2         =   0;
+
+	while (1) 
+	{
+		auto p 			= pt.read_partition();
+		
+		// end of the partition file
+		if ( !p.size() ) 
+			break;
+	
+		// cluster has too many or too few reads
+		if ( p.size() > 7000 || p.size() <= 2 ) {
+            Logger::instance().info("-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");
+            Logger::instance().info(" + Cluster ID      : %d\n", pt.get_old_id());
+            Logger::instance().info(" + Reads Count     : %lu\n", p.size());
+            Logger::instance().info("INFO: Skipped Processing - Too few or Too many reads\n");
+            continue;
+        }
+		string chrName  = pt.get_reference();
+		int cluster_id  = pt.get_old_id();
+		int pt_start    = pt.get_start();
+		int pt_end      = pt.get_end();
+		int ref_start   = pt_start - LENFLAG;
+		int ref_end     = pt_end   + LENFLAG;
+		string ref_part = ref.get_bases_at(chrName, ref_start, ref_end);
+        Logger::instance().info("-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");
+        Logger::instance().info(" + Cluster ID      : %d\n", cluster_id);
+        Logger::instance().info(" + Reads Count     : %lu\n", p.size());
+        Logger::instance().info(" + Spanning Range  : %s:%d-%d\n", chrName.c_str(), pt_start, pt_end);
+        Logger::instance().info(" + Discovery Range : %s:%d-%d\n", chrName.c_str(), ref_start, ref_end);
+        Logger::instance().info(" + Reference       : %s\n\n", ref_part.c_str());
+		// if the genomic region is too big
+		if (ref_end - ref_start > MAX_REF_LEN) 
+			continue;
+		
+		// holding the calls info, can be used to detect the repeated calls, etc.
+		vector< tuple< string, int, int, string, int, float > > reports;//reports.clear();
+		vector< tuple< string, int, int, string, int, float > > reports_lq;//reports.clear();
+
+		//Build consensus
+		auto alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kSW, 3, -5, -3);
+
+		spoa::Graph graph{};
+
+		for (int i =0; i < p.size(); i++) {	
+			auto alignment = alignment_engine->Align(p[i].first.second, graph);
+			graph.AddAlignment(alignment, p[i].first.second);
+		}
+
+		auto msa = graph.GenerateMultipleSequenceAlignment(true);
+		string consensus = cut_consensus(msa);
+		int contig_support = p.size();
+
+		Logger::instance().info("\n\n>>>>> Length: %d Support: %d Contig: %s\n", consensus.size(), contig_support, consensus.c_str());
+
+		//Align consensus
+		al.align(ref_part, consensus);
+		if(al.extract_calls(cluster_id, reports_lq, reports, contig_support, ref_start,">>>")==0) { 
+			string rc_contig = reverse_complement(consensus);	
+			al.align(ref_part, rc_contig);
+			al.extract_calls(cluster_id, reports_lq, reports, contig_support, ref_start, "<<<");
+		}
+
+  		// for (const auto& it : msa) {
+    	// 	cout << it << endl;
+  		// }
+
+		//print_calls new version
+		tmp_ref.clear();//string tmp_ref = ""; 
+		for (int j =0; j <reports.size();j++)
+		{
+			int tmp_end = get<1>(reports[j]);
+			tmp_ref += ref.get_base_at(chrName, tmp_end);
+			//tmp_ref += ref.extract(chrName, tmp_end, tmp_end);
+		}
+		
+		tmp_ref_lq.clear();//string tmp_ref = ""; 
+		for (int j =0; j <reports_lq.size();j++)
+		{
+			int tmp_end = get<1>(reports_lq[j]);
+			tmp_ref_lq += ref.get_base_at(chrName, tmp_end);
+		}
+		append_vcf( chrName, tmp_ref, reports, pt.get_id(), vcf_info, vcf_info_del);
+		n_buffer++;
+		if ( 0 == n_buffer%MAX_BUFFER )
+		{
+			fprintf( fo_vcf, "%s", vcf_info.c_str());
+			n_buffer = 0;
+			vcf_info.clear();
+		}
+		append_vcf( chrName, tmp_ref_lq, reports_lq, pt.get_id(), vcf_info_lq, vcf_info_del);
+		n_buffer2++;
+		/*if (n_buffer==0)
+			n_buffer++;
+		if ( 0 == n_buffer%MAX_BUFFER )
+		{
+			fprintf( fo_vcf_del, "%s", vcf_info_del.c_str());
+			n_buffer = 0;
+			vcf_info_del.clear();
+		}*/
+		if(n_buffer2 ==0)
+			n_buffer2++;
+		if ( 0 == n_buffer2%MAX_BUFFER )
+		{
+			fprintf( fo_vcf_lq, "%s", vcf_info_lq.c_str());
+			n_buffer2 = 0;
+			vcf_info_lq.clear();
+		}
+	}
+	// Sanity check for the last record
+	if ( 0 < vcf_info.size()){	fprintf( fo_vcf, "%s", vcf_info.c_str());}
+	//if ( 0 < vcf_info_del.size()){	fprintf( fo_vcf_del, "%s", vcf_info_del.c_str());}
+	if ( 0 < vcf_info_lq.size()){	fprintf( fo_vcf_lq, "%s", vcf_info_lq.c_str());}
+	fclose(fo_vcf);
+	fclose(fo_vcf_lq);
+	fclose(fo_vcf_del);
+}
+/*********************************************************************************************/
 int main(int argc, char **argv)
 {
 	try {
@@ -509,12 +654,16 @@ int main(int argc, char **argv)
             return smoother::main(argc-1,argv+1);
         }
 		else if (mode == "sketch") {
-			if (argc != 10) throw "Usage:5 parameters needed\tpamir sketch [partition-file] [long-read-file] [range] [read-length] dir_prefix";
+			if (argc != 7) throw "Usage:5 parameters needed\tpamir sketch [partition-file] [long-read-file] [range] [read-length] dir_prefix";
 			sketch(argv[2], argv[3], argv[4], atoi(argv[5]), argv[6]);
 		}
 		else if (mode == "extract") {
-			if (argc != 10) throw "Usage:4 parameters needed\tpamir extract [partition-file] [long-read-file] [range] dir_prefix";
+			if (argc != 6) throw "Usage:4 parameters needed\tpamir extract [partition-file] [long-read-file] [range] dir_prefix";
 			extract_reads(argv[2], argv[3], argv[4], argv[5]);
+		}
+		else if (mode == "consensus") {
+			if (argc != 8) throw "Usage:6 parameters needed\tpamir consensus [partition-file] [reference] [range] [output-file-vcf] [max-len] dir_prefix";
+			consensus(argv[2], argv[3], argv[4], argv[5], atoi(argv[6]), argv[7]);
 		}
 		else {
 			throw "Invalid mode selected";
