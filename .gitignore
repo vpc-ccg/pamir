@@ -37,3 +37,6 @@ src/edlib.cc
 *.exe
 *.out
 *.app
+
+# macOS
+.DS_Store
