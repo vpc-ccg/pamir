@@ -4,3 +4,6 @@
 [submodule "ext/edlib"]
 	path = ext/edlib
 	url = https://github.com/Martinsos/edlib.git
+[submodule "ext/spoa"]
+	path = ext/spoa
+	url = https://github.com/rvaser/spoa
