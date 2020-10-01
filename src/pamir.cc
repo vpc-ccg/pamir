@@ -25,6 +25,8 @@
 #include "smoother.h"
 #include "sketch.h"
 #include "p2_partition.h"
+#include "p3_partition.h"
+#include "cut_ranges.h"
 
 
 using namespace std;
@@ -403,6 +405,50 @@ void sketch (const string &partition_file, const string &longread, const string 
 	}
 }
 /*********************************************************************************************/
+void extract_reads(const string &partition_file, const string &longread, const string &range, const string &prefix)
+{
+	p2_partition pt(partition_file, range);
+	cut_ranges ranges;
+	
+	while (1) {
+		auto p 			= pt.read_partition();
+	
+		if ( !p.size() ) 
+			break;
+
+		for (int i = 0; i < p.size(); i++) {
+			ranges.add_range(p[i].first, p[i].second.first, p[i].second.second);
+		}
+	}
+
+	ranges.extract_reads(longread);
+	
+	//TODO FIX NAME
+	string p3 = "partition-p3";
+	p2_partition pt_2(partition_file, range);
+	p3_partition new_pt(p3, true);
+	
+	while (1) {
+			
+		auto p 			= pt_2.read_partition();
+		if ( !p.size() ) 
+			break;
+	
+		string chrName  = pt_2.get_reference();
+		int pt_start    = pt_2.get_start();
+		int pt_end      = pt_2.get_end();
+	
+		vector<pair<pair<string, string>, pair<int, int> > > cuts;
+		for (int i = 0; i < p.size(); i++) {
+			cuts.push_back(make_pair(make_pair(p[i].first, ranges.get_cut(p[i].first, p[i].second.first, 
+									p[i].second.second)), make_pair(p[i].second.first, p[i].second.second)));
+		}
+
+		new_pt.add_reads(cuts, pt_start, pt_end, chrName, pt_2.get_old_id());
+
+	}
+}
+/*********************************************************************************************/
 int main(int argc, char **argv)
 {
 	try {
@@ -465,6 +511,10 @@ int main(int argc, char **argv)
 		else if (mode == "sketch") {
 			if (argc != 10) throw "Usage:5 parameters needed\tpamir sketch [partition-file] [long-read-file] [range] [read-length] dir_prefix";
 			sketch(argv[2], argv[3], argv[4], atoi(argv[5]), argv[6]);
+		}
+		else if (mode == "extract") {
+			if (argc != 10) throw "Usage:4 parameters needed\tpamir extract [partition-file] [long-read-file] [range] dir_prefix";
+			extract_reads(argv[2], argv[3], argv[4], argv[5]);
 		}
 		else {
 			throw "Invalid mode selected";
