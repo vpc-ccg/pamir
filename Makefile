@@ -9,22 +9,24 @@ SRC_PATH = src
 BUILD_PATH = pamir-obj
 BIN_PATH = pamir
 
-
 LOGGER_EXT_PATH = $(EXT_PATH)/util-logger/include/logger.h
 LOGGER_HED_PATH  = $(SRC_PATH)/include/logger.h
 
-
 EDLIB_EXT_HED_PATH = $(EXT_PATH)/edlib/edlib/include/edlib.h
 EDLIB_EXT_SRC_PATH = $(EXT_PATH)/edlib/edlib/src/edlib.cpp
-
 EDLIB_SRC_PATH = $(SRC_PATH)/edlib.cc
 EDLIB_HED_PATH = $(SRC_PATH)/include/edlib.h
+
+SPOA_EXT_SRC_PATH = $(EXT_PATH)/spoa
+SPOA_EXT_HED_PATH = $(EXT_PATH)/spoa/include/spoa
+SPOA_HED_PATH = $(SRC_PATH)/include/spoa
+SPOA_LIB = $(EXT_PATH)/spoa/build/lib/
 
 SCRIPT_SOURCE = scripts
 SCRIPT_PATH = $(BIN_PATH)/scripts
 SRC_EXT = cc
 
-SOURCE_FILES =  pamir.cc aligner.cc common.cc genome.cc partition.cc assembler.cc sam_parser.cc extractor.cc  smoother.cc  process_orphans.cc process_range.cc edlib.cc sam_processing.cc recalibrate.cc
+SOURCE_FILES =  pamir.cc aligner.cc common.cc genome.cc partition.cc assembler.cc sam_parser.cc extractor.cc  smoother.cc  process_orphans.cc process_range.cc edlib.cc sam_processing.cc recalibrate.cc sketch.cc p2_partition.cc p3_partition.cc cut_ranges.cc MurmurHash3.cc
 
 
 SCRIPT_FILES = merge_refs.py contig_graph.py  filter_by_setcover.py  filtering.py  generate_setcover_input.py  prep-ctgs.py  remove_contaminations.py  sort_vcf.py  version_check.py process_repeats.py process_unique.py new_generate_setcover.py
@@ -44,7 +46,9 @@ DEPS = $(OBJECTS:.o=.d) $(UTIL_OBJ:.o=.d) $(PROCESSING_OBJ:.o=.d)
 COMPILE_FLAGS = -std=c++14 #-Wall -Wextra #Removed because pamir gives way too many warnings 
 INCLUDES = -I $(SRC_PATH)/include/  
 
-LFLAGS = $(LDFLAGS) -lm -lz
+LDFLAGS = -L$(SPOA_LIB)
+
+LFLAGS = $(LDFLAGS) -lm -lz -lspoa -no-pie
 
 .PHONY: default_make
 default_make: release
@@ -109,14 +113,14 @@ $(COPIED_SCRIPTS): dirs $(SCRIPTS)
 $(LOGGER_EXT_PATH): 
 	@echo Please clone the repository with --recursive option!; exit 1;
 
+$(LOGGER_HED_PATH): $(LOGGER_EXT_PATH)
+	@cp $(LOGGER_EXT_PATH) $(LOGGER_HED_PATH)
+
 $(EDLIB_EXT_SRC_PATH):
 	@echo Please clone the repository with --recursive option!; exit 1;
 
 $(EDLIB_EXT_HED_PATH):
 	@echo Please clone the repository with --recursive option!; exit 1;
-
-$(LOGGER_HED_PATH): $(LOGGER_EXT_PATH)
-	@cp $(LOGGER_EXT_PATH) $(LOGGER_HED_PATH)
 
 $(EDLIB_SRC_PATH): $(EDLIB_EXT_SRC_PATH)
 	@cp $(EDLIB_EXT_SRC_PATH) $(EDLIB_SRC_PATH)
@@ -124,6 +128,14 @@ $(EDLIB_SRC_PATH): $(EDLIB_EXT_SRC_PATH)
 $(EDLIB_HED_PATH): $(EDLIB_EXT_HED_PATH)
 	@cp $(EDLIB_EXT_HED_PATH) $(EDLIB_HED_PATH)
 
+$(SPOA_EXT_SRC_PATH):
+	@echo Please clone the repository with --recursive option!; exit 1;
+
+$(SPOA_HED_PATH): $(SPOA_EXT_HED_PATH)
+	@cp $(SPOA_EXT_SRC_PATH)/* $(SPOA_HED_PATH)
+
+$(SPOA_LIB): $(SPOA_EXT_SRC_PATH)
+	@cd $(SPOA_EXT_SRC_PATH) && mkdir build && cd build && cmake -Dspoa_build_executable=ON -DCMAKE_BUILD_TYPE=Release .. && make && cd ../../../..
 
 .PHONY: all
 all: $(EDLIB_HED_PATH) $(EDLIB_SRC_PATH) $(LOGGER_HED_PATH) $(BIN_PATH)/$(EXE)  $(COPIED_SCRIPTS)
