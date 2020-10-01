@@ -23,6 +23,8 @@
 #include "process_orphans.h"
 #include "recalibrate.h"
 #include "smoother.h"
+#include "sketch.h"
+#include "p2_partition.h"
 
 
 using namespace std;
@@ -348,6 +350,59 @@ void assemble (const string &partition_file, const string &reference, const stri
 	fclose(fo_vcf_del);
 }
 /*********************************************************************************************/
+void sketch (const string &partition_file, const string &longread, const string &range, int read_length, const string &prefix)
+{
+	Sketch lr_sketch(longread);
+
+	//TODO FIX NAME
+	string p2 = "partition-p2";
+	genome_partition pt(partition_file, range);
+	p2_partition pt_2(p2, true);
+
+	while (1) 
+	{
+		auto p 			= pt.read_partition();
+		// end of the partition file
+		if ( !p.size() ) 
+			break;
+		
+		// cluster has too many or too few reads
+		if ( p.size() > 7000 || p.size() <= 2 ) {
+            Logger::instance().info("-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");
+            Logger::instance().info(" + Cluster ID      : %d\n", pt.get_id());
+            Logger::instance().info(" + Reads Count     : %lu\n", p.size());
+            Logger::instance().info("INFO: Skipped Processing - Too few or Too many reads\n");
+            continue;
+        }
+
+		string chrName  = pt.get_reference();
+		int pt_start    = pt.get_start();
+		int pt_end      = pt.get_end();
+
+		vector<string> reads;
+		for (int i =0;i<p.size();i++)
+		{
+			reads.push_back(p[i].first.second);
+		}
+
+		//Sketch short reads
+		Sketch pt_sketch(reads);
+
+		//Find cuts
+		vector<pair<string, pair<int, int> > > cut_candidates = lr_sketch.find_cuts( pt_sketch);
+
+		if (cut_candidates.size() == 0) {
+            Logger::instance().info("-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");
+            Logger::instance().info(" + Cluster ID      : %d\n", pt.get_id());
+            Logger::instance().info(" + Reads Count     : %lu\n", p.size());
+            Logger::instance().info("INFO: Skipped Processing - No Long reads found\n");
+            continue;
+        }
+
+		pt_2.add_cuts(p, cut_candidates, pt_start, pt_end, chrName, pt.get_id());
+	}
+}
+/*********************************************************************************************/
 int main(int argc, char **argv)
 {
 	try {
@@ -407,6 +462,10 @@ int main(int argc, char **argv)
         else if(mode == "smoother"){
             return smoother::main(argc-1,argv+1);
         }
+		else if (mode == "sketch") {
+			if (argc != 10) throw "Usage:5 parameters needed\tpamir sketch [partition-file] [long-read-file] [range] [read-length] dir_prefix";
+			sketch(argv[2], argv[3], argv[4], atoi(argv[5]), argv[6]);
+		}
 		else {
 			throw "Invalid mode selected";
 		}
