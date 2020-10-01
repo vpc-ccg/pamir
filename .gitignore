@@ -40,3 +40,6 @@ src/edlib.cc
 
 # macOS
 .DS_Store
+
+# VisualStudioCode
+.vscode/*
