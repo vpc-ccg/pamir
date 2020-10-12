@@ -17,6 +17,8 @@ class Sketch {
 		int kmer_size;
 		int window_size;
 		std::string file;
+        std::vector<std::pair<uint64_t, Location> > minimizers_vec;
+        void update_sketch();
 
 	public:
 		std::map<int, std::string> sequences;
@@ -27,8 +29,7 @@ class Sketch {
 		void build_sketch();
 		void build_sketch(std::vector<std::string>);
 		void get_minimizers(char* read, int read_id, int len);
-		void print();
-		std::vector<std::pair<std::string, std::pair<int, int> > > find_cuts(Sketch q);
+        std::vector<std::pair<std::string, std::pair<int, int> > > find_cuts(Sketch* q);
 };
 
 
