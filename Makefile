@@ -22,6 +22,9 @@ SPOA_EXT_HED_PATH = $(EXT_PATH)/spoa/include/spoa
 SPOA_HED_PATH = $(SRC_PATH)/include/spoa
 SPOA_LIB = $(EXT_PATH)/spoa/build/lib/
 
+CEREAL_EXT_HED_PATH = $(SPOA_EXT_SRC_PATH)/vendor/cereal/include/cereal
+CEREAL_HED_PATH = $(SRC_PATH)/include/cereal
+
 SCRIPT_SOURCE = scripts
 SCRIPT_PATH = $(BIN_PATH)/scripts
 SRC_EXT = cc
@@ -44,11 +47,10 @@ EXE=pamir
 DEPS = $(OBJECTS:.o=.d) $(UTIL_OBJ:.o=.d) $(PROCESSING_OBJ:.o=.d)
 
 COMPILE_FLAGS = -std=c++14 #-Wall -Wextra #Removed because pamir gives way too many warnings 
-INCLUDES = -I $(SRC_PATH)/include/  
+INCLUDES = -I $(SRC_PATH)/include/
 
-LDFLAGS = -L$(SPOA_LIB)
-
-LFLAGS = $(LDFLAGS) -lm -lz -lspoa -no-pie
+LFLAGS = $(LDFLAGS) -lm -lz -L$(SPOA_LIB) -lspoa -no-pie
+#LFLAGS = -lm -lz -no-pie
 
 .PHONY: default_make
 default_make: release
@@ -80,6 +82,7 @@ install: dirs
 dirs:  
 	@mkdir -p $(BUILD_PATH)
 	@mkdir -p $(BIN_PATH)
+	@mkdir -p $(SPOA_EXT_SRC_PATH)/build
 
 clean: build_clean bin_clean
 
@@ -92,6 +95,9 @@ build_clean:
 	@$(RM) $(SRC_PATH)/edlib.cc
 	@$(RM) $(SRC_PATH)/include/edlib.h
 	@$(RM) $(SRC_PATH)/include/logger.h
+	@$(RM) -rf $(SRC_PATH)/include/spoa
+	@$(RM) -rf $(SRC_PATH)/include/cereal
+	@$(RM) -rf $(EXT_PATH)/spoa/build
 .PHONY: build_clean
 
 bin_clean:
@@ -128,17 +134,23 @@ $(EDLIB_SRC_PATH): $(EDLIB_EXT_SRC_PATH)
 $(EDLIB_HED_PATH): $(EDLIB_EXT_HED_PATH)
 	@cp $(EDLIB_EXT_HED_PATH) $(EDLIB_HED_PATH)
 
+$(CEREAL_HED_PATH): $(CEREAL_EXT_HED_PATH)
+	@[ -d $(CEREAL_HED_PATH) ] || mkdir $(CEREAL_HED_PATH)
+	@cp -r $(CEREAL_EXT_HED_PATH)/* $(CEREAL_HED_PATH)/
+
 $(SPOA_EXT_SRC_PATH):
 	@echo Please clone the repository with --recursive option!; exit 1;
 
 $(SPOA_HED_PATH): $(SPOA_EXT_HED_PATH)
-	@cp $(SPOA_EXT_SRC_PATH)/* $(SPOA_HED_PATH)
+	@[ -d $(SPOA_HED_PATH) ] || mkdir $(SPOA_HED_PATH)
+	@cp $(SPOA_EXT_HED_PATH)/* $(SPOA_HED_PATH)/
 
 $(SPOA_LIB): $(SPOA_EXT_SRC_PATH)
-	@cd $(SPOA_EXT_SRC_PATH) && mkdir build && cd build && cmake -Dspoa_build_executable=ON -DCMAKE_BUILD_TYPE=Release .. && make && cd ../../../..
+#	@cd $(SPOA_EXT_SRC_PATH)/build && cmake -Dspoa_build_executable=OFF -DCMAKE_BUILD_TYPE=Release .. >> /dev/null 2>&1 >> /dev/null && make && cd ../../../..
+	@cmake -Dspoa_build_executable=OFF -DCMAKE_BUILD_TYPE=Release -B$(SPOA_EXT_SRC_PATH)/build -H$(SPOA_EXT_SRC_PATH) -Wno-dev >> /dev/null && make -C $(SPOA_EXT_SRC_PATH)/build >> /dev/null 2>&1
 
 .PHONY: all
-all: $(EDLIB_HED_PATH) $(EDLIB_SRC_PATH) $(LOGGER_HED_PATH) $(BIN_PATH)/$(EXE)  $(COPIED_SCRIPTS)
+all: $(EDLIB_HED_PATH) $(EDLIB_SRC_PATH) $(LOGGER_HED_PATH) $(CEREAL_HED_PATH) $(SPOA_HED_PATH) $(SPOA_LIB) $(BIN_PATH)/$(EXE)  $(COPIED_SCRIPTS)
 	@git rev-parse  --short HEAD > $(BIN_PATH)/version
 .PHONY: install_helper
 
