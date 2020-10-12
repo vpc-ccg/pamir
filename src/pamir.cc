@@ -525,24 +525,43 @@ void consensus (const string &partition_file, const string &reference, const str
 		}
 
 		auto msa = graph.GenerateMultipleSequenceAlignment(true);
-		string consensus = cut_consensus(msa);
-		int contig_support = p.size();
+        pair<string, pair<int, int>> ans = cut_consensus(msa);
 
-		Logger::instance().info("\n\n>>>>> Length: %d Support: %d Contig: %s\n", consensus.size(), contig_support, consensus.c_str());
+        vector<string> consensus;
+        consensus.push_back(ans.first);
+        vector<vector<string> > cluster = cluster_reads(msa, ans.second.first, ans.second.second);
 
-		//Align consensus
-		al.align(ref_part, consensus);
-		if(al.extract_calls(cluster_id, reports_lq, reports, contig_support, ref_start,">>>")==0) { 
-			string rc_contig = reverse_complement(consensus);	
-			al.align(ref_part, rc_contig);
-			al.extract_calls(cluster_id, reports_lq, reports, contig_support, ref_start, "<<<");
-		}
+        if (!cluster[1].empty()) {
+            consensus.clear();
+            for (int i = 0; i < cluster.size(); i++) {
+                graph.Clear();
+                for (int j = 0; j < cluster[i].size(); j++) {
+                    auto alignment = alignment_engine->Align(cluster[i][j], graph);
+                    graph.AddAlignment(alignment, cluster[i][j]);
+                }
+                auto msa = graph.GenerateMultipleSequenceAlignment(true);
+                pair<string, pair<int, int>> ans = cut_consensus(msa);
+                string cons = ans.first;
+                consensus.push_back(cons);
+            }
+        }
 
-  		// for (const auto& it : msa) {
-    	// 	cout << it << endl;
-  		// }
+        for (int i = 0; i < consensus.size(); i++) {
+            int contig_support = cluster[i].size();
 
-		//print_calls new version
+            Logger::instance().info("\n\n>>>>> Length: %d Support: %d Contig: %s\n", consensus[i].size(), contig_support, consensus[i].c_str());
+
+            //Align consensus
+            al.align(ref_part, consensus[i]);
+            if(al.extract_calls(cluster_id, reports_lq, reports, contig_support, ref_start,">>>")==0) {
+                string rc_contig = reverse_complement(consensus[i]);
+                al.align(ref_part, rc_contig);
+                al.extract_calls(cluster_id, reports_lq, reports, contig_support, ref_start, "<<<");
+            }
+        }
+
+
+        //print_calls new version
 		tmp_ref.clear();//string tmp_ref = ""; 
 		for (int j =0; j <reports.size();j++)
 		{

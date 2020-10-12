@@ -16,6 +16,7 @@ class cut_ranges {
 		std::string get_cut(std::string lr_name, int start, int end);
 };
 
-std::string cut_consensus(std::vector<std::string> alignments);
+std::pair<std::string, std::pair<int, int>> cut_consensus(std::vector<std::string> alignments);
+std::vector<std::vector<std::string> > cluster_reads(std::vector<std::string> msa, int l, int r);
 
 #endif
