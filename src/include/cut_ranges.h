@@ -2,6 +2,7 @@
 #define __CUT_RANGES__
 
 #include <map>
+#include <vector>
 
 class cut_ranges {
 	private:
