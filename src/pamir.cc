@@ -468,6 +468,8 @@ void consensus (const string &partition_file, const string &reference, const str
 	map<string,string> chroms;
 	p3_partition pt(partition_file, range);
 	aligner al(max_len + 2010 );
+    auto alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kSW, 3, -5, -3);
+    spoa::Graph graph{};
 	
 	string tmp_ref; tmp_ref.reserve(4);
 	string tmp_ref_lq; tmp_ref_lq.reserve(4);
@@ -516,10 +518,7 @@ void consensus (const string &partition_file, const string &reference, const str
 		vector< tuple< string, int, int, string, int, float > > reports_lq;//reports.clear();
 
 		//Build consensus
-		auto alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kSW, 3, -5, -3);
-
-		spoa::Graph graph{};
-
+		graph.Clear();
 		for (int i =0; i < p.size(); i++) {	
 			auto alignment = alignment_engine->Align(p[i].first.second, graph);
 			graph.AddAlignment(alignment, p[i].first.second);
