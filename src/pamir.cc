@@ -468,8 +468,8 @@ void consensus (const string &partition_file, const string &reference, const str
 	map<string,string> chroms;
 	p3_partition pt(partition_file, range);
 	aligner al(max_len + 2010 );
-    auto alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kSW, 3, -5, -3);
-    spoa::Graph graph{};
+	auto alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kSW, 2, -32, -64, -1);
+	spoa::Graph graph{};
 	
 	string tmp_ref; tmp_ref.reserve(4);
 	string tmp_ref_lq; tmp_ref_lq.reserve(4);
