@@ -108,15 +108,17 @@ void insertionSort(int arr[], int n) {
     }
 }
 
-//TODO multiple clusters
+//TODO multiple cluster
+//TODO merge with cut_consensus
 vector<vector<string> > cluster_reads(vector<string> msa, int l, int r) {
-    int ncol = msa[0].size() - l - r, nreads = msa.size();
+    int ncol = msa[0].size();
+    int nreads = msa.size() - 1;
     int profile[ncol];
     memset(profile, 0, sizeof(profile[0]) * ncol);
 
     for (int i = 0; i < ncol; i++) {
         for (int j = 0; j < nreads; j++) {
-            if (msa[j][i + l] == '-')
+            if (msa[j][i] == '-')
                 profile[i]++;
         }
     }
@@ -138,25 +140,35 @@ vector<vector<string> > cluster_reads(vector<string> msa, int l, int r) {
         filtered[col]=window[2];
     }
 
+    int val_th = 0.3 * nreads;
+    int i = 0, val_s, val_e;
+    while (profile[i] > val_th)
+        i++;
+    val_s = i;
+    i = ncol - 1;
+    while (profile[i] > val_th)
+        i--;
+    val_e = i;
+
     vector<pair<int, int> > candidates;
     int start = 0, end = 0;
     int f = 0, cnt = 0;
-    int up_th = 0.6 * (msa.size() - 1), lw_th = 0.4 * (msa.size() - 1);
-    for (int i = 0; i < ncol; i++) {
+    int up_th = 0.6 * nreads, lw_th = 0.4 * nreads;
+    for (int i = val_s; i <= val_e; i++) {
         if (filtered[i] >= lw_th && filtered[i] <= up_th) {
             if (f == 1) {
                 cnt++;
                 continue;
             }
             else {
-                start = i + l;
+                start = i;
                 f = 1;
             }
         }
         else {
             if (f == 1) {
                 if (cnt > 5) {
-                    end = i + l;
+                    end = i;
                     candidates.push_back({start, end});
                     f = 0;
                     cnt = 0;
@@ -167,30 +179,42 @@ vector<vector<string> > cluster_reads(vector<string> msa, int l, int r) {
         }
     }
 
-    pair<int, int> ins;
-    int maxx = 0;
-    for (int i = 0; i < candidates.size(); i++) {
-        int tmp = candidates[i].second - candidates[i].first;
-        if (tmp > maxx) {
-            ins = candidates[i];
-            maxx = tmp;
-        }
-    }
-
     vector<vector<string>> clusters;
     vector<string> one, two;
+    pair<int, int> ins;
 
-    if (ins.first == 0 && ins.second == 0) {
+    if (candidates.size() == 0) {
         one.insert(one.end(), msa.begin(), msa.end() - 1);
         clusters.push_back(one);
         clusters.push_back(two);
         return clusters;
     }
+    else if (candidates.size() == 1) {
+        ins = candidates[0];
+    }
+    else {
+        int maxx = 0;
+        for (int i = 0; i < candidates.size(); i++) {
+            int tmp = candidates[i].second - candidates[i].first;
+            if (tmp > maxx) {
+                ins = candidates[i];
+                maxx = tmp;
+            }
+        }
+    }
 
-    int th = 0.8 * (ins.second - ins.first);
+    int th = 0.9 * (ins.second - ins.first);
 
-    for (int i = 0; i < msa.size() - 1; i++) {
-        if (count(msa[i].begin() + ins.first, msa[i].begin() + ins.second, '-') >= th) {
+    for (int i = 0; i < nreads; i++) {
+        if (count(msa[i].begin(), msa[i].begin() + ins.first, '-') == ins.first) {
+            msa[i].erase(std::remove(msa[i].begin(), msa[i].end(), '-'), msa[i].end());
+            one.push_back(msa[i]);
+        }
+        else if (count(msa[i].begin() + ins.first, msa[i].end(), '-') == msa[i].size() - ins.first) {
+            msa[i].erase(std::remove(msa[i].begin(), msa[i].end(), '-'), msa[i].end());
+            one.push_back(msa[i]);
+        }
+        else if (count(msa[i].begin() + ins.first, msa[i].begin() + ins.second, '-') >= th) {
             msa[i].erase(std::remove(msa[i].begin(), msa[i].end(), '-'), msa[i].end());
             two.push_back(msa[i]);
         }
@@ -200,8 +224,16 @@ vector<vector<string> > cluster_reads(vector<string> msa, int l, int r) {
         }
     }
 
-    clusters.push_back(one);
-    clusters.push_back(two);
+    if (!two.empty() && two.size() == 1) {
+        one.push_back(two[0]);
+        two.clear();
+        clusters.push_back(one);
+        clusters.push_back(two);
+    }
+    else {
+        clusters.push_back(one);
+        clusters.push_back(two);
+    }
 
     return clusters;
 }
