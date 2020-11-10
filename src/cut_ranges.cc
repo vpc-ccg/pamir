@@ -59,7 +59,44 @@ string cut_ranges::get_cut(string lr_name, int start, int end) {
 }
 
 //TODO ERROR HANDLING, OPTIMIZE
-std::pair<std::string, std::pair<int, int>> cut_consensus(vector<string> alignments) {
+std::pair<std::string, std::pair<int, int>> cut_consensus_bimodal(vector<string> alignments, int left_reads
+        ,int right_reads, int bimodal_reads) {
+//    int th = (alignments.size() - 1)/2;
+    int cnt = alignments.size() - 1;
+    int th_left = 0.8 * (bimodal_reads + left_reads);
+    int th_right = 0.8 * (bimodal_reads + right_reads);
+    string consensus = alignments[alignments.size() - 1];
+    int left = 0, right = 0;
+
+    for (int idx = 100; idx > 0; idx = idx/2) {
+        for (int i = 0; i < alignments.size() - 2; i++) {
+            if (alignments[i][idx] == '-')
+                cnt--;
+        }
+        if (cnt < th_left) {
+            left = idx * 2;
+            break;
+        }
+    }
+    cnt = alignments.size() - 1;
+    for (int idx = 100; idx > 0; idx = idx/2) {
+        for (int i = 0; i < alignments.size() - 2; i++) {
+            if (alignments[i][alignments[i].size() - idx - 1] == '-')
+                cnt--;
+        }
+        if (cnt < th_right) {
+            right = idx * 2;
+            break;
+        }
+    }
+
+    pair<int, int> ans = {left, right};
+    string cut = consensus.substr(left, consensus.size() - right - left);
+    cut.erase(std::remove(cut.begin(), cut.end(), '-'), cut.end());
+    return {cut, ans};
+}
+
+std::pair<std::string, std::pair<int, int>> cut_consensus_single(vector<string> alignments) {
     int th = (alignments.size() - 1)/2;
     string consensus = alignments[alignments.size() - 1];
     int left = 0, right = 0;
