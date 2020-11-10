@@ -151,28 +151,37 @@ int get_avg(vector<int> v) {
 	return res;
 }
 
-pair<int, int> find_range(vector<int> hits) {
-    sort(hits.begin(), hits.end());
+cut find_range(vector<pair<int, uint64_t> > hits) {
+    sort(hits.begin(), hits.end(), [](auto &a, auto &b) {
+        return a.first < b.first;
+    });
+
+    //Create buckets
     vector<pair<int, int> > buckets;
     buckets.reserve(BUCKET_SIZE);
     map<int, int> cnt;
     for (int s = 0; s < MAXN; s += BUCKET_SIZE) {
         buckets.push_back(make_pair(s, s + BUCKET_SIZE));
     }
+
+    //Populate buckets by hit locations
     for (int i = 0, j = 0; i < (int)hits.size(); i++) {
-        while (hits[i] >= buckets[j].second) {
+        while (hits[i].first >= buckets[j].second) {
             j++;
         }
-        assert(hits[i] >= buckets[j].first);
+        assert(hits[i].first >= buckets[j].first);
         cnt[j]++;
     }
+
+    //Find bucket weights
     vector<int> freq;
     freq.reserve(BUCKET_SIZE);
     for (int i = 0; i < (int)buckets.size(); i++) {
         freq.push_back(cnt[i]);
     }
 
-    //first range
+
+    //find cut around highest peak
     int mx_idx = max_element(freq.begin(), freq.end()) - freq.begin();
 
     int avg = get_avg(freq);
@@ -191,70 +200,206 @@ pair<int, int> find_range(vector<int> hits) {
     }
     pair<int, int> range_1 =  make_pair(l, r);
 
-    //second range
+
+    //find cut around second highest peak
     pair<int, int> range_2;
-    mx_idx = max_element(freq.begin() + r, freq.end()) - freq.begin();
+    //find if peak is on the left side or the right side of maximum peak
+    int mx_idx_l = max_element(freq.begin(), freq.begin() + max(l - 1, 0)) - freq.begin();
+    int mx_idx_r = max_element(freq.begin() + min(r + 1, int (freq.size())), freq.end()) - freq.begin();
 
+    int prv_peak = freq[mx_idx];
+    mx_idx = freq[mx_idx_l] > freq[mx_idx_r] ? mx_idx_l : mx_idx_r;
 
-    l = mx_idx;
-    while (l > 0) {
-        if (freq[l - 1] > avg) {
-            l--;
-        } else {
-            break;
+    if (mx_idx <= r && mx_idx_l >= l)
+        range_2 = make_pair(0, 0);
+    //Discard if new peak is too low comparing to the maximum peak (probably doesn't belong to this insertion)
+    else if (freq[mx_idx] < prv_peak/2) {
+        range_2 = make_pair(0, 0);
+    }
+    else {
+        l = mx_idx;
+        while (l > 0) {
+            if (freq[l - 1] > avg) {
+                l--;
+            } else {
+                break;
+            }
         }
+        r = mx_idx;
+        while (r < (int)freq.size() && freq[r] > avg) {
+            r++;
+        }
+        range_2 =  make_pair(l, r);
     }
-    r = mx_idx;
-    while (r < (int)freq.size() && freq[r] > avg) {
-        r++;
+
+
+    pair<int, int> final_range;
+    int type;
+    cut ans;
+
+    //Case 1: only one peak found
+    if (range_2.first == range_2.second) {
+        if (buckets[range_1.first].first == 0)
+            final_range.first = 1;
+        else
+            final_range.first = buckets[range_1.first].first;
+        final_range.second = buckets[range_1.second - 1].second;
+        type = SINGLE_PEAK;
+        ans.peak1 = final_range;
+        ans.peak2 = {0, 0};
     }
-    range_2 =  make_pair(l, r);
+    //Case 2: Two peaks found/Bimodal read
+    else {
+        type = BIMODAL;
+        //If second peak is on the right side of the first peak
+        if (range_1.first < range_2.first) {
+            if (buckets[range_1.first].first == 0)
+                final_range.first = 1;
+            else
+                final_range.first = buckets[range_1.first].first;
+            final_range.second = buckets[range_2.second - 1].second;
+            ans.peak1 = {buckets[range_1.first].first, buckets[range_1.second - 1].second};
+            ans.peak2 = {buckets[range_2.first].first, buckets[range_2.second - 1].second};
+        }
+        //If second peak is on the left side of the first peak
+        else {
+            if (buckets[range_2.first].first == 0)
+                final_range.first = 1;
+            else
+                final_range.first = buckets[range_2.first].first;
+            final_range.second = buckets[range_1.second - 1].second;
+            ans.peak2 = {buckets[range_1.first].first, buckets[range_1.second - 1].second};
+            ans.peak1 = {buckets[range_2.first].first, buckets[range_2.second - 1].second};
+        }
 
-    pair<int, int> ans;
-    if (buckets[range_1.first].first == 0)
-        ans.first = 1;
-    else
-        ans.first = buckets[range_1.first].first;
+    }
 
-    if (range_2.first != 0)
-        ans.second = buckets[range_2.second - 1].second;
-    else
-        ans.second = buckets[range_1.second - 1].second;
+    ans.range = final_range;
+    ans.type = type;
 
     return ans;
 }
 
-vector<pair<string, pair<int, int> > > Sketch::find_cuts() {
-    map<int, vector<int> > hits_id;
+float minimizer_similarity(unordered_set<uint64_t> ref, vector<pair<int, uint64_t> > q) {
+    int cnt = 0;
+    for (int i = 0; i < q.size(); i++) {
+        if (find(ref.begin(), ref.end(), q[i].second) != ref.end())
+            cnt += 1;
+    }
+    return float(cnt)/float(q.size());
+}
+
+vector<pair<string, pair<pair<int, int>, int> > > Sketch::classify_reads(map<int, vector<pair<int, uint64_t> > > hits,
+                                                                 vector<pair<int, cut> > cuts_tmp) {
+    //Bimodal reads first, then ordered by number of minimizers used to pick the reads
+    sort(cuts_tmp.begin(), cuts_tmp.end(), [](auto &a, auto &b) {
+        if (a.second.type < b.second.type)
+            return true;
+        else if (a.second.type == b.second.type)
+            return a.second.number_of_minimizers > b.second.number_of_minimizers;
+        else
+            return false;
+    });
+
+    unordered_set<uint64_t> left_minimizers, right_minimizers;
+    vector<pair<string, pair<pair<int, int>, int> > > cuts;
+
+    int i = 0;
+    //Separate left and right minimizers
+    while (cuts_tmp[i].second.type == BIMODAL) {
+        int curr_read = cuts_tmp[i].first;
+        cut curr_cut = cuts_tmp[i].second;
+        for (auto it = hits[curr_read].begin(); it != hits[curr_read].end(); it++) {
+            //Left minimizers
+            if (it->first < curr_cut.peak1.second)
+                left_minimizers.insert(it->second);
+                //Right minimizers
+            else if (it->first > curr_cut.peak2.first)
+                right_minimizers.insert(it->second);
+        }
+        cuts.push_back({sequences_names[curr_read], {curr_cut.range, BIMODAL}});
+        i += 1;
+    }
+
+    for (i; i < cuts_tmp.size(); i++) {
+        int curr_read = cuts_tmp[i].first;
+        cut curr_cut = cuts_tmp[i].second;
+        //Case 1: We have seen a bimodal read or we have already populated the left and right sets
+        // -> just compare similarity to left and right sets
+        if (!left_minimizers.empty() && !right_minimizers.empty()) {
+            float left_similarity = minimizer_similarity(left_minimizers, hits[curr_read]);
+            float right_similarity = minimizer_similarity(right_minimizers, hits[curr_read]);
+
+            if (left_similarity > right_similarity)
+                cuts.push_back({sequences_names[curr_read], {curr_cut.range, LEFT}});
+            else if (right_similarity > left_similarity)
+                cuts.push_back({sequences_names[curr_read], {curr_cut.range, RIGHT}});
+            else
+                cuts.push_back({sequences_names[curr_read], {curr_cut.range, MISC}});
+        }
+            //Case 2: No bimodal reads, must classify reads on the go -> first set of seen minimizers are assigned to left
+        else if (left_minimizers.empty()) {
+            for (int j = 0; j < hits[curr_read].size(); j++) {
+                left_minimizers.insert(hits[curr_read][j].second);
+            }
+            cuts.push_back({sequences_names[curr_read], {curr_cut.range, LEFT}});
+        }
+            //Case 3: all seen reads have been classified as left and right is still empty -> if this new read doesn't have
+            //        enough similarity with the left set, assign it to right
+        else if (right_minimizers.empty()) {
+            float left_similarity = minimizer_similarity(left_minimizers, hits[curr_read]);
+            if (left_similarity > 0.5) {
+                cuts.push_back({sequences_names[curr_read], {curr_cut.range, LEFT}});
+                continue;
+            }
+            for (int j = 0; j < hits[curr_read].size(); j++) {
+                right_minimizers.insert(hits[curr_read][j].second);
+            }
+            cuts.push_back({sequences_names[curr_read], {curr_cut.range, RIGHT}});
+        }
+    }
+
+    return cuts;
+}
+
+vector<pair<string, pair<pair<int, int>, int> > > Sketch::find_cuts() {
+    map<int, vector<pair<int, uint64_t> > > hits;
+
+    //Find all hits
     for (auto it = query_minimizers.begin(); it != query_minimizers.end(); it++) {
         auto idx = ref_minimizers.find(*it);
         if (idx == ref_minimizers.end())
             continue;
         for (auto i = idx->second.begin(); i != idx->second.end(); i++) {
-            auto j = hits_id.find(i->seq_id);
-            if (j == hits_id.end()) {
-                vector<int> tmp;
+            auto j = hits.find(i->seq_id);
+            if (j == hits.end()) {
+                vector<pair<int, uint64_t> > tmp;
                 tmp.reserve(32);
-                tmp.push_back(i->offset);
-                hits_id.insert(pair<int, vector<int> >(i->seq_id, tmp));
+                tmp.push_back({i->offset, *it});
+                hits.insert({i->seq_id, tmp});
             }
             else {
-                j->second.push_back(i->offset);
+                j->second.push_back({i->offset, *it});
             }
         }
     }
 
+    //Find cuts on each picked long read
     const int MIN_HITS = 0.25 * query_minimizers.size();
-    vector<pair<string, pair<int, int> > > cuts;
-    for (auto it = hits_id.begin(); it != hits_id.end(); it++) {
+    //vector<pair<string, pair<int, int> > > cuts;
+    vector<pair<int, cut> > cuts_tmp;
+    for (auto it = hits.begin(); it != hits.end(); it++) {
         if (it->second.size() < MIN_HITS) {
             continue;
         }
-        pair<int, int> a = find_range(it->second);
-        if (a.first == 0 && a.second == 0)
+        cut ans = find_range(it->second);
+        if (ans.range.first == 0 && ans.range.second == 0)
             continue;
-        cuts.push_back(make_pair(sequences_names[it->first], a));
+        ans.number_of_minimizers = it->second.size();
+        cuts_tmp.push_back({it->first, ans});
     }
+
+    vector<pair<string, pair<pair<int, int>, int> > > cuts = classify_reads(hits, cuts_tmp);
 
     return cuts;
 }

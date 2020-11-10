@@ -392,7 +392,7 @@ void sketch (const string &partition_file, const string &longread, const string 
 		lr_sketch.sketch_query(reads);
 
 		//Find cuts
-		vector<pair<string, pair<int, int> > > cut_candidates = lr_sketch.find_cuts();
+        vector<pair<string, pair<pair<int, int>, int> > > cut_candidates = lr_sketch.find_cuts();
 
 		if (cut_candidates.size() == 0) {
             Logger::instance().info("-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");
@@ -418,7 +418,7 @@ void extract_reads(const string &partition_file, const string &longread, const s
 			break;
 
 		for (int i = 0; i < p.size(); i++) {
-			ranges.add_range(p[i].first, p[i].second.first, p[i].second.second);
+            ranges.add_range(p[i].first, p[i].second.first.first, p[i].second.first.second);
 		}
 	}
 
@@ -438,11 +438,11 @@ void extract_reads(const string &partition_file, const string &longread, const s
 		string chrName  = pt_2.get_reference();
 		int pt_start    = pt_2.get_start();
 		int pt_end      = pt_2.get_end();
-	
-		vector<pair<pair<string, string>, pair<int, int> > > cuts;
+
+        vector<pair<pair<string, string>, pair<pair<int, int>, int> > > cuts;
 		for (int i = 0; i < p.size(); i++) {
-			cuts.push_back(make_pair(make_pair(p[i].first, ranges.get_cut(p[i].first, p[i].second.first, 
-									p[i].second.second)), make_pair(p[i].second.first, p[i].second.second)));
+            cuts.push_back({{p[i].first, ranges.get_cut(p[i].first, p[i].second.first.first,
+                p[i].second.first.second)}, {{p[i].second.first.first, p[i].second.first.second}, p[i].second.second}});
 		}
 
 		new_pt.add_reads(cuts, pt_start, pt_end, chrName, pt_2.get_old_id());

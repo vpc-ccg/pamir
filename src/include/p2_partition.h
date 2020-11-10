@@ -27,28 +27,28 @@ private:
     int end;
     FILE* partition_file;
 
-	int old_id;
+    int old_id;
 
-    vector <pair<string, pair<int, int> > > cut_candidates;
+    vector <pair<string, pair<pair<int, int>, int> > > cut_candidates;
 
 
-	char prev_string[2000];
+    char prev_string[2000];
 
-	const int INSSIZE=450;
-	
+    const int INSSIZE=450;
+
 public:
-	p2_partition (const string&, bool write_to_file = false);
-	p2_partition (const string&,  const string&);
-	~p2_partition (void);
+    p2_partition (const string&, bool write_to_file = false);
+    p2_partition (const string&,  const string&);
+    ~p2_partition (void);
 
-    void add_cuts(vector<pair<pair<string, string>, pair<int,int> > > short_reads, vector<pair<string, pair<int, int> > > cuts, int p_start, int p_end, string p_ref, int pt_id);
-	vector <pair<string, pair<int, int> > > read_partition();
+    void add_cuts(vector<pair<pair<string, string>, pair<int,int> > > short_reads, vector<pair<string, pair<pair<int, int>, int> > > cuts, int p_start, int p_end, string p_ref, int pt_id);
+    vector <pair<string, pair<pair<int, int>, int> > > read_partition();
 
-	int get_start (void);
-	int get_end (void);
-	string get_reference (void);
-	int get_id ();
-	int get_old_id();
+    int get_start (void);
+    int get_end (void);
+    string get_reference (void);
+    int get_id ();
+    int get_old_id();
 };
 
 

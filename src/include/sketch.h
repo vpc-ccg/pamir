@@ -8,9 +8,23 @@
 #include <cstdint>
 #include <unordered_set>
 
+const int BIMODAL = 0;
+const int SINGLE_PEAK = 4;
+const int LEFT = 1;
+const int RIGHT = 2;
+const int MISC = 3;
+
 struct Location {
 	int seq_id;
 	int offset;
+};
+
+struct cut {
+    std::pair<int, int> range;
+    int type;
+    std::pair<int, int> peak1;
+    std::pair<int, int> peak2;
+    int number_of_minimizers;
 };
 
 class Sketch {
@@ -34,7 +48,9 @@ class Sketch {
         void sketch_query(std::vector<std::string> reads, int k = 15, int w = 10);
 		void get_ref_minimizers(char* read, int read_id, int len);
         void get_query_minimizers(char* read, int read_id, int len);
-        std::vector<std::pair<std::string, std::pair<int, int> > > find_cuts();
+        std::vector<std::pair<std::string, std::pair<std::pair<int, int>, int> > > find_cuts();
+        std::vector<std::pair<std::string, std::pair<std::pair<int, int>, int> > > classify_reads
+                    (std::map<int, std::vector<std::pair<int, uint64_t> > > hits,std::vector<std::pair<int, cut> > cuts_tmp);
 };
 
 
