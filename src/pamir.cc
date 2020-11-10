@@ -368,19 +368,23 @@ void sketch (const string &partition_file, const string &longread, const string 
 		// end of the partition file
 		if ( !p.size() ) 
 			break;
-		
+
+        vector<pair<string, pair<pair<int, int>, int> > > cut_candidates;
+
+        string chrName  = pt.get_reference();
+        int pt_start    = pt.get_start();
+        int pt_end      = pt.get_end();
+
 		// cluster has too many or too few reads
 		if ( p.size() > 7000 || p.size() <= 2 ) {
             Logger::instance().info("-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");
             Logger::instance().info(" + Cluster ID      : %d\n", pt.get_id());
-            Logger::instance().info(" + Reads Count     : %lu\n", p.size());
-            Logger::instance().info("INFO: Skipped Processing - Too few or Too many reads\n");
+            Logger::instance().info(" + Short Reads Count     : %lu\n", p.size());
+            Logger::instance().info("INFO: Skipped Processing - Too few or Too many short reads\n");
+
+            pt_2.add_cuts(p, cut_candidates, pt_start, pt_end, chrName);
             continue;
         }
-
-		string chrName  = pt.get_reference();
-		int pt_start    = pt.get_start();
-		int pt_end      = pt.get_end();
 
 		vector<string> reads;
 		for (int i =0;i<p.size();i++)
@@ -392,17 +396,17 @@ void sketch (const string &partition_file, const string &longread, const string 
 		lr_sketch.sketch_query(reads);
 
 		//Find cuts
-        vector<pair<string, pair<pair<int, int>, int> > > cut_candidates = lr_sketch.find_cuts();
+        cut_candidates = lr_sketch.find_cuts();
 
 		if (cut_candidates.size() == 0) {
             Logger::instance().info("-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");
             Logger::instance().info(" + Cluster ID      : %d\n", pt.get_id());
-            Logger::instance().info(" + Reads Count     : %lu\n", p.size());
+            Logger::instance().info(" + Short Reads Count     : %lu\n", p.size());
             Logger::instance().info("INFO: Skipped Processing - No Long reads found\n");
             continue;
         }
 
-		pt_2.add_cuts(p, cut_candidates, pt_start, pt_end, chrName, pt.get_id());
+		pt_2.add_cuts(p, cut_candidates, pt_start, pt_end, chrName);
 	}
 }
 /*********************************************************************************************/
@@ -414,11 +418,16 @@ void extract_reads(const string &partition_file, const string &longread, const s
 	while (1) {
 		auto p 			= pt.read_partition();
 	
-		if ( !p.size() ) 
+		if ( !p.first.size() )
 			break;
 
-		for (int i = 0; i < p.size(); i++) {
-            ranges.add_range(p[i].first, p[i].second.first.first, p[i].second.first.second);
+        // cluster has too many or too few reads
+        if ( p.second.size() == 0 ) {
+            continue;
+        }
+
+		for (int i = 0; i < p.second.size(); i++) {
+            ranges.add_range(p.second[i].first, p.second[i].second.first.first, p.second[i].second.first.second);
 		}
 	}
 
@@ -427,25 +436,48 @@ void extract_reads(const string &partition_file, const string &longread, const s
 	//TODO FIX NAME
 	string p3 = "partition-p3";
 	p2_partition pt_2(partition_file, range);
-	p3_partition new_pt(p3, true);
+	p3_partition pt_3(p3, true);
 	
 	while (1) {
-			
+
 		auto p 			= pt_2.read_partition();
-		if ( !p.size() ) 
+		if ( !p.first.size() )
 			break;
-	
-		string chrName  = pt_2.get_reference();
-		int pt_start    = pt_2.get_start();
-		int pt_end      = pt_2.get_end();
 
         vector<pair<pair<string, string>, pair<pair<int, int>, int> > > cuts;
-		for (int i = 0; i < p.size(); i++) {
-            cuts.push_back({{p[i].first, ranges.get_cut(p[i].first, p[i].second.first.first,
-                p[i].second.first.second)}, {{p[i].second.first.first, p[i].second.first.second}, p[i].second.second}});
+
+        string chrName  = pt.get_reference();
+        int pt_start    = pt.get_start();
+        int pt_end      = pt.get_end();
+
+        // cluster has too many or too few reads
+        if ( p.first.size() > 7000 || p.first.size() <= 2 ) {
+            Logger::instance().info("-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");
+            Logger::instance().info(" + Cluster ID      : %d\n", pt.get_id());
+            Logger::instance().info(" + Short Reads Count     : %lu\n", p.first.size());
+            Logger::instance().info("INFO: Skipped Processing - Too few or Too many short reads\n");
+
+            pt_3.add_reads(p.first, cuts, pt_start, pt_end, chrName);
+            continue;
+        }
+        // cluster has too many or too few reads
+        else if ( p.second.size() == 0 ) {
+            Logger::instance().info("-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");
+            Logger::instance().info(" + Cluster ID      : %d\n", pt.get_id());
+            Logger::instance().info(" + Short Reads Count     : %lu\n", p.first.size());
+            Logger::instance().info("INFO: Skipped Processing - No long reads found\n");
+
+            pt_3.add_reads(p.first, cuts, pt_start, pt_end, chrName);
+            continue;
+        }
+
+		for (int i = 0; i < p.second.size(); i++) {
+            cuts.push_back({{p.second[i].first, ranges.get_cut(p.second[i].first, p.second[i].second.first.first,
+                p.second[i].second.first.second)}, {{p.second[i].second.first.first, p.second[i].second.first.second},
+                                                    p.second[i].second.second}});
 		}
 
-		new_pt.add_reads(cuts, pt_start, pt_end, chrName, pt_2.get_old_id());
+        pt_3.add_reads(p.first, cuts, pt_start, pt_end, chrName);
 
 	}
 }
@@ -485,19 +517,26 @@ void consensus (const string &partition_file, const string &reference, const str
 		auto p 			= pt.read_partition();
 		
 		// end of the partition file
-		if ( !p.size )
+		if ( !p.first.size() )
 			break;
 	
 		// cluster has too many or too few reads
-		if ( p.size > 7000 || p.size <= 2 ) {
+		if ( p.first.size() > 7000 || p.first.size() <= 2 ) {
             Logger::instance().info("-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");
-            Logger::instance().info(" + Cluster ID      : %d\n", pt.get_old_id());
-            Logger::instance().info(" + Reads Count     : %lu\n", p.size);
-            Logger::instance().info("INFO: Skipped Processing - Too few or Too many reads\n");
+            Logger::instance().info(" + Cluster ID      : %d\n", pt.get_id());
+            Logger::instance().info(" + Short Reads Count     : %lu\n", p.first.size());
+            Logger::instance().info("INFO: Skipped Processing - Too few or Too many short reads\n");
             continue;
         }
+		else if (p.second.size == 0) {
+            Logger::instance().info("-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");
+            Logger::instance().info(" + Cluster ID      : %d\n", pt.get_id());
+            Logger::instance().info(" + Short Reads Count     : %lu\n", p.first.size());
+            Logger::instance().info("INFO: Skipped Processing - No long reads found\n");
+            continue;
+		}
 		string chrName  = pt.get_reference();
-		int cluster_id  = pt.get_old_id();
+		int cluster_id  = pt.get_id();
 		int pt_start    = pt.get_start();
 		int pt_end      = pt.get_end();
 		int ref_start   = pt_start - LENFLAG;
@@ -505,10 +544,11 @@ void consensus (const string &partition_file, const string &reference, const str
 		string ref_part = ref.get_bases_at(chrName, ref_start, ref_end);
         Logger::instance().info("-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");
         Logger::instance().info(" + Cluster ID      : %d\n", cluster_id);
-        Logger::instance().info(" + Reads Count     : %lu\n", p.size);
+        Logger::instance().info(" + Short Reads Count     : %lu\n", p.first.size());
+        Logger::instance().info(" + Long Reads Count     : %lu\n", p.second.size);
         Logger::instance().info(" + Spanning Range  : %s:%d-%d\n", chrName.c_str(), pt_start, pt_end);
         Logger::instance().info(" + Discovery Range : %s:%d-%d\n", chrName.c_str(), ref_start, ref_end);
-        Logger::instance().info(" + Reference       : %s\n\n", ref_part.c_str());
+        Logger::instance().info(" + Reference       : %s\n", ref_part.c_str());
 		// if the genomic region is too big
 		if (ref_end - ref_start > MAX_REF_LEN) 
 			continue;
@@ -519,49 +559,49 @@ void consensus (const string &partition_file, const string &reference, const str
 
         vector<pair<string, int> > consensus;
 
-		if (p.bimodal) {
-            Logger::instance().info(" + Type       : bimodal\tleft: %d right: %d bimodal: %d\n\n", p.left_cuts.size(),
-                                    p.right_cuts.size(), p.bimodal_cuts.size());
+		if (p.second.bimodal) {
+            Logger::instance().info(" + Type       : bimodal\tleft: %d right: %d bimodal: %d\n\n", p.second.left_cuts.size(),
+                                    p.second.right_cuts.size(), p.second.bimodal_cuts.size());
 
             graph.Clear();
-            for (int i = 0; i < p.bimodal_cuts.size(); i++) {
-                auto alignment = alignment_engine->Align(p.bimodal_cuts[i].first.second, graph);
-                graph.AddAlignment(alignment, p.bimodal_cuts[i].first.second);
+            for (int i = 0; i < p.second.bimodal_cuts.size(); i++) {
+                auto alignment = alignment_engine->Align(p.second.bimodal_cuts[i].first.second, graph);
+                graph.AddAlignment(alignment, p.second.bimodal_cuts[i].first.second);
             }
-            for (int i = 0; i < p.left_cuts.size(); i++) {
-                auto alignment = alignment_engine->Align(p.left_cuts[i].first.second, graph);
-                graph.AddAlignment(alignment, p.left_cuts[i].first.second);
+            for (int i = 0; i < p.second.left_cuts.size(); i++) {
+                auto alignment = alignment_engine->Align(p.second.left_cuts[i].first.second, graph);
+                graph.AddAlignment(alignment, p.second.left_cuts[i].first.second);
             }
-            for (int i = 0; i < p.right_cuts.size(); i++) {
-                auto alignment = alignment_engine->Align(p.right_cuts[i].first.second, graph);
-                graph.AddAlignment(alignment, p.right_cuts[i].first.second);
+            for (int i = 0; i < p.second.right_cuts.size(); i++) {
+                auto alignment = alignment_engine->Align(p.second.right_cuts[i].first.second, graph);
+                graph.AddAlignment(alignment, p.second.right_cuts[i].first.second);
             }
 
             auto msa = graph.GenerateMultipleSequenceAlignment(true);
 
-            pair<string, pair<int, int>> ans = cut_consensus_bimodal(msa, p.left_cuts.size(), p.right_cuts.size(),
-                                                                     p.bimodal_cuts.size());
+            pair<string, pair<int, int>> ans = cut_consensus_bimodal(msa, p.second.left_cuts.size(), p.second.right_cuts.size(),
+                                                                     p.second.bimodal_cuts.size());
 
-            consensus.push_back({ans.first, p.left_cuts.size() + p.bimodal_cuts.size() + p.right_cuts.size()});
+            consensus.push_back({ans.first, p.second.left_cuts.size() + p.second.bimodal_cuts.size() + p.second.right_cuts.size()});
 		}
 		else {
             //SINGLE PEAK
-            if (p.right_cuts.size() < 2) {
+            if (p.second.right_cuts.size() < 2) {
                 Logger::instance().info(" + Type       : single peak\n\n");
                 graph.Clear();
-                for (int i = 0; i < p.left_cuts.size(); i++) {
-                    auto alignment = alignment_engine->Align(p.left_cuts[i].first.second, graph);
-                    graph.AddAlignment(alignment, p.left_cuts[i].first.second);
+                for (int i = 0; i < p.second.left_cuts.size(); i++) {
+                    auto alignment = alignment_engine->Align(p.second.left_cuts[i].first.second, graph);
+                    graph.AddAlignment(alignment, p.second.left_cuts[i].first.second);
                 }
 
                 auto msa = graph.GenerateMultipleSequenceAlignment(true);
 
                 pair<string, pair<int, int>> ans = cut_consensus_single(msa);
 
-                consensus.push_back({ans.first, p.left_cuts.size()});
+                consensus.push_back({ans.first, p.second.left_cuts.size()});
             }
             //LONG INSERTION
-            else if (!p.left_cuts.empty() && !p.right_cuts.empty()) {}
+            else if (!p.second.left_cuts.empty() && !p.second.right_cuts.empty()) {}
 		}
 
         for (int i = 0; i < consensus.size(); i++) {

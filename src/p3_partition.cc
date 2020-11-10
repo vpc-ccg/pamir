@@ -59,18 +59,23 @@ p3_partition::p3_partition (const string &partition_file_path, const string &ran
 
     if (start < 1)
         start = 1;
-    if ( end > offsets.size()+1 )
-        end = offsets.size()+1;
+    if ( end > offsets.size() )
+        end = offsets.size();
 
     partition_file = fopen(partition_file_path.c_str(), "rb");
     fseek(partition_file, offsets[start-1], SEEK_SET);
 }
 
 //CALL ON EACH CLUSTER
-void p3_partition::add_reads(vector<pair<pair<string, string>, pair<pair<int,int>, int> > > cuts, int p_start, int p_end, string p_ref, int pt_id) {
+void p3_partition::add_reads(vector<pair<pair<string, string>, pair<int,int> > > short_reads, vector<pair<pair<string, string>, pair<pair<int,int>, int> > > cuts, int p_start, int p_end, string p_ref) {
+    partition_count++;
     size_t pos = ftell(partition_out_file);
     fwrite(&pos, 1, sizeof(size_t), partition_out_index_file);
-    fprintf(partition_out_file, "%d %lu %d %d %s %d\n", partition_id, cuts.size(), p_start, p_end, p_ref.c_str(), pt_id);
+    fprintf(partition_out_file, "%d %lu %lu %d %d %s\n", partition_id, short_reads.size(), cuts.size(), p_start, p_end, p_ref.c_str());
+    for (auto &i: short_reads) {
+        fprintf(partition_out_file, "%s %s %d %d\n", i.first.first.c_str(), i.first.second.c_str(), i.second.first,
+                i.second.second);
+    }
     for (auto &i: cuts) {
         fprintf(partition_out_file, "%s %s %d %d %d\n", i.first.first.c_str(), i.first.second.c_str(), i.second.first.first, i.second.first.second, i.second.second);
     }
@@ -112,27 +117,30 @@ int p3_partition::get_id () {
     return partition_id;
 }
 
-int p3_partition::get_old_id () {
-    return old_id;
-}
-
 //read next partition
-classified_cuts p3_partition::read_partition() {
-    int cut_sz, i;
+pair<vector<pair<pair<string, string>, pair<int,int> > >, classified_cuts> p3_partition::read_partition() {
+    int cut_sz, sr_sz, i;
     char pref[MAXB];
     char name[MAXB], read[MAXB];
 
     cuts = classified_cuts();
 
-    if (start >= end)
-        return cuts;
+    if (start > end)
+        return pair<vector<pair<pair<string, string>, pair<int,int> > >, classified_cuts> ();
 
     partition_count++;
     start++;
-    fscanf(partition_file, "%d %d %d %d %s %d\n", &partition_id, &cut_sz, &p_start, &p_end, pref, &old_id);
+    fscanf(partition_file, "%d %d %d %d %d %s %d\n", &partition_id, &sr_sz, &cut_sz, &p_start, &p_end, pref);
     p_ref = pref;
-    current_cluster.resize(0);
-    current_cluster.reserve(cut_sz);
+    short_reads.resize(0);
+    short_reads.reserve(sr_sz);
+
+    for (i = 0; i < sr_sz; i++) {
+        fgets(pref, MAXB, partition_file);
+        int loc, support;
+        sscanf(pref, "%s %s %d %d", name, read, &support, &loc);
+        short_reads.push_back({{string(name), string(read)}, {support, loc}});
+    }
 
     for (i = 0; i < cut_sz; i++) {
         fgets(pref, MAXB, partition_file);
@@ -149,10 +157,9 @@ classified_cuts p3_partition::read_partition() {
         else
             cuts.misc_cuts.push_back({{string(name), string(read)}, {start_pos, end_pos}});
         cuts.size += 1;
-        current_cluster.push_back({{string(name), string(read)}, {{start_pos, end_pos}, type}});
     }
 
-    return cuts;
+    return {short_reads, cuts};
 }
 
 

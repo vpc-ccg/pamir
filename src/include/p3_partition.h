@@ -36,10 +36,8 @@ private:
     int end;
     FILE* partition_file;
 
-    int old_id;
-
-    vector<pair<pair<string, string>, pair<pair<int,int> , int> > > current_cluster;
     classified_cuts cuts;
+    vector<pair<pair<string, string>, pair<int,int> > > short_reads;
 
     char prev_string[2000];
 
@@ -50,14 +48,13 @@ public:
     p3_partition (const string&,  const string&);
     ~p3_partition (void);
 
-    void add_reads(vector<pair<pair<string, string>, pair<pair<int,int>, int> > > cuts, int p_start, int p_end, string p_ref, int pt_id);
-    classified_cuts read_partition ();
+    void add_reads(vector<pair<pair<string, string>, pair<int,int> > > short_reads, vector<pair<pair<string, string>, pair<pair<int,int>, int> > > cuts, int p_start, int p_end, string p_ref);
+    pair<vector<pair<pair<string, string>, pair<int,int> > >, classified_cuts> read_partition ();
 
     int get_start (void);
     int get_end (void);
     string get_reference (void);
     int get_id ();
-    int get_old_id();
 };
 
 
