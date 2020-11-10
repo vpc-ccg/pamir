@@ -10,6 +10,15 @@
 #include <unordered_set>
 using namespace std;
 
+struct classified_cuts {
+    int size = 0;
+    bool bimodal = false;
+    vector<pair<pair<string, string>, pair<int,int> > > bimodal_cuts;
+    vector<pair<pair<string, string>, pair<int,int> > > left_cuts;
+    vector<pair<pair<string, string>, pair<int,int> > > right_cuts;
+    vector<pair<pair<string, string>, pair<int,int> > > misc_cuts;
+};
+
 class p3_partition {
 private:
     FILE* partition_out_file;
@@ -30,7 +39,7 @@ private:
     int old_id;
 
     vector<pair<pair<string, string>, pair<pair<int,int> , int> > > current_cluster;
-
+    classified_cuts cuts;
 
     char prev_string[2000];
 
@@ -42,7 +51,7 @@ public:
     ~p3_partition (void);
 
     void add_reads(vector<pair<pair<string, string>, pair<pair<int,int>, int> > > cuts, int p_start, int p_end, string p_ref, int pt_id);
-    vector<pair<pair<string, string>, pair<pair<int,int>, int> > > read_partition ();
+    classified_cuts read_partition ();
 
     int get_start (void);
     int get_end (void);

@@ -117,13 +117,15 @@ int p3_partition::get_old_id () {
 }
 
 //read next partition
-vector<pair<pair<string, string>, pair<pair<int,int>, int> > > p3_partition::read_partition() {
+classified_cuts p3_partition::read_partition() {
     int cut_sz, i;
     char pref[MAXB];
     char name[MAXB], read[MAXB];
 
+    cuts = classified_cuts();
+
     if (start >= end)
-        return vector < pair < pair < string, string >, pair < pair < int, int >, int > > > ();
+        return cuts;
 
     partition_count++;
     start++;
@@ -136,10 +138,21 @@ vector<pair<pair<string, string>, pair<pair<int,int>, int> > > p3_partition::rea
         fgets(pref, MAXB, partition_file);
         int start_pos, end_pos, type;
         sscanf(pref, "%s %s %d %d %d", name, read, &start_pos, &end_pos, &type);
+        if (type == 0) {
+            cuts.bimodal_cuts.push_back({{string(name), string(read)}, {start_pos, end_pos}});
+            cuts.bimodal = true;
+        }
+        else if (type == 1)
+            cuts.left_cuts.push_back({{string(name), string(read)}, {start_pos, end_pos}});
+        else if (type == 2)
+            cuts.right_cuts.push_back({{string(name), string(read)}, {start_pos, end_pos}});
+        else
+            cuts.misc_cuts.push_back({{string(name), string(read)}, {start_pos, end_pos}});
+        cuts.size += 1;
         current_cluster.push_back({{string(name), string(read)}, {{start_pos, end_pos}, type}});
     }
 
-    return current_cluster;
+    return cuts;
 }
 
 
