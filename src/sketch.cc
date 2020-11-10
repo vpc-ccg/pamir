@@ -12,8 +12,6 @@ using namespace std;
 //TODO FIX
 const int MAXN = 30000;
 const int BUCKET_SIZE = 100;
-const int MIN_FREQ = 16;
-const int MIN_HITS = 48;
 
 Sketch::Sketch(string path, int k, int w) {
 	kmer_size = k;
@@ -176,9 +174,6 @@ pair<int, int> find_range(vector<int> hits) {
 
     //first range
     int mx_idx = max_element(freq.begin(), freq.end()) - freq.begin();
-    if (freq[mx_idx] < MIN_FREQ) {
-        return make_pair(0, 0);
-    }
 
     int avg = get_avg(freq);
 
@@ -199,24 +194,21 @@ pair<int, int> find_range(vector<int> hits) {
     //second range
     pair<int, int> range_2;
     mx_idx = max_element(freq.begin() + r, freq.end()) - freq.begin();
-    if (freq[mx_idx] < MIN_FREQ) {
-        range_2 = make_pair(0, 0);
-    }
-    else {
-        l = mx_idx;
-        while (l > 0) {
-            if (freq[l - 1] > avg) {
-                l--;
-            } else {
-                break;
-            }
+
+
+    l = mx_idx;
+    while (l > 0) {
+        if (freq[l - 1] > avg) {
+            l--;
+        } else {
+            break;
         }
-        r = mx_idx;
-        while (r < (int)freq.size() && freq[r] > avg) {
-            r++;
-        }
-        range_2 =  make_pair(l, r);
     }
+    r = mx_idx;
+    while (r < (int)freq.size() && freq[r] > avg) {
+        r++;
+    }
+    range_2 =  make_pair(l, r);
 
     pair<int, int> ans;
     if (buckets[range_1.first].first == 0)
@@ -252,6 +244,7 @@ vector<pair<string, pair<int, int> > > Sketch::find_cuts() {
         }
     }
 
+    const int MIN_HITS = 0.25 * query_minimizers.size();
     vector<pair<string, pair<int, int> > > cuts;
     for (auto it = hits_id.begin(); it != hits_id.end(); it++) {
         if (it->second.size() < MIN_HITS) {
