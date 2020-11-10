@@ -389,10 +389,10 @@ void sketch (const string &partition_file, const string &longread, const string 
 		}
 
 		//Sketch short reads
-		Sketch pt_sketch(reads);
+		lr_sketch.sketch_query(reads);
 
 		//Find cuts
-		vector<pair<string, pair<int, int> > > cut_candidates = lr_sketch.find_cuts(&pt_sketch);
+		vector<pair<string, pair<int, int> > > cut_candidates = lr_sketch.find_cuts();
 
 		if (cut_candidates.size() == 0) {
             Logger::instance().info("-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");

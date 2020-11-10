@@ -19,11 +19,11 @@ Sketch::Sketch(string path, int k, int w) {
 	kmer_size = k;
 	window_size = w;
 	file = path;
-    minimizers_vec.reserve(50000);
+    ref_minimizers_vec.reserve(50000);
 	build_sketch();
 }
 
-Sketch::Sketch(vector<string> reads, int k, int w) {
+void Sketch::sketch_query(std::vector<std::string> reads, int k, int w) {
 	kmer_size = k;
 	window_size = w;
 	build_sketch(reads);
@@ -38,26 +38,27 @@ void Sketch::build_sketch() {
     while (!fin.eof()) {
         getline(fin, tmp);
         if (tmp[0] == '>') {
-            sequences.insert({id, tmp.substr(1, tmp.size() - 1)});
+            sequences_names.insert({id, tmp.substr(1, tmp.size() - 1)});
             cnt++;
         } else {
             transform(tmp.begin(), tmp.end(), tmp.begin(), ::toupper);
-            get_minimizers(&tmp[0], id, tmp.size());
+            get_ref_minimizers(&tmp[0], id, tmp.size());
             id++;
         }
     }
-    update_sketch();
+    update_ref_sketch();
 }
 
 void Sketch::build_sketch(vector<string> reads) {
     for (int i = 0; i < reads.size(); i++) {
         transform(reads[i].begin(), reads[i].end(), reads[i].begin(), ::toupper);
-        get_minimizers(&reads[i][0], i, reads[i].size());
+        get_query_minimizers(&reads[i][0], i, reads[i].size());
     }
-    update_sketch();
+    update_query_sketch();
+    query_minimizers_vec.clear();
 }
 
-void Sketch::get_minimizers(char* read, int id, int len) {
+void Sketch::get_ref_minimizers(char* read, int id, int len) {
     deque<pair<uint64_t, Location> > window;
 
     char tmp[16];
@@ -81,33 +82,65 @@ void Sketch::get_minimizers(char* read, int id, int len) {
             window.pop_front();
 
         if (i >= win) {
-            if (minimizers_vec.empty() || minimizers_vec.back().first != window.front().first)
-                minimizers_vec.push_back(window.front());
+            if (ref_minimizers_vec.empty() || ref_minimizers_vec.back().first != window.front().first)
+                ref_minimizers_vec.push_back(window.front());
         }
     }
 }
 
-void Sketch::update_sketch() {
-    sort(minimizers_vec.begin(), minimizers_vec.end(), [](const auto &a, const auto &b) { return a.first < b.first;});
-    auto idx = minimizers.begin();
+void Sketch::get_query_minimizers(char* read, int id, int len) {
+    deque<pair<uint64_t, int> > window;
+
+    char tmp[16];
+
+    int win = window_size - 1;
+    for (int i = 0; i < len - kmer_size + 1; i++) {
+
+        MurmurHash3_x64_128(read + i, kmer_size, 50, tmp);
+        uint64_t hash_fw = *((uint64_t *)tmp);
+
+        while(!window.empty() && window.back().first >= hash_fw)
+            window.pop_back();
+
+        window.push_back(pair<uint64_t, int>(hash_fw, i));
+
+        while (!window.empty() && window.front().second <= i - window_size)
+            window.pop_front();
+
+        if (i >= win) {
+            if (query_minimizers_vec.empty() || query_minimizers_vec.back().first != window.front().first)
+                query_minimizers_vec.push_back(window.front());
+        }
+    }
+}
+
+void Sketch::update_ref_sketch() {
+    sort(ref_minimizers_vec.begin(), ref_minimizers_vec.end(), [](const auto &a, const auto &b) { return a.first < b.first;});
+    auto idx = ref_minimizers.begin();
     uint64_t last_hash = UINT64_MAX;
-    for (auto it = minimizers_vec.begin(); it != minimizers_vec.end(); it++) {
+    for (auto it = ref_minimizers_vec.begin(); it != ref_minimizers_vec.end(); it++) {
         if (it->first == last_hash) {
             idx->second.push_back(it->second);
         }
         else {
             last_hash = it->first;
-            idx = minimizers.find(it->first);
-            if (idx == minimizers.end()) {
+            idx = ref_minimizers.find(it->first);
+            if (idx == ref_minimizers.end()) {
                 vector<Location> tmp;
                 tmp.reserve(128);
                 tmp.push_back(it->second);
-                idx = minimizers.insert({it->first, tmp}).first;
+                idx = ref_minimizers.insert({it->first, tmp}).first;
             }
             else {
                 idx->second.push_back(it->second);
             }
         }
+    }
+}
+
+void Sketch::update_query_sketch() {
+    for (int i = 0; i < query_minimizers_vec.size(); i++) {
+        query_minimizers.insert(query_minimizers_vec[i].first);
     }
 }
 
@@ -199,11 +232,11 @@ pair<int, int> find_range(vector<int> hits) {
     return ans;
 }
 
-vector<pair<string, pair<int, int> > > Sketch::find_cuts(Sketch* q) {
+vector<pair<string, pair<int, int> > > Sketch::find_cuts() {
     map<int, vector<int> > hits_id;
-    for (auto it = q->minimizers.begin(); it != q->minimizers.end(); it++) {
-        auto idx = minimizers.find(it->first);
-        if (idx == minimizers.end())
+    for (auto it = query_minimizers.begin(); it != query_minimizers.end(); it++) {
+        auto idx = ref_minimizers.find(*it);
+        if (idx == ref_minimizers.end())
             continue;
         for (auto i = idx->second.begin(); i != idx->second.end(); i++) {
             auto j = hits_id.find(i->seq_id);
@@ -227,7 +260,7 @@ vector<pair<string, pair<int, int> > > Sketch::find_cuts(Sketch* q) {
         pair<int, int> a = find_range(it->second);
         if (a.first == 0 && a.second == 0)
             continue;
-        cuts.push_back(make_pair(sequences[it->first], a));
+        cuts.push_back(make_pair(sequences_names[it->first], a));
     }
 
     return cuts;
