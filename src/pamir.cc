@@ -485,14 +485,14 @@ void consensus (const string &partition_file, const string &reference, const str
 		auto p 			= pt.read_partition();
 		
 		// end of the partition file
-		if ( !p.size() ) 
+		if ( !p.size )
 			break;
 	
 		// cluster has too many or too few reads
-		if ( p.size() > 7000 || p.size() <= 2 ) {
+		if ( p.size > 7000 || p.size <= 2 ) {
             Logger::instance().info("-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");
             Logger::instance().info(" + Cluster ID      : %d\n", pt.get_old_id());
-            Logger::instance().info(" + Reads Count     : %lu\n", p.size());
+            Logger::instance().info(" + Reads Count     : %lu\n", p.size);
             Logger::instance().info("INFO: Skipped Processing - Too few or Too many reads\n");
             continue;
         }
@@ -505,7 +505,7 @@ void consensus (const string &partition_file, const string &reference, const str
 		string ref_part = ref.get_bases_at(chrName, ref_start, ref_end);
         Logger::instance().info("-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");
         Logger::instance().info(" + Cluster ID      : %d\n", cluster_id);
-        Logger::instance().info(" + Reads Count     : %lu\n", p.size());
+        Logger::instance().info(" + Reads Count     : %lu\n", p.size);
         Logger::instance().info(" + Spanning Range  : %s:%d-%d\n", chrName.c_str(), pt_start, pt_end);
         Logger::instance().info(" + Discovery Range : %s:%d-%d\n", chrName.c_str(), ref_start, ref_end);
         Logger::instance().info(" + Reference       : %s\n\n", ref_part.c_str());
@@ -517,44 +517,63 @@ void consensus (const string &partition_file, const string &reference, const str
 		vector< tuple< string, int, int, string, int, float > > reports;//reports.clear();
 		vector< tuple< string, int, int, string, int, float > > reports_lq;//reports.clear();
 
-		//Build consensus
-		graph.Clear();
-		for (int i =0; i < p.size(); i++) {	
-			auto alignment = alignment_engine->Align(p[i].first.second, graph);
-			graph.AddAlignment(alignment, p[i].first.second);
+        vector<pair<string, int> > consensus;
+
+		if (p.bimodal) {
+            Logger::instance().info(" + Type       : bimodal\tleft: %d right: %d bimodal: %d\n\n", p.left_cuts.size(),
+                                    p.right_cuts.size(), p.bimodal_cuts.size());
+
+            graph.Clear();
+            for (int i = 0; i < p.bimodal_cuts.size(); i++) {
+                auto alignment = alignment_engine->Align(p.bimodal_cuts[i].first.second, graph);
+                graph.AddAlignment(alignment, p.bimodal_cuts[i].first.second);
+            }
+            for (int i = 0; i < p.left_cuts.size(); i++) {
+                auto alignment = alignment_engine->Align(p.left_cuts[i].first.second, graph);
+                graph.AddAlignment(alignment, p.left_cuts[i].first.second);
+            }
+            for (int i = 0; i < p.right_cuts.size(); i++) {
+                auto alignment = alignment_engine->Align(p.right_cuts[i].first.second, graph);
+                graph.AddAlignment(alignment, p.right_cuts[i].first.second);
+            }
+
+            auto msa = graph.GenerateMultipleSequenceAlignment(true);
+
+            pair<string, pair<int, int>> ans = cut_consensus_bimodal(msa, p.left_cuts.size(), p.right_cuts.size(),
+                                                                     p.bimodal_cuts.size());
+
+            consensus.push_back({ans.first, p.left_cuts.size() + p.bimodal_cuts.size() + p.right_cuts.size()});
+		}
+		else {
+            //SINGLE PEAK
+            if (p.right_cuts.size() < 2) {
+                Logger::instance().info(" + Type       : single peak\n\n");
+                graph.Clear();
+                for (int i = 0; i < p.left_cuts.size(); i++) {
+                    auto alignment = alignment_engine->Align(p.left_cuts[i].first.second, graph);
+                    graph.AddAlignment(alignment, p.left_cuts[i].first.second);
+                }
+
+                auto msa = graph.GenerateMultipleSequenceAlignment(true);
+
+                pair<string, pair<int, int>> ans = cut_consensus_single(msa);
+
+                consensus.push_back({ans.first, p.left_cuts.size()});
+            }
+            //LONG INSERTION
+            else if (!p.left_cuts.empty() && !p.right_cuts.empty()) {}
 		}
 
-		auto msa = graph.GenerateMultipleSequenceAlignment(true);
-        pair<string, pair<int, int>> ans = cut_consensus(msa);
-
-        vector<string> consensus;
-        consensus.push_back(ans.first);
-        vector<vector<string> > cluster = cluster_reads(msa, ans.second.first, ans.second.second);
-
-        if (!cluster[1].empty()) {
-            consensus.clear();
-            for (int i = 0; i < cluster.size(); i++) {
-                graph.Clear();
-                for (int j = 0; j < cluster[i].size(); j++) {
-                    auto alignment = alignment_engine->Align(cluster[i][j], graph);
-                    graph.AddAlignment(alignment, cluster[i][j]);
-                }
-                auto msa = graph.GenerateMultipleSequenceAlignment(true);
-                pair<string, pair<int, int>> ans = cut_consensus(msa);
-                string cons = ans.first;
-                consensus.push_back(cons);
-            }
-        }
-
         for (int i = 0; i < consensus.size(); i++) {
-            int contig_support = cluster[i].size();
+            int contig_support = consensus[i].second;
 
-            Logger::instance().info("\n\n>>>>> Length: %d Support: %d Contig: %s\n", consensus[i].size(), contig_support, consensus[i].c_str());
+            Logger::instance().info("\n\n>>>>> Length: %d Support: %d Contig: %s\n", consensus[i].first.size(),
+                                    contig_support, consensus[i].first.c_str());
 
             //Align consensus
-            al.align(ref_part, consensus[i]);
+            al.align(ref_part, consensus[i].first);
             if(al.extract_calls(cluster_id, reports_lq, reports, contig_support, ref_start,">>>")==0) {
-                string rc_contig = reverse_complement(consensus[i]);
+                string rc_contig = reverse_complement(consensus[i].first);
                 al.align(ref_part, rc_contig);
                 al.extract_calls(cluster_id, reports_lq, reports, contig_support, ref_start, "<<<");
             }
