@@ -403,6 +403,8 @@ void sketch (const string &partition_file, const string &longread, const string 
             Logger::instance().info(" + Cluster ID      : %d\n", pt.get_id());
             Logger::instance().info(" + Short Reads Count     : %lu\n", p.size());
             Logger::instance().info("INFO: Skipped Processing - No Long reads found\n");
+
+            pt_2.add_cuts(p, cut_candidates, pt_start, pt_end, chrName);
             continue;
         }
 
@@ -446,9 +448,9 @@ void extract_reads(const string &partition_file, const string &longread, const s
 
         vector<pair<pair<string, string>, pair<pair<int, int>, int> > > cuts;
 
-        string chrName  = pt.get_reference();
-        int pt_start    = pt.get_start();
-        int pt_end      = pt.get_end();
+        string chrName  = pt_2.get_reference();
+        int pt_start    = pt_2.get_start();
+        int pt_end      = pt_2.get_end();
 
         // cluster has too many or too few reads
         if ( p.first.size() > 7000 || p.first.size() <= 2 ) {
@@ -558,6 +560,8 @@ void consensus (const string &partition_file, const string &reference, const str
 		vector< tuple< string, int, int, string, int, float > > reports_lq;//reports.clear();
 
         vector<pair<string, int> > consensus;
+
+        cout << pt.get_id() << " | " << p.second.size << " | " << p.second.bimodal << "| " << p.second.bimodal_cuts.size() << endl;
 
 		if (p.second.bimodal) {
             Logger::instance().info(" + Type       : bimodal\tleft: %d right: %d bimodal: %d\n\n", p.second.left_cuts.size(),

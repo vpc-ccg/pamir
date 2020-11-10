@@ -22,6 +22,7 @@ Sketch::Sketch(string path, int k, int w) {
 }
 
 void Sketch::sketch_query(std::vector<std::string> reads, int k, int w) {
+    query_minimizers.clear();
 	kmer_size = k;
 	window_size = w;
 	build_sketch(reads);
@@ -180,7 +181,6 @@ cut find_range(vector<pair<int, uint64_t> > hits) {
         freq.push_back(cnt[i]);
     }
 
-
     //find cut around highest peak
     int mx_idx = max_element(freq.begin(), freq.end()) - freq.begin();
 
@@ -231,7 +231,6 @@ cut find_range(vector<pair<int, uint64_t> > hits) {
         }
         range_2 =  make_pair(l, r);
     }
-
 
     pair<int, int> final_range;
     int type;
