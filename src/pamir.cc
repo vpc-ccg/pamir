@@ -353,9 +353,13 @@ void assemble (const string &partition_file, const string &reference, const stri
 	fclose(fo_vcf_del);
 }
 /*********************************************************************************************/
-void sketch (const string &partition_file, const string &longread, const string &range, int read_length, const string &prefix)
+void sketch (const string &partition_file, const string &longread, const string &dat_path, const string &range, int read_length, const string &prefix)
 {
-	Sketch lr_sketch(longread);
+    Sketch lr_sketch;
+    if (dat_path == "")
+        lr_sketch = Sketch(longread);
+    else
+        lr_sketch = Sketch(dat_path, true);
 
 	//TODO FIX NAME
 	string p2 = "partition-p2";
@@ -735,8 +739,11 @@ int main(int argc, char **argv)
             return smoother::main(argc-1,argv+1);
         }
 		else if (mode == "sketch") {
-			if (argc != 7) throw "Usage:5 parameters needed\tpamir sketch [partition-file] [long-read-file] [range] [read-length] dir_prefix";
-			sketch(argv[2], argv[3], argv[4], atoi(argv[5]), argv[6]);
+            if (argc != 7 && argc != 8) throw "Usage:5 parameters needed\tpamir sketch [partition-file] [long-read-file] [range] [read-length] dir_prefix (dat-files-path)";
+            string dat_path = "";
+            if (argc == 8)
+                dat_path = argv[7];
+            sketch(argv[2], argv[3], dat_path, argv[4], atoi(argv[5]), argv[6]);
 		}
 		else if (mode == "extract") {
 			if (argc != 6) throw "Usage:4 parameters needed\tpamir extract [partition-file] [long-read-file] [range] dir_prefix";
