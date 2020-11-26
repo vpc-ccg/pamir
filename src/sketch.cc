@@ -13,12 +13,67 @@ using namespace std;
 const int MAXN = 30000;
 const int BUCKET_SIZE = 100;
 
-Sketch::Sketch(string path, int k, int w) {
-	kmer_size = k;
-	window_size = w;
-	file = path;
-    ref_minimizers_vec.reserve(50000);
-	build_sketch();
+Sketch::Sketch() {}
+
+Sketch::Sketch(string path, bool l, int k, int w) {
+    kmer_size = k;
+    window_size = w;
+    file_path = path;
+    if (!l) {
+        ref_minimizers_vec.reserve(50000);
+        build_sketch();
+        dump();
+    }
+    else {
+        load();
+    }
+}
+
+void Sketch::dump() {
+    ofstream fout("sketch.dat", ios::out | ios::binary);
+    for (auto it = ref_minimizers.begin(); it != ref_minimizers.end(); it++) {
+        typename vector<Location>::size_type size = it->second.size();
+        fout.write((char*)&it->first, sizeof(uint64_t));
+        fout.write((char*)&size, sizeof(size));
+        fout.write((char*)&(it->second[0]), size * sizeof(Location));
+    }
+    fout.close();
+    ofstream seqout("sequences.dat", ios::out | ios::binary);
+    for (auto it = sequences.begin(); it != sequences.end(); it++) {
+        uint8_t size = it->second.first.length();
+        seqout.write((char*)&it->first, sizeof(uint32_t));
+        seqout.write((char*)&size, sizeof(uint8_t));
+        seqout.write(it->second.first.c_str(), size);
+        seqout.write((char*)&it->second.second, sizeof(uint16_t));
+    }
+    seqout.close();
+}
+
+void Sketch::load() {
+    ifstream fin(file_path + "/sketch.dat", ios::in | ios::binary);
+    uint64_t hash;
+    while(fin.read(reinterpret_cast<char*>(&hash), sizeof(uint64_t))) {
+        typename vector<Location>::size_type size = 0;
+        fin.read(reinterpret_cast<char*>(&size), sizeof(size));
+        vector<Location> tmp;
+        tmp.resize(size);
+        fin.read(reinterpret_cast<char*>(&tmp[0]), size * sizeof(Location));
+        ref_minimizers.insert({hash, tmp});
+    }
+    fin.close();
+    ifstream seqin(file_path + "/sequences.dat", ios::in | ios::binary);
+    uint32_t id;
+    string name;
+    uint16_t len;
+    while(seqin.read(reinterpret_cast<char*>(&id), sizeof(uint32_t))) {
+        uint8_t size;
+        seqin.read(reinterpret_cast<char*>(&size), sizeof(uint8_t));
+        name.resize(size);
+        seqin.read((char*)(name.c_str()), size);
+        seqin.read(reinterpret_cast<char*>(&len), sizeof(uint16_t));
+        sequences.insert({id, {name, len}});
+    }
+    seqin.close();
 }
 
 void Sketch::sketch_query(std::vector<std::string> reads, int k, int w) {
@@ -31,15 +86,19 @@ void Sketch::sketch_query(std::vector<std::string> reads, int k, int w) {
 void Sketch::build_sketch() {
     int id = 0;
     ifstream fin;
-    fin.open(file);
+    fin.open(file_path);
     string tmp;
     int cnt = 0;
+    string name;
+    int size;
     while (!fin.eof()) {
         getline(fin, tmp);
         if (tmp[0] == '>') {
-            sequences_names.insert({id, tmp.substr(1, tmp.size() - 1)});
+            name = tmp.substr(1, tmp.size() - 1);
             cnt++;
         } else {
+            size = tmp.size();
+            sequences.insert({id, {name, size}});
             transform(tmp.begin(), tmp.end(), tmp.begin(), ::toupper);
             get_ref_minimizers(&tmp[0], id, tmp.size());
             id++;
@@ -289,7 +348,7 @@ float minimizer_similarity(unordered_set<uint64_t> ref, vector<pair<int, uint64_
 }
 
 vector<pair<string, pair<pair<int, int>, int> > > Sketch::classify_reads(map<int, vector<pair<int, uint64_t> > > hits,
-                                                                 vector<pair<int, cut> > cuts_tmp) {
+                                                                         vector<pair<int, cut> > cuts_tmp) {
     //Bimodal reads first, then ordered by number of minimizers used to pick the reads
     sort(cuts_tmp.begin(), cuts_tmp.end(), [](auto &a, auto &b) {
         if (a.second.type < b.second.type)
@@ -308,6 +367,7 @@ vector<pair<string, pair<pair<int, int>, int> > > Sketch::classify_reads(map<int
     while (cuts_tmp[i].second.type == BIMODAL) {
         int curr_read = cuts_tmp[i].first;
         cut curr_cut = cuts_tmp[i].second;
+
         for (auto it = hits[curr_read].begin(); it != hits[curr_read].end(); it++) {
             //Left minimizers
             if (it->first < curr_cut.peak1.second)
@@ -316,7 +376,7 @@ vector<pair<string, pair<pair<int, int>, int> > > Sketch::classify_reads(map<int
             else if (it->first > curr_cut.peak2.first)
                 right_minimizers.insert(it->second);
         }
-        cuts.push_back({sequences_names[curr_read], {curr_cut.range, BIMODAL}});
+        cuts.push_back({sequences[curr_read].first, {curr_cut.range, BIMODAL}});
         i += 1;
     }
 
@@ -330,31 +390,31 @@ vector<pair<string, pair<pair<int, int>, int> > > Sketch::classify_reads(map<int
             float right_similarity = minimizer_similarity(right_minimizers, hits[curr_read]);
 
             if (left_similarity > right_similarity)
-                cuts.push_back({sequences_names[curr_read], {curr_cut.range, LEFT}});
+                cuts.push_back({sequences[curr_read].first, {curr_cut.range, LEFT}});
             else if (right_similarity > left_similarity)
-                cuts.push_back({sequences_names[curr_read], {curr_cut.range, RIGHT}});
+                cuts.push_back({sequences[curr_read].first, {curr_cut.range, RIGHT}});
             else
-                cuts.push_back({sequences_names[curr_read], {curr_cut.range, MISC}});
+                cuts.push_back({sequences[curr_read].first, {curr_cut.range, MISC}});
         }
             //Case 2: No bimodal reads, must classify reads on the go -> first set of seen minimizers are assigned to left
         else if (left_minimizers.empty()) {
             for (int j = 0; j < hits[curr_read].size(); j++) {
                 left_minimizers.insert(hits[curr_read][j].second);
             }
-            cuts.push_back({sequences_names[curr_read], {curr_cut.range, LEFT}});
+            cuts.push_back({sequences[curr_read].first, {curr_cut.range, LEFT}});
         }
             //Case 3: all seen reads have been classified as left and right is still empty -> if this new read doesn't have
             //        enough similarity with the left set, assign it to right
         else if (right_minimizers.empty()) {
             float left_similarity = minimizer_similarity(left_minimizers, hits[curr_read]);
             if (left_similarity > 0.5) {
-                cuts.push_back({sequences_names[curr_read], {curr_cut.range, LEFT}});
+                cuts.push_back({sequences[curr_read].first, {curr_cut.range, LEFT}});
                 continue;
             }
             for (int j = 0; j < hits[curr_read].size(); j++) {
                 right_minimizers.insert(hits[curr_read][j].second);
             }
-            cuts.push_back({sequences_names[curr_read], {curr_cut.range, RIGHT}});
+            cuts.push_back({sequences[curr_read].first, {curr_cut.range, RIGHT}});
         }
     }
 
@@ -385,7 +445,6 @@ vector<pair<string, pair<pair<int, int>, int> > > Sketch::find_cuts() {
 
     //Find cuts on each picked long read
     const int MIN_HITS = 0.25 * query_minimizers.size();
-    //vector<pair<string, pair<int, int> > > cuts;
     vector<pair<int, cut> > cuts_tmp;
     for (auto it = hits.begin(); it != hits.end(); it++) {
         if (it->second.size() < MIN_HITS) {
@@ -398,7 +457,8 @@ vector<pair<string, pair<pair<int, int>, int> > > Sketch::find_cuts() {
         cuts_tmp.push_back({it->first, ans});
     }
 
-    vector<pair<string, pair<pair<int, int>, int> > > cuts = classify_reads(hits, cuts_tmp);
-
-    return cuts;
+    if (cuts_tmp.empty())
+        return vector<pair<string, pair<pair<int, int>, int> > >();
+    else
+        return classify_reads(hits, cuts_tmp);
 }

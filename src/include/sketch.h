@@ -15,8 +15,8 @@ const int RIGHT = 2;
 const int MISC = 3;
 
 struct Location {
-	int seq_id;
-	int offset;
+    uint32_t seq_id;
+    uint16_t offset;
 };
 
 struct cut {
@@ -31,18 +31,21 @@ class Sketch {
 	private:
 		int kmer_size;
 		int window_size;
-		std::string file;
+        std::string file_path;
         std::vector<std::pair<uint64_t, Location> > ref_minimizers_vec;
         std::vector<std::pair<uint64_t, int> > query_minimizers_vec;
         void update_ref_sketch();
         void update_query_sketch();
+        void dump();
+        void load();
 
 	public:
-		std::map<int, std::string> sequences_names;
+        std::map<uint32_t , std::pair<std::string, uint16_t> > sequences;
 		std::map<uint64_t, std::vector<Location> > ref_minimizers;
 		std::unordered_set<uint64_t> query_minimizers;
-		
-		Sketch(std::string path, int k = 15, int w = 10);
+
+        Sketch();
+        Sketch(std::string path, bool load = false, int k = 15, int w = 10);
 		void build_sketch();
 		void build_sketch(std::vector<std::string>);
         void sketch_query(std::vector<std::string> reads, int k = 15, int w = 10);
