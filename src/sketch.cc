@@ -76,11 +76,20 @@ void Sketch::load() {
     seqin.close();
 }
 
-void Sketch::sketch_query(std::vector<std::string> reads, int k, int w) {
+void Sketch::sketch_query(vector<string> reads, int k, int w) {
     query_minimizers.clear();
 	kmer_size = k;
 	window_size = w;
 	build_sketch(reads);
+}
+
+void Sketch::sketch_query(string query, int k, int w) {
+    query_minimizers.clear();
+    kmer_size = k;
+    window_size = w;
+    vector<string> queries;
+    queries.push_back(query);
+    build_sketch(queries);
 }
 
 void Sketch::build_sketch() {
@@ -421,7 +430,7 @@ vector<pair<string, pair<pair<int, int>, int> > > Sketch::classify_reads(map<int
     return cuts;
 }
 
-vector<pair<string, pair<pair<int, int>, int> > > Sketch::find_cuts() {
+vector<pair<string, pair<pair<int, int>, int> > > Sketch::find_cuts(bool classify) {
     map<int, vector<pair<int, uint64_t> > > hits;
 
     //Find all hits
@@ -457,8 +466,17 @@ vector<pair<string, pair<pair<int, int>, int> > > Sketch::find_cuts() {
         cuts_tmp.push_back({it->first, ans});
     }
 
+    vector<pair<string, pair<pair<int, int>, int> > > cuts;
     if (cuts_tmp.empty())
-        return vector<pair<string, pair<pair<int, int>, int> > >();
-    else
-        return classify_reads(hits, cuts_tmp);
+        cuts =  vector<pair<string, pair<pair<int, int>, int> > >();
+    else if (classify)
+        cuts = classify_reads(hits, cuts_tmp);
+    else {
+        for (int i = 0; i < cuts_tmp.size(); i++) {
+            pair<int, cut> curr = cuts_tmp[i];
+            cuts.push_back({sequences[curr.first].first, {curr.second.range, sequences[curr.first].second}});
+        }
+    }
+
+    return cuts;
 }

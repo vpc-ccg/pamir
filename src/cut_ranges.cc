@@ -10,6 +10,8 @@ using namespace std;
 
 //TODO merge finding cuts
 
+cut_ranges::cut_ranges(const string &lrPath) : lr_path(lrPath) {}
+
 void cut_ranges::add_range(string lr, int start, int end) {
 	auto curr_lr = lr_ranges.find(lr);
 	if (curr_lr == lr_ranges.end())
@@ -22,7 +24,7 @@ void cut_ranges::add_range(string lr, int start, int end) {
 	}
 }
 
-void cut_ranges::extract_reads(string lr_path) {
+void cut_ranges::extract() {
 	string lr_name;
 	ifstream fin;
 	fin.open(lr_path);

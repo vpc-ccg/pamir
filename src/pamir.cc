@@ -27,6 +27,7 @@
 #include "p2_partition.h"
 #include "p3_partition.h"
 #include "cut_ranges.h"
+#include "insertion_assembler.h"
 #include "spoa/spoa.hpp"
 
 
@@ -400,7 +401,7 @@ void sketch (const string &partition_file, const string &longread, const string 
 		lr_sketch.sketch_query(reads);
 
 		//Find cuts
-        cut_candidates = lr_sketch.find_cuts();
+        cut_candidates = lr_sketch.find_cuts(true);
 
 		if (cut_candidates.size() == 0) {
             Logger::instance().info("-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");
@@ -419,7 +420,7 @@ void sketch (const string &partition_file, const string &longread, const string 
 void extract_reads(const string &partition_file, const string &longread, const string &range, const string &prefix)
 {
 	p2_partition pt(partition_file, range);
-	cut_ranges ranges;
+	cut_ranges ranges = cut_ranges(longread);
 	
 	while (1) {
 		auto p 			= pt.read_partition();
@@ -437,7 +438,7 @@ void extract_reads(const string &partition_file, const string &longread, const s
 		}
 	}
 
-	ranges.extract_reads(longread);
+    ranges.extract();
 	
 	//TODO FIX NAME
 	string p3 = "partition-p3";
@@ -488,7 +489,7 @@ void extract_reads(const string &partition_file, const string &longread, const s
 	}
 }
 /*********************************************************************************************/
-void consensus (const string &partition_file, const string &reference, const string &range, const string &name, int max_len, const string &prefix)
+void consensus (const string &partition_file, const string &reference, const string lr_path, const string dat_path, const string &range, const string &name, int max_len, const string &prefix)
 {
 	const double MAX_AT_GC 		= 0.7;
 	const int MAX_REF_LEN		= 300000000;
@@ -565,8 +566,6 @@ void consensus (const string &partition_file, const string &reference, const str
 
         vector<pair<string, int> > consensus;
 
-        cout << pt.get_id() << " | " << p.second.size << " | " << p.second.bimodal << "| " << p.second.bimodal_cuts.size() << endl;
-
 		if (p.second.bimodal) {
             Logger::instance().info(" + Type       : bimodal\tleft: %d right: %d bimodal: %d\n\n", p.second.left_cuts.size(),
                                     p.second.right_cuts.size(), p.second.bimodal_cuts.size());
@@ -609,7 +608,46 @@ void consensus (const string &partition_file, const string &reference, const str
                 consensus.push_back({ans.first, p.second.left_cuts.size()});
             }
             //LONG INSERTION
-            else if (!p.second.left_cuts.empty() && !p.second.right_cuts.empty()) {}
+            else if (!p.second.left_cuts.empty() && !p.second.right_cuts.empty()) {
+                vector<string> left_reads, right_reads;
+
+                graph.Clear();
+                for (int i = 0; i < p.second.left_cuts.size(); i++) {
+                    auto alignment = alignment_engine->Align(p.second.left_cuts[i].first.second, graph);
+                    graph.AddAlignment(alignment, p.second.left_cuts[i].first.second);
+                    left_reads.push_back(p.second.left_cuts[i].first.second);
+                }
+                auto msa_1 = graph.GenerateMultipleSequenceAlignment(true);
+                string cons_1 = msa_1[msa_1.size() - 1];
+                cons_1.erase(std::remove(cons_1.begin(), cons_1.end(), '-'), cons_1.end());
+
+                graph.Clear();
+                for (int i = 0; i < p.second.right_cuts.size(); i++) {
+                    auto alignment = alignment_engine->Align(p.second.right_cuts[i].first.second, graph);
+                    graph.AddAlignment(alignment, p.second.right_cuts[i].first.second);
+                    right_reads.push_back(p.second.right_cuts[i].first.second);
+                }
+                auto msa_2 = graph.GenerateMultipleSequenceAlignment(true);
+                string cons_2 = msa_2[msa_2.size() - 1];
+                cons_2.erase(std::remove(cons_2.begin(), cons_2.end(), '-'), cons_2.end());
+
+                string left, right;
+                al.align(ref_part, cons_1);
+                //left flank
+                if (al.get_left_anchor() > 5) {
+                    left = cons_1;
+                    right = cons_2;
+                }
+                    //right flank
+                else if (al.get_right_anchor() > 5) {
+                    left = cons_2;
+                    right = cons_1;
+                }
+
+                InsertionAssembler ia = InsertionAssembler(dat_path, lr_path);
+                pair<string, int> ans = ia.assemble(left_reads, right_reads);
+                consensus.push_back(ans);
+            }
 		}
 
         for (int i = 0; i < consensus.size(); i++) {
@@ -750,8 +788,8 @@ int main(int argc, char **argv)
 			extract_reads(argv[2], argv[3], argv[4], argv[5]);
 		}
 		else if (mode == "consensus") {
-			if (argc != 8) throw "Usage:6 parameters needed\tpamir consensus [partition-file] [reference] [range] [output-file-vcf] [max-len] dir_prefix";
-			consensus(argv[2], argv[3], argv[4], argv[5], atoi(argv[6]), argv[7]);
+            if (argc != 10) throw "Usage:7 parameters needed\tpamir consensus [partition-file] [reference] [long-read-file] [dat-path] [range] [output-file-vcf] [max-len] dir_prefix";
+            consensus(argv[2], argv[3], argv[4], argv[5], argv[6], argv[7], atoi(argv[8]), argv[9]);
 		}
 		else {
 			throw "Invalid mode selected";

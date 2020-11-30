@@ -6,13 +6,14 @@
 
 class cut_ranges {
 	private:
+        std::string lr_path;
 		std::map<std::string, std::pair<int, int> > lr_ranges;
 
 	public:
-		std::map<std::string, std::pair<int, std::string> > reads;
-
+        cut_ranges(const std::string &lrPath);
+        std::map<std::string, std::pair<int, std::string> > reads;
 		void add_range(std::string lr, int start, int end);
-		void extract_reads(std::string lr_path);
+		void extract();
 		std::string get_cut(std::string lr_name, int start, int end);
 };
 

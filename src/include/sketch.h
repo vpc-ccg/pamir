@@ -49,9 +49,10 @@ class Sketch {
 		void build_sketch();
 		void build_sketch(std::vector<std::string>);
         void sketch_query(std::vector<std::string> reads, int k = 15, int w = 10);
+        void sketch_query(std::string query, int k = 15, int w = 10);
 		void get_ref_minimizers(char* read, int read_id, int len);
         void get_query_minimizers(char* read, int read_id, int len);
-        std::vector<std::pair<std::string, std::pair<std::pair<int, int>, int> > > find_cuts();
+        std::vector<std::pair<std::string, std::pair<std::pair<int, int>, int> > > find_cuts(bool classify);
         std::vector<std::pair<std::string, std::pair<std::pair<int, int>, int> > > classify_reads
                     (std::map<int, std::vector<std::pair<int, uint64_t> > > hits,std::vector<std::pair<int, cut> > cuts_tmp);
 };
