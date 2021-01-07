@@ -811,7 +811,7 @@ int main(int argc, char **argv)
             find_reads(argv[2], argv[3], argv[4]);
         }
 		else if (mode == "extract") {
-			if (argc != 5) throw "Usage:3 parameters needed\tpamir extract [partition-file] [long-read-file] [range] [p3-name]";
+			if (argc != 6) throw "Usage:4 parameters needed\tpamir extract [partition-file] [long-read-file] [range] [p3-name]";
 			extract_reads(argv[2], argv[3], argv[4], argv[5]);
 		}
 		else if (mode == "consensus") {

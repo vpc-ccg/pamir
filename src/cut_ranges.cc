@@ -57,8 +57,6 @@ void cut_ranges::extract() {
 			lr_name = tokens[0].substr(1, line.size() - 1);
 			auto i = lr_ranges.find(lr_name);
 			if (i != lr_ranges.end()) {
-			    //TODO: DON'T BUILD OFFSET UNLESS IN LONG INSERTION
-			    read_offsets.insert({lr_name, fin.tellg()});
 				getline(fin, line);
 				int end = i->second.second;
 				if (end > line.size())
@@ -77,7 +75,7 @@ string cut_ranges::get_cut(string lr_name, int start, int end) {
         auto i = reads.find(lr_name);
         if (length > i->second.second.size())
             length = i->second.second.size();
-        cut = i->second.second.substr(start - i->second.first, length);
+        cut = i->second.second.substr(start - i->second.first, end - start);
     }
 	else {
         ifstream fin;
@@ -85,7 +83,10 @@ string cut_ranges::get_cut(string lr_name, int start, int end) {
         fin.seekg(read_offsets[lr_name]);
         string line;
         getline(fin, line);
-        cut = line.substr(start, end - start);
+		int s = start;
+		if (s == 1)
+			s = 0;
+        cut = line.substr(s, end - s);
 	}
 	return cut;
 }
