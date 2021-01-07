@@ -359,7 +359,7 @@ void sketch (const string &longread, const string &dat_path, int k, int w)
     Sketch lr_sketch = Sketch(longread, dat_path, k, w);
 }
 /*********************************************************************************************/
-void find_reads (const string &partition_file, const string &dat_path, const string &range, const string &prefix)
+void find_reads (const string &partition_file, const string &dat_path, const string &range)
 {
     Sketch lr_sketch = Sketch(dat_path);
 
@@ -417,7 +417,7 @@ void find_reads (const string &partition_file, const string &dat_path, const str
     }
 }
 /*********************************************************************************************/
-void extract_reads(const string &partition_file, const string &longread, const string &range, const string &prefix)
+void extract_reads(const string &partition_file, const string &longread, const string &range, const string &p3_name)
 {
 	p2_partition pt(partition_file, range);
 	cut_ranges ranges = cut_ranges(longread);
@@ -441,7 +441,7 @@ void extract_reads(const string &partition_file, const string &longread, const s
     ranges.extract();
 	
 	//TODO FIX NAME + get output name as argument
-	string p3 = "partition-p3-" + range;
+	string p3 = "partition-p3-" + p3_name;
 	p2_partition pt_2(partition_file, range);
 	p3_partition pt_3(p3, true);
 	
@@ -492,7 +492,6 @@ void extract_reads(const string &partition_file, const string &longread, const s
 
 		fix_reverse(cuts);
         pt_3.add_reads(p.first, cuts, pt_start, pt_end, chrName);
-
 	}
 }
 /*********************************************************************************************/
@@ -509,13 +508,13 @@ void consensus (const string &partition_file, const string &reference, const str
     FILE *fo_vcf_del 			= fopen(out_vcf_del.c_str(), "w");
 	FILE *fo_vcf_lq 			= fopen(out_vcf_lq.c_str(), "w");
 	
-	assembler as(max_len, 15);
 	genome ref(reference.c_str());
 	map<string,string> chroms;
 	p3_partition pt(partition_file, range);
-	aligner al(max_len + 2010 );
+	aligner al(max_len + 2010);
 	auto alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kSW, 2, -32, -64, -1);
 	spoa::Graph graph{};
+	InsertionAssembler ia = InsertionAssembler(dat_path, lr_path);
 	
 	string tmp_ref; tmp_ref.reserve(4);
 	string tmp_ref_lq; tmp_ref_lq.reserve(4);
@@ -537,18 +536,27 @@ void consensus (const string &partition_file, const string &reference, const str
 		// cluster has too many or too few reads
 		if ( p.first.size() > 7000 || p.first.size() <= 2 ) {
             Logger::instance().info("-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");
-            Logger::instance().info(" + Cluster ID      : %d\n", pt.get_id());
+            Logger::instance().info(" + Cluster ID            : %d\n", pt.get_id());
             Logger::instance().info(" + Short Reads Count     : %lu\n", p.first.size());
             Logger::instance().info("INFO: Skipped Processing - Too few or Too many short reads\n");
             continue;
         }
 		else if (p.second.size == 0) {
             Logger::instance().info("-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");
-            Logger::instance().info(" + Cluster ID      : %d\n", pt.get_id());
+            Logger::instance().info(" + Cluster ID            : %d\n", pt.get_id());
             Logger::instance().info(" + Short Reads Count     : %lu\n", p.first.size());
             Logger::instance().info("INFO: Skipped Processing - No long reads found\n");
             continue;
 		}
+		else if ( p.second.size > 150 || p.second.size <= 2 ) {
+            Logger::instance().info("-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");
+            Logger::instance().info(" + Cluster ID            : %d\n", pt.get_id());
+            Logger::instance().info(" + Short Reads Count     : %lu\n", p.first.size());
+            Logger::instance().info(" + Long Reads Count      : %lu\n", p.second.size);
+            Logger::instance().info("INFO: Skipped Processing - Too few or Too many long reads\n");
+            continue;
+        }
+
 		string chrName  = pt.get_reference();
 		int cluster_id  = pt.get_id();
 		int pt_start    = pt.get_start();
@@ -557,12 +565,13 @@ void consensus (const string &partition_file, const string &reference, const str
 		int ref_end     = pt_end   + LENFLAG;
 		string ref_part = ref.get_bases_at(chrName, ref_start, ref_end);
         Logger::instance().info("-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");
-        Logger::instance().info(" + Cluster ID      : %d\n", cluster_id);
+        Logger::instance().info(" + Cluster ID            : %d\n", cluster_id);
         Logger::instance().info(" + Short Reads Count     : %lu\n", p.first.size());
-        Logger::instance().info(" + Long Reads Count     : %lu\n", p.second.size);
-        Logger::instance().info(" + Spanning Range  : %s:%d-%d\n", chrName.c_str(), pt_start, pt_end);
-        Logger::instance().info(" + Discovery Range : %s:%d-%d\n", chrName.c_str(), ref_start, ref_end);
-        Logger::instance().info(" + Reference       : %s\n", ref_part.c_str());
+        Logger::instance().info(" + Long Reads Count      : %lu\n", p.second.size);
+        Logger::instance().info(" + Spanning Range        : %s:%d-%d\n", chrName.c_str(), pt_start, pt_end);
+        Logger::instance().info(" + Discovery Range       : %s:%d-%d\n", chrName.c_str(), ref_start, ref_end);
+        Logger::instance().info(" + Reference             : %s\n", ref_part.c_str());
+		
 		// if the genomic region is too big
 		if (ref_end - ref_start > MAX_REF_LEN) 
 			continue;
@@ -573,8 +582,9 @@ void consensus (const string &partition_file, const string &reference, const str
 
         vector<pair<string, int> > consensus;
 
-		if (p.second.bimodal) {
-            Logger::instance().info(" + Type       : bimodal\tleft: %d right: %d bimodal: %d\n\n", p.second.left_cuts.size(),
+		//BIMODAL
+        if (p.second.bimodal) {
+            Logger::instance().info(" + Type                  : bimodal\tleft: %d right: %d bimodal: %d\n\n", p.second.left_cuts.size(),
                                     p.second.right_cuts.size(), p.second.bimodal_cuts.size());
 
             graph.Clear();
@@ -597,11 +607,12 @@ void consensus (const string &partition_file, const string &reference, const str
                                                                      p.second.bimodal_cuts.size());
 
             consensus.push_back({ans.first, p.second.left_cuts.size() + p.second.bimodal_cuts.size() + p.second.right_cuts.size()});
-		}
+        }
 		else {
             //SINGLE PEAK
             if (p.second.right_cuts.size() < 2) {
-                Logger::instance().info(" + Type       : single peak\n\n");
+                Logger::instance().info(" + Type              : single peak\n\n");
+                
                 graph.Clear();
                 for (int i = 0; i < p.second.left_cuts.size(); i++) {
                     auto alignment = alignment_engine->Align(p.second.left_cuts[i].first.second, graph);
@@ -616,13 +627,16 @@ void consensus (const string &partition_file, const string &reference, const str
             }
             //LONG INSERTION
             else if (!p.second.left_cuts.empty() && !p.second.right_cuts.empty()) {
+                Logger::instance().info(" + Type              : long insertion\n\n");
+
+                vector<string> reads_1, reads_2;
                 vector<string> left_reads, right_reads;
 
                 graph.Clear();
                 for (int i = 0; i < p.second.left_cuts.size(); i++) {
                     auto alignment = alignment_engine->Align(p.second.left_cuts[i].first.second, graph);
                     graph.AddAlignment(alignment, p.second.left_cuts[i].first.second);
-                    left_reads.push_back(p.second.left_cuts[i].first.second);
+                    reads_1.push_back(p.second.left_cuts[i].first.second);
                 }
                 auto msa_1 = graph.GenerateMultipleSequenceAlignment(true);
                 string cons_1 = msa_1[msa_1.size() - 1];
@@ -632,7 +646,7 @@ void consensus (const string &partition_file, const string &reference, const str
                 for (int i = 0; i < p.second.right_cuts.size(); i++) {
                     auto alignment = alignment_engine->Align(p.second.right_cuts[i].first.second, graph);
                     graph.AddAlignment(alignment, p.second.right_cuts[i].first.second);
-                    right_reads.push_back(p.second.right_cuts[i].first.second);
+                    reads_2.push_back(p.second.right_cuts[i].first.second);
                 }
                 auto msa_2 = graph.GenerateMultipleSequenceAlignment(true);
                 string cons_2 = msa_2[msa_2.size() - 1];
@@ -640,22 +654,27 @@ void consensus (const string &partition_file, const string &reference, const str
 
                 string left, right;
                 al.align(ref_part, cons_1);
+
                 //left flank
                 if (al.get_left_anchor() > 5) {
                     left = cons_1;
                     right = cons_2;
+                    left_reads = reads_1;
+                    right_reads = reads_2;
                 }
-                    //right flank
+                //right flank
                 else if (al.get_right_anchor() > 5) {
                     left = cons_2;
                     right = cons_1;
+                    left_reads = reads_2;
+                    right_reads = reads_1;
                 }
-
-                InsertionAssembler ia = InsertionAssembler(dat_path, lr_path);
+    
                 pair<string, int> ans = ia.assemble(left_reads, right_reads);
+
                 consensus.push_back(ans);
             }
-		}
+        }
 
         for (int i = 0; i < consensus.size(); i++) {
             int contig_support = consensus[i].second;
@@ -788,11 +807,11 @@ int main(int argc, char **argv)
             sketch(argv[2], argv[3], atoi(argv[4]), atoi(argv[5]));
 		}
 		else if (mode == "find") {
-            if (argc != 6) throw "Usage:4 parameters needed\tpamir find [partition-file] [dat-files-path] [range] dir_prefix ";
-            find_reads(argv[2], argv[3], argv[4], argv[5]);
+            if (argc != 5) throw "Usage:3 parameters needed\tpamir find [partition-file] [dat-files-path] [range]";
+            find_reads(argv[2], argv[3], argv[4]);
         }
 		else if (mode == "extract") {
-			if (argc != 6) throw "Usage:4 parameters needed\tpamir extract [partition-file] [long-read-file] [range] dir_prefix";
+			if (argc != 5) throw "Usage:3 parameters needed\tpamir extract [partition-file] [long-read-file] [range] [p3-name]";
 			extract_reads(argv[2], argv[3], argv[4], argv[5]);
 		}
 		else if (mode == "consensus") {
