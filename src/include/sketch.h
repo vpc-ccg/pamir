@@ -31,7 +31,8 @@ class Sketch {
 	private:
 		int kmer_size;
 		int window_size;
-        std::string file_path;
+        std::string lr_path;
+		std::string dat_path;
         std::vector<std::pair<uint64_t, Location> > ref_minimizers_vec;
         std::vector<std::pair<uint64_t, int> > query_minimizers_vec;
         void update_ref_sketch();
@@ -44,8 +45,9 @@ class Sketch {
 		std::map<uint64_t, std::vector<Location> > ref_minimizers;
 		std::unordered_set<uint64_t> query_minimizers;
 
-        Sketch();
-        Sketch(std::string path, bool load = false, int k = 15, int w = 10);
+		Sketch();
+		Sketch(std::string dp);
+        Sketch(std::string lp, std::string dp, int k = 15, int w = 10);
 		void build_sketch();
 		void build_sketch(std::vector<std::string>);
         void sketch_query(std::vector<std::string> reads, int k = 15, int w = 10);

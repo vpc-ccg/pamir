@@ -4,7 +4,9 @@
 #include <iostream>
 #include <assert.h>
 #include <algorithm>
+#include "logger.h"
 #include "MurmurHash3.h"
+
 #include "sketch.h"
 
 using namespace std;
@@ -15,22 +17,30 @@ const int BUCKET_SIZE = 100;
 
 Sketch::Sketch() {}
 
-Sketch::Sketch(string path, bool l, int k, int w) {
+Sketch::Sketch(string lp, string dp, int k, int w) {
     kmer_size = k;
     window_size = w;
-    file_path = path;
-    if (!l) {
-        ref_minimizers_vec.reserve(50000);
-        build_sketch();
-        dump();
-    }
-    else {
-        load();
-    }
+    lr_path = lp;
+	dat_path = dp;
+	ref_minimizers_vec.reserve(50000);
+	build_sketch();
+	if (!ref_minimizers.empty())
+		dump();
+}
+
+Sketch::Sketch(string dp) {
+	dat_path = dp;
+	load();
 }
 
 void Sketch::dump() {
-    ofstream fout("sketch.dat", ios::out | ios::binary);
+	Logger::instance().info("Saving sketch and sequence names to: %s\n", dat_path.c_str());
+    ofstream fout(dat_path + "/sketch.dat", ios::out | ios::binary);
+	if (!fout) {
+		Logger::instance().info("Could not create file. Quitting.\n");
+		return;
+	}
+
     for (auto it = ref_minimizers.begin(); it != ref_minimizers.end(); it++) {
         typename vector<Location>::size_type size = it->second.size();
         fout.write((char*)&it->first, sizeof(uint64_t));
@@ -38,7 +48,8 @@ void Sketch::dump() {
         fout.write((char*)&(it->second[0]), size * sizeof(Location));
     }
     fout.close();
-    ofstream seqout("sequences.dat", ios::out | ios::binary);
+
+    ofstream seqout(dat_path + "/sequences.dat", ios::out | ios::binary);
     for (auto it = sequences.begin(); it != sequences.end(); it++) {
         uint8_t size = it->second.first.length();
         seqout.write((char*)&it->first, sizeof(uint32_t));
@@ -50,7 +61,14 @@ void Sketch::dump() {
 }
 
 void Sketch::load() {
-    ifstream fin(file_path + "/sketch.dat", ios::in | ios::binary);
+	string sketch_file = dat_path + "/sketch.dat";
+	Logger::instance().info("Loading sketch from: %s\n", sketch_file.c_str());
+    ifstream fin(sketch_file, ios::in | ios::binary);
+	if (!fin) {
+		Logger::instance().info("Could not load file. Quitting.\n");
+		return;
+	}
+
     uint64_t hash;
     while(fin.read(reinterpret_cast<char*>(&hash), sizeof(uint64_t))) {
         typename vector<Location>::size_type size = 0;
@@ -61,7 +79,15 @@ void Sketch::load() {
         ref_minimizers.insert({hash, tmp});
     }
     fin.close();
-    ifstream seqin(file_path + "/sequences.dat", ios::in | ios::binary);
+
+	string seq_file = dat_path + "/sequences.dat";
+	Logger::instance().info("Loading sequence names from: %s\n", seq_file.c_str());
+    ifstream seqin(seq_file, ios::in | ios::binary);
+	if (!seqin) {
+		Logger::instance().info("Could not load file. Quitting.\n");
+		return;
+	}
+
     uint32_t id;
     string name;
     uint16_t len;
@@ -95,16 +121,20 @@ void Sketch::sketch_query(string query, int k, int w) {
 void Sketch::build_sketch() {
     int id = 0;
     ifstream fin;
-    fin.open(file_path);
-    string tmp;
-    int cnt = 0;
-    string name;
+
+	Logger::instance().info("Building sketch from: %s\n", lr_path.c_str());
+    fin.open(lr_path);
+    if (!fin) {
+		Logger::instance().info("Could not open file. Quitting.\n");
+		return;
+	}
+
+	string tmp, name;
     int size;
     while (!fin.eof()) {
         getline(fin, tmp);
         if (tmp[0] == '>') {
             name = tmp.substr(1, tmp.size() - 1);
-            cnt++;
         } else {
             size = tmp.size();
             sequences.insert({id, {name, size}});
@@ -114,6 +144,8 @@ void Sketch::build_sketch() {
         }
     }
     update_ref_sketch();
+	
+	Logger::instance().info("Sketched %d reads.\n", id);
 }
 
 void Sketch::build_sketch(vector<string> reads) {

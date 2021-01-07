@@ -8,7 +8,7 @@
 using namespace std;
 
 InsertionAssembler::InsertionAssembler(const string &dat_path, const string &lr_path) : lr_path(lr_path) {
-    lr_sketch = Sketch(dat_path, true);
+    lr_sketch = Sketch(dat_path);
 }
 
 string InsertionAssembler::build_segment(vector<string> cuts) {
