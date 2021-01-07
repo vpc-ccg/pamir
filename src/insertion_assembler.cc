@@ -128,12 +128,14 @@ string InsertionAssembler::get_overlap(vector<string>& l, vector<string>& r, str
 }
 
 pair<string, int> InsertionAssembler::assemble(vector<string>& left_reads, vector<string>& right_reads) {
+	Logger::instance().info("--- Building Long Insertion ---");
+
     string left_seg, right_seg, lanchor, ranchor;
     vector<string> lsegs, rsegs;
     map<string, pair<pair<int, int>, int> > lcuts, rcuts, mid;
     unordered_set<uint64_t> l_minimizers_frw, l_minimizers_rev, r_minimizers_frw, r_minimizers_rev;
     int cut_size, support = left_reads.size() + right_reads.size();
-    int step = 0;
+    int step = 1;
 
     string l_tmp, r_tmp;
 
@@ -146,6 +148,7 @@ pair<string, int> InsertionAssembler::assemble(vector<string>& left_reads, vecto
         else
             lanchor = left_seg;
         lr_sketch.sketch_query(lanchor);
+		lcuts = find_cuts(true);
 
         right_seg = build_segment(right_reads);
         rsegs.push_back(right_seg);
@@ -158,12 +161,24 @@ pair<string, int> InsertionAssembler::assemble(vector<string>& left_reads, vecto
         rcuts = find_cuts(false);
 
         mid = check_end(lcuts, rcuts);
-        if (mid.size() != 0 || step == 8)
-            break;
+        if (mid.size() != 0) {
+			Logger::instance().info("\n===> Insertion built in %d steps.", step);
+			break;
+		}
+		else if (step == 10) {
+			Logger::instance().info("\n===> Could not build insertion properly in %d steps.", step);
+			break;
+		}
 
         support += left_reads.size() + right_reads.size();
         left_reads = extract_reads(lcuts);
         right_reads = extract_reads(rcuts);
+
+		Logger::instance().info("\n* STEP %d:\n", step);
+		Logger::instance().info("          Left Segment :  %s\n", left_seg.c_str());
+		Logger::instance().info("          Right Segment:  %s\n", right_seg.c_str());
+		Logger::instance().info("          Picked %d new left cuts\n", left_reads.size());
+		Logger::instance().info("          Picked %d new right cuts\n", right_reads.size());
 
         step += 1;
     }
