@@ -815,7 +815,7 @@ int main(int argc, char **argv)
 			extract_reads(argv[2], argv[3], argv[4], argv[5]);
 		}
 		else if (mode == "consensus") {
-            if (argc != 10) throw "Usage:7 parameters needed\tpamir consensus [partition-file] [reference] [long-read-file] [dat-path] [range] [output-file-vcf] [max-len] dir_prefix";
+            if (argc != 10) throw "Usage:8 parameters needed\tpamir consensus [partition-file] [reference] [long-read-file] [dat-path] [range] [output-file-vcf] [max-len] dir_prefix";
             consensus(argv[2], argv[3], argv[4], argv[5], argv[6], argv[7], atoi(argv[8]), argv[9]);
 		}
 		else {
