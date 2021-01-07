@@ -7,6 +7,7 @@
 #include "logger.h"
 #include "common.h"
 #include "MurmurHash3.h"
+#include "progressbar.h"
 
 #include "sketch.h"
 
@@ -44,6 +45,8 @@ void Sketch::dump() {
 		return;
 	}
 
+	fout.write((char*)&total_entries, sizeof(uint64_t));
+
     for (auto it = ref_minimizers.begin(); it != ref_minimizers.end(); it++) {
         typename vector<Location>::size_type size = it->second.size();
         fout.write((char*)&it->first, sizeof(uint64_t));
@@ -72,16 +75,25 @@ void Sketch::load() {
 		return;
 	}
 
+	uint64_t cnt = 0;
+	ProgressBar progress(80);
+
+	fin.read(reinterpret_cast<char*>(&total_entries), sizeof(uint64_t));
+
     uint64_t hash;
     while(fin.read(reinterpret_cast<char*>(&hash), sizeof(uint64_t))) {
+		progress.update(((float)cnt / (float)total_entries) * 100, "Loading");
         typename vector<Location>::size_type size = 0;
         fin.read(reinterpret_cast<char*>(&size), sizeof(size));
         vector<Location> tmp;
         tmp.resize(size);
+		cnt += tmp.size();
         fin.read(reinterpret_cast<char*>(&tmp[0]), size * sizeof(Location));
         ref_minimizers.insert({hash, tmp});
     }
     fin.close();
+
+	progress.update(((float)cnt / (float)total_entries) * 100, "Loading");
 
 	string seq_file = dat_path + "/sequences.dat";
 	Logger::instance().info("Loading sequence names from: %s\n", seq_file.c_str());
@@ -230,6 +242,7 @@ void Sketch::get_query_minimizers(char* read, int id, int len) {
 }
 
 void Sketch::update_ref_sketch() {
+	total_entries += ref_minimizers_vec.size();
     sort(ref_minimizers_vec.begin(), ref_minimizers_vec.end(), [](const auto &a, const auto &b) { return a.first < b.first;});
     auto idx = ref_minimizers.begin();
     uint64_t last_hash = UINT64_MAX;

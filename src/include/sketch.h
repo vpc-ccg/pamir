@@ -39,6 +39,7 @@ class Sketch {
         std::string lr_path;
 		std::string dat_path;
         int freq_th = INT32_MAX;
+		uint64_t total_entries = 0;
         std::vector<std::pair<uint64_t, Location> > ref_minimizers_vec;
         std::vector<std::pair<uint64_t, int> > query_minimizers_vec;
         void update_ref_sketch();
