@@ -5,6 +5,7 @@
 #include <assert.h>
 #include <algorithm>
 #include "logger.h"
+#include "common.h"
 #include "MurmurHash3.h"
 
 #include "sketch.h"
@@ -141,6 +142,10 @@ void Sketch::build_sketch() {
             transform(tmp.begin(), tmp.end(), tmp.begin(), ::toupper);
             get_ref_minimizers(&tmp[0], id, tmp.size());
             id++;
+
+			if (id % 100000 == 0) {
+                update_ref_sketch();
+            }
         }
     }
     update_ref_sketch();
@@ -153,8 +158,14 @@ void Sketch::build_sketch(vector<string> reads) {
         transform(reads[i].begin(), reads[i].end(), reads[i].begin(), ::toupper);
         get_query_minimizers(&reads[i][0], i, reads[i].size());
     }
-    update_query_sketch();
+	update_query_sketch(FRW);
     query_minimizers_vec.clear();
+
+    for (int i = 0; i < reads.size(); i++) {
+        string q = reverse_complement(reads[i]);
+        get_query_minimizers(&q[0], i, q.size());
+    }
+    update_query_sketch(REV);
 }
 
 void Sketch::get_ref_minimizers(char* read, int id, int len) {
@@ -196,12 +207,12 @@ void Sketch::get_query_minimizers(char* read, int id, int len) {
     for (int i = 0; i < len - kmer_size + 1; i++) {
 
         MurmurHash3_x64_128(read + i, kmer_size, 50, tmp);
-        uint64_t hash_fw = *((uint64_t *)tmp);
+        uint64_t mhash = *((uint64_t *)tmp);
 
-        while(!window.empty() && window.back().first >= hash_fw)
+        while(!window.empty() && window.back().first >= mhash)
             window.pop_back();
 
-        window.push_back(pair<uint64_t, int>(hash_fw, i));
+        window.push_back(pair<uint64_t, int>(mhash, i));
 
         while (!window.empty() && window.front().second <= i - window_size)
             window.pop_front();
@@ -235,12 +246,28 @@ void Sketch::update_ref_sketch() {
             }
         }
     }
+	ref_minimizers_vec.clear();
 }
 
-void Sketch::update_query_sketch() {
+void Sketch::update_query_sketch(int ort) {
     for (int i = 0; i < query_minimizers_vec.size(); i++) {
-        query_minimizers.insert(query_minimizers_vec[i].first);
+        if (ort == FRW)
+            query_minimizers.insert(query_minimizers_vec[i].first);
+        else
+            rev_query_minimizers.insert(query_minimizers_vec[i].first);
     }
+}
+
+void Sketch::compute_freq_th() {
+    vector<pair<uint64_t, int> > frequencies;
+    for (auto it = ref_minimizers.begin(); it != ref_minimizers.end(); it++) {
+        frequencies.push_back({it->first, it->second.size()});
+    }
+    sort(frequencies.begin(), frequencies.end(), [](auto &a, auto &b) {
+        return a.second > b.second;
+    });
+    int top = ref_minimizers.size() * 0.001;
+    freq_th = frequencies[top].second;
 }
 
 int get_avg(vector<int> v) {
@@ -388,8 +415,11 @@ float minimizer_similarity(unordered_set<uint64_t> ref, vector<pair<int, uint64_
     return float(cnt)/float(q.size());
 }
 
-vector<pair<string, pair<pair<int, int>, int> > > Sketch::classify_reads(map<int, vector<pair<int, uint64_t> > > hits,
+vector<pair<string, pair<pair<int, int>, pair<int, int> > > > Sketch::classify_reads(map<int, vector<pair<int, uint64_t> > > hits,
                                                                          vector<pair<int, cut> > cuts_tmp) {
+    if (cuts_tmp.empty())
+        return vector<pair<string, pair<pair<int, int>, pair<int, int> > > >();
+
     //Bimodal reads first, then ordered by number of minimizers used to pick the reads
     sort(cuts_tmp.begin(), cuts_tmp.end(), [](auto &a, auto &b) {
         if (a.second.type < b.second.type)
@@ -401,11 +431,11 @@ vector<pair<string, pair<pair<int, int>, int> > > Sketch::classify_reads(map<int
     });
 
     unordered_set<uint64_t> left_minimizers, right_minimizers;
-    vector<pair<string, pair<pair<int, int>, int> > > cuts;
+    vector<pair<string, pair<pair<int, int>, pair<int, int> > > > cuts;
 
     int i = 0;
     //Separate left and right minimizers
-    while (cuts_tmp[i].second.type == BIMODAL) {
+    while (i < cuts_tmp.size() && cuts_tmp[i].second.type == BIMODAL) {
         int curr_read = cuts_tmp[i].first;
         cut curr_cut = cuts_tmp[i].second;
 
@@ -417,7 +447,7 @@ vector<pair<string, pair<pair<int, int>, int> > > Sketch::classify_reads(map<int
             else if (it->first > curr_cut.peak2.first)
                 right_minimizers.insert(it->second);
         }
-        cuts.push_back({sequences[curr_read].first, {curr_cut.range, BIMODAL}});
+        cuts.push_back({sequences[curr_read].first, {curr_cut.range, {BIMODAL, curr_cut.orientation}}});
         i += 1;
     }
 
@@ -431,52 +461,80 @@ vector<pair<string, pair<pair<int, int>, int> > > Sketch::classify_reads(map<int
             float right_similarity = minimizer_similarity(right_minimizers, hits[curr_read]);
 
             if (left_similarity > right_similarity)
-                cuts.push_back({sequences[curr_read].first, {curr_cut.range, LEFT}});
+                cuts.push_back({sequences[curr_read].first, {curr_cut.range, {LEFT, curr_cut.orientation}}});
             else if (right_similarity > left_similarity)
-                cuts.push_back({sequences[curr_read].first, {curr_cut.range, RIGHT}});
+                cuts.push_back({sequences[curr_read].first, {curr_cut.range, {RIGHT, curr_cut.orientation}}});
             else
-                cuts.push_back({sequences[curr_read].first, {curr_cut.range, MISC}});
+                cuts.push_back({sequences[curr_read].first, {curr_cut.range, {MISC, curr_cut.orientation}}});
         }
-            //Case 2: No bimodal reads, must classify reads on the go -> first set of seen minimizers are assigned to left
+        //Case 2: No bimodal reads, must classify reads on the go -> first set of seen minimizers are assigned to left
         else if (left_minimizers.empty()) {
             for (int j = 0; j < hits[curr_read].size(); j++) {
                 left_minimizers.insert(hits[curr_read][j].second);
             }
-            cuts.push_back({sequences[curr_read].first, {curr_cut.range, LEFT}});
+            cuts.push_back({sequences[curr_read].first, {curr_cut.range, {LEFT, curr_cut.orientation}}});
         }
-            //Case 3: all seen reads have been classified as left and right is still empty -> if this new read doesn't have
-            //        enough similarity with the left set, assign it to right
+        //Case 3: all seen reads have been classified as left and right is still empty -> if this new read doesn't have
+        //        enough similarity with the left set, assign it to right
         else if (right_minimizers.empty()) {
             float left_similarity = minimizer_similarity(left_minimizers, hits[curr_read]);
             if (left_similarity > 0.5) {
-                cuts.push_back({sequences[curr_read].first, {curr_cut.range, LEFT}});
+                cuts.push_back({sequences[curr_read].first, {curr_cut.range, {LEFT, curr_cut.orientation}}});
                 continue;
             }
             for (int j = 0; j < hits[curr_read].size(); j++) {
                 right_minimizers.insert(hits[curr_read][j].second);
             }
-            cuts.push_back({sequences[curr_read].first, {curr_cut.range, RIGHT}});
+            cuts.push_back({sequences[curr_read].first, {curr_cut.range, {RIGHT, curr_cut.orientation}}});
         }
     }
-
     return cuts;
 }
 
-vector<pair<string, pair<pair<int, int>, int> > > Sketch::find_cuts(bool classify) {
-    map<int, vector<pair<int, uint64_t> > > hits;
+vector<pair<string, pair<pair<int, int>, pair<int, int> > > > Sketch::find_cuts(bool classify) {
+    map<int, vector<pair<int, uint64_t> > > frw_hits;
+    map<int, vector<pair<int, uint64_t> > > rev_hits;
 
-    //Find all hits
+    vector<pair<string, pair<pair<int, int>, pair<int, int> > > > cuts, cuts_frv, cuts_rev;
+
+    //Find all forward hits
     for (auto it = query_minimizers.begin(); it != query_minimizers.end(); it++) {
         auto idx = ref_minimizers.find(*it);
         if (idx == ref_minimizers.end())
             continue;
+        if (idx->second.size() >= freq_th)
+            continue;
         for (auto i = idx->second.begin(); i != idx->second.end(); i++) {
-            auto j = hits.find(i->seq_id);
-            if (j == hits.end()) {
+            if (frw_hits.size() > 200)
+                return cuts;
+            auto j = frw_hits.find(i->seq_id);
+            if (j == frw_hits.end()) {
                 vector<pair<int, uint64_t> > tmp;
                 tmp.reserve(32);
                 tmp.push_back({i->offset, *it});
-                hits.insert({i->seq_id, tmp});
+                frw_hits.insert({i->seq_id, tmp});
+            }
+            else {
+                j->second.push_back({i->offset, *it});
+            }
+        }
+    }
+
+    for (auto it = rev_query_minimizers.begin(); it != rev_query_minimizers.end(); it++) {
+        auto idx = ref_minimizers.find(*it);
+        if (idx == ref_minimizers.end())
+            continue;
+        if (idx->second.size() >= freq_th)
+            continue;
+        for (auto i = idx->second.begin(); i != idx->second.end(); i++) {
+            if (frw_hits.size() + rev_hits.size() > 200)
+                return cuts;
+            auto j = rev_hits.find(i->seq_id);
+            if (j == rev_hits.end()) {
+                vector<pair<int, uint64_t> > tmp;
+                tmp.reserve(32);
+                tmp.push_back({i->offset, *it});
+                rev_hits.insert({i->seq_id, tmp});
             }
             else {
                 j->second.push_back({i->offset, *it});
@@ -485,30 +543,148 @@ vector<pair<string, pair<pair<int, int>, int> > > Sketch::find_cuts(bool classif
     }
 
     //Find cuts on each picked long read
-    const int MIN_HITS = 0.25 * query_minimizers.size();
-    vector<pair<int, cut> > cuts_tmp;
-    for (auto it = hits.begin(); it != hits.end(); it++) {
+    int MIN_HITS = 0.25 * query_minimizers.size();;
+    vector<pair<int, cut> > cuts_tmp_frw;
+    for (auto it = frw_hits.begin(); it != frw_hits.end(); it++) {
+        auto r = rev_hits.find(it->first);
+        if (r != rev_hits.end())
+            continue;
         if (it->second.size() < MIN_HITS) {
             continue;
         }
         cut ans = find_range(it->second);
+        ans.orientation = FRW;
         if (ans.range.first == 0 && ans.range.second == 0)
             continue;
         ans.number_of_minimizers = it->second.size();
-        cuts_tmp.push_back({it->first, ans});
+        cuts_tmp_frw.push_back({it->first, ans});
+    }
+    MIN_HITS = 0.25 * rev_query_minimizers.size();
+    vector<pair<int, cut> > cuts_tmp_rev;
+    for (auto it = rev_hits.begin(); it != rev_hits.end(); it++) {
+        auto f = frw_hits.find(it->first);
+        if (f != frw_hits.end())
+            continue;
+        if (it->second.size() < MIN_HITS) {
+            continue;
+        }
+        cut ans = find_range(it->second);
+        ans.orientation = REV;
+        if (ans.range.first == 0 && ans.range.second == 0)
+            continue;
+        ans.number_of_minimizers = it->second.size();
+        cuts_tmp_rev.push_back({it->first, ans});
     }
 
-    vector<pair<string, pair<pair<int, int>, int> > > cuts;
-    if (cuts_tmp.empty())
-        cuts =  vector<pair<string, pair<pair<int, int>, int> > >();
-    else if (classify)
-        cuts = classify_reads(hits, cuts_tmp);
+    if (cuts_tmp_frw.empty() && cuts_tmp_rev.empty())
+        cuts =  vector<pair<string, pair<pair<int, int>, pair<int, int> > > >();
+    else if (classify) {
+        cuts_frv = classify_reads(frw_hits, cuts_tmp_frw);
+        cuts_rev = classify_reads(rev_hits, cuts_tmp_rev);
+        for (int i = 0; i < cuts_frv.size(); i++) {
+            cuts.push_back(cuts_frv[i]);
+        }
+        for (int i = 0; i < cuts_rev.size(); i++) {
+            cuts.push_back(cuts_rev[i]);
+        }
+    }
     else {
-        for (int i = 0; i < cuts_tmp.size(); i++) {
-            pair<int, cut> curr = cuts_tmp[i];
-            cuts.push_back({sequences[curr.first].first, {curr.second.range, sequences[curr.first].second}});
+        for (int i = 0; i < cuts_tmp_frw.size(); i++) {
+            pair<int, cut> curr = cuts_tmp_frw[i];
+            cuts.push_back({sequences[curr.first].first, {curr.second.range, {sequences[curr.first].second, curr.second.orientation}}});
         }
     }
 
     return cuts;
+}
+
+void fix_reverse(vector<pair<pair<string, string>, pair<pair<int, int>, pair<int, int> > > > &cuts) {
+    aligner al(30000);
+
+    vector<int> frw_bimodal, rev_bimodal, frw_right, rev_right, frw_left, rev_left;
+
+    for (int i = 0; i < cuts.size(); i++) {
+        if (cuts[i].second.second.second == FRW) {
+            if (cuts[i].second.second.first == BIMODAL)
+                frw_bimodal.push_back(i);
+            else if (cuts[i].second.second.first == LEFT)
+                frw_left.push_back(i);
+            else if (cuts[i].second.second.first == RIGHT)
+                frw_right.push_back(i);
+        }
+        if (cuts[i].second.second.second == REV) {
+            if (cuts[i].second.second.first == BIMODAL)
+                rev_bimodal.push_back(i);
+            else if (cuts[i].second.second.first == LEFT)
+                rev_left.push_back(i);
+            else if (cuts[i].second.second.first == RIGHT)
+                rev_right.push_back(i);
+        }
+    }
+
+    if ((rev_bimodal.empty() && rev_left.empty() && rev_left.empty()) || (frw_bimodal.empty() && frw_left.empty() && frw_right.empty()))
+        return;
+
+    if (!rev_bimodal.empty()) {
+        for (int i = 0; i < rev_left.size(); i++)
+            cuts[rev_left[i]].second.second.first = RIGHT;
+        for (int i = 0; i < rev_right.size(); i++)
+            cuts[rev_right[i]].second.second.first = LEFT;
+    }
+
+    //Case 1: rev and frw have bimodal reads
+    if (!frw_bimodal.empty() && !rev_bimodal.empty())
+        return;
+
+    //Case 2: frw has bimodal, rev does not
+    else if (!frw_bimodal.empty() && rev_bimodal.empty()) {
+        string rev_1 = cuts[rev_left[0]].first.second;
+        if (!frw_left.empty()) {
+            string left = cuts[frw_left[0]].first.second;
+
+            al.align(left, rev_1);
+            if (al.get_left_anchor() < 20 && al.get_right_anchor() < 20) {
+                for (int i = 0; i < rev_left.size(); i++)
+                    cuts[rev_left[i]].second.second.first = RIGHT;
+                for (int i = 0; i < rev_right.size(); i++)
+                    cuts[rev_right[i]].second.second.first = LEFT;
+            }
+        }
+    }
+
+    //Case 3: rev has bimodal, frw does not
+    else if (frw_bimodal.empty() && !rev_bimodal.empty()) {
+        if (!rev_left.empty()) {
+            string right = cuts[rev_left[0]].first.second;
+            string frw_1 = cuts[frw_left[0]].first.second;
+
+            al.align(right, frw_1);
+            if (al.get_left_anchor() > 20 || al.get_right_anchor() > 20) {
+                for (int i = 0; i < frw_left.size(); i++)
+                    cuts[frw_left[i]].second.second.first = RIGHT;
+                for (int i = 0; i < frw_right.size(); i++)
+                    cuts[frw_right[i]].second.second.first = LEFT;
+            }
+        }
+    }
+
+    else {
+        //Case 4: single peak
+        if (frw_right.empty() && rev_right.empty())
+            return;
+
+        //Case 5: long insertion
+        else {
+            string frw_1 = cuts[frw_left[0]].first.second;
+            string rev_1 = cuts[rev_left[0]].first.second;
+
+            al.align(frw_1, rev_1);
+            if (al.get_left_anchor() < 20 && al.get_right_anchor() < 20) {
+                for (int i = 0; i < rev_left.size(); i++)
+                    cuts[rev_left[i]].second.second.first = RIGHT;
+                for (int i = 0; i < rev_right.size(); i++)
+                    cuts[rev_right[i]].second.second.first = LEFT;
+            }
+        }
+    }
 }

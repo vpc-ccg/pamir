@@ -1,5 +1,6 @@
 #include <iostream>
 #include <string>
+#include <cstdio>
 #include <map>
 #include <vector>
 #include <cstdio>
@@ -62,12 +63,14 @@ p3_partition::p3_partition (const string &partition_file_path, const string &ran
     if ( end > offsets.size() )
         end = offsets.size();
 
+    total = end - start + 1;
+
     partition_file = fopen(partition_file_path.c_str(), "rb");
     fseek(partition_file, offsets[start-1], SEEK_SET);
 }
 
 //CALL ON EACH CLUSTER
-void p3_partition::add_reads(vector<pair<pair<string, string>, pair<int,int> > > short_reads, vector<pair<pair<string, string>, pair<pair<int,int>, int> > > cuts, int p_start, int p_end, string p_ref) {
+void p3_partition::add_reads(vector<pair<pair<string, string>, pair<int,int> > > short_reads, vector<pair<pair<string, string>, pair<pair<int,int>, pair<int, int> > > > cuts, int p_start, int p_end, string p_ref) {
     partition_count++;
     size_t pos = ftell(partition_out_file);
     fwrite(&pos, 1, sizeof(size_t), partition_out_index_file);
@@ -77,7 +80,7 @@ void p3_partition::add_reads(vector<pair<pair<string, string>, pair<int,int> > >
                 i.second.second);
     }
     for (auto &i: cuts) {
-        fprintf(partition_out_file, "%s %s %d %d %d\n", i.first.first.c_str(), i.first.second.c_str(), i.second.first.first, i.second.first.second, i.second.second);
+        fprintf(partition_out_file, "%s %s %d %d %d %d\n", i.first.first.c_str(), i.first.second.c_str(), i.second.first.first, i.second.first.second, i.second.second.first, i.second.second.second);
     }
     partition_id++;
 }
@@ -117,49 +120,61 @@ int p3_partition::get_id () {
     return partition_id;
 }
 
+int p3_partition::get_total() {
+    return total;
+}
+
+//TODO: check resize(0) performance vs. clear()
 //read next partition
-pair<vector<pair<pair<string, string>, pair<int,int> > >, classified_cuts> p3_partition::read_partition() {
+pair<vector<read_cut_info>, classified_cuts> p3_partition::read_partition() {
     int cut_sz, sr_sz, i;
-    char pref[MAXB];
-    char name[MAXB], read[MAXB];
+    char* pref = (char *)malloc(MAXB);
+    char* name = (char *)malloc(MAXB);
+    char* read = (char *)malloc(MAXB);
 
-    cuts = classified_cuts();
+    short_reads.clear();
 
-    if (start > end)
-        return pair<vector<pair<pair<string, string>, pair<int,int> > >, classified_cuts> ();
+    classified_cuts cuts;
+    cuts.bimodal_cuts.clear();
+    cuts.left_cuts.clear();
+    cuts.right_cuts.clear();
 
-    partition_count++;
-    start++;
-    fscanf(partition_file, "%d %d %d %d %d %s %d\n", &partition_id, &sr_sz, &cut_sz, &p_start, &p_end, pref);
-    p_ref = pref;
-    short_reads.resize(0);
-    short_reads.reserve(sr_sz);
+    if (start <= end) {
+        partition_count++;
+        start++;
+        fscanf(partition_file, "%d %d %d %d %d %s %d\n", &partition_id, &sr_sz, &cut_sz, &p_start, &p_end, pref);
+        p_ref = pref;
+        short_reads.resize(0);
+        short_reads.reserve(sr_sz);
 
-    for (i = 0; i < sr_sz; i++) {
-        fgets(pref, MAXB, partition_file);
-        int loc, support;
-        sscanf(pref, "%s %s %d %d", name, read, &support, &loc);
-        short_reads.push_back({{string(name), string(read)}, {support, loc}});
-    }
-
-    for (i = 0; i < cut_sz; i++) {
-        fgets(pref, MAXB, partition_file);
-        int start_pos, end_pos, type;
-        sscanf(pref, "%s %s %d %d %d", name, read, &start_pos, &end_pos, &type);
-        if (type == 0) {
-            cuts.bimodal_cuts.push_back({{string(name), string(read)}, {start_pos, end_pos}});
-            cuts.bimodal = true;
+        for (i = 0; i < sr_sz; i++) {
+            fgets(pref, MAXB, partition_file);
+            int loc, support;
+            sscanf(pref, "%s %s %d %d", name, read, &support, &loc);
+            short_reads.push_back({{string(name), string(read)}, {support, loc}});
         }
-        else if (type == 1)
-            cuts.left_cuts.push_back({{string(name), string(read)}, {start_pos, end_pos}});
-        else if (type == 2)
-            cuts.right_cuts.push_back({{string(name), string(read)}, {start_pos, end_pos}});
-        else
-            cuts.misc_cuts.push_back({{string(name), string(read)}, {start_pos, end_pos}});
-        cuts.size += 1;
+
+        for (i = 0; i < cut_sz; i++) {
+            fgets(pref, MAXB, partition_file);
+            int start_pos, end_pos, type, orientation;
+            sscanf(pref, "%s %s %d %d %d", name, read, &start_pos, &end_pos, &type, &orientation);
+            if (type == 0) {
+                cuts.bimodal_cuts.push_back({{string(name), string(read)}, {start_pos, end_pos}});
+                cuts.bimodal = true;
+            }
+            else if (type == 1)
+                cuts.left_cuts.push_back({{string(name), string(read)}, {start_pos, end_pos}});
+            else if (type == 2)
+                cuts.right_cuts.push_back({{string(name), string(read)}, {start_pos, end_pos}});
+            else
+                cuts.misc_cuts.push_back({{string(name), string(read)}, {start_pos, end_pos}});
+            cuts.size += 1;
+        }
     }
+
+    free(pref);
+    free(name);
+    free(read);
 
     return {short_reads, cuts};
 }
-
-

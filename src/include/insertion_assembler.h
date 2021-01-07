@@ -8,11 +8,12 @@
 class InsertionAssembler {
     private:
         Sketch lr_sketch;
+		cut_ranges read_extractor;
         spoa::Graph graph{};
         std::string lr_path;
         std::string build_segment(std::vector<std::string> cuts);
-        std::vector<std::string> extract_reads(std::map<std::string, std::pair<int, int> > cuts);
-        std::map<std::string, std::pair<int, int> > find_cuts(bool left);
+        std::vector<std::string> extract_reads(std::map<std::string, std::pair<std::pair<int, int>, int > >& cuts);
+        std::map<std::string, std::pair<std::pair<int, int>, int> > find_cuts(bool left);
         std::string get_overlap(std::vector<std::string> l, std::vector<std::string> r, std::string m);
     public:
         InsertionAssembler(const std::string &dat_path, const std::string &lr_path);

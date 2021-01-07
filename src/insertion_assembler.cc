@@ -5,10 +5,13 @@
 #include <iterator>
 #include <algorithm>
 
+#include "common.h"
+
 using namespace std;
 
 InsertionAssembler::InsertionAssembler(const string &dat_path, const string &lr_path) : lr_path(lr_path) {
     lr_sketch = Sketch(dat_path);
+	read_extractor = cut_ranges(lr_path, true);
 }
 
 string InsertionAssembler::build_segment(vector<string> cuts) {
@@ -55,41 +58,49 @@ string InsertionAssembler::build_segment(vector<string> cuts) {
     return cut;
 }
 
-vector<string> InsertionAssembler::extract_reads(map<string, pair<int, int> > cuts) {
-    cut_ranges read_extractor = cut_ranges(lr_path);
-    for (auto it = cuts.begin(); it != cuts.end(); it++) {
-        read_extractor.add_range(it->first, it->second.first, it->second.second);
-    }
-    read_extractor.extract();
+vector<string> InsertionAssembler::extract_reads(map<string, pair<pair<int, int>, int> > &cuts) {
     vector<string> ext;
     for (auto it = cuts.begin(); it != cuts.end(); it++) {
-        ext.push_back(read_extractor.get_cut(it->first, it->second.first, it->second.second));
+        string r = read_extractor.get_cut(it->first, it->second.first.first, it->second.first.second);
+        if (it->second.second == REV)
+            ext.push_back(reverse_complement(r));
+        else
+            ext.push_back(r);
     }
     sort(ext.begin(), ext.end(), [](const auto &a, const auto &b) { return a.size() > b.size();});
     return ext;
 }
 
-map<string, pair<int, int> > check_end(map<string, pair<int, int> > l, map<string, pair<int, int> > r) {
-    map<string, pair<int, int> > mid;
+map<string, pair<pair<int, int>, int> > check_end(map<string, pair<pair<int, int>, int> > &l, map<string, pair<pair<int, int>, int> > &r) {
+    map<string, pair<pair<int, int>, int> > mid;
     for (auto it = l.begin(); it != l.end(); it++) {
         auto f = r.find(it->first);
-        if (f != r.end()) {
-            mid.insert({it->first, {f->second.first, it->second.second}});
+        if (f != r.end() && it->second.second == f->second.second) {
+            if (it->second.second == FRW)
+                mid.insert({it->first, {{f->second.first.first, it->second.first.second}, it->second.second}});
+            else
+                mid.insert({it->first, {{it->second.first.first, f->second.first.second}, it->second.second}});
         }
     }
     return mid;
 }
 
-map<string, pair<int, int> > InsertionAssembler::find_cuts(bool left) {
-    vector<pair<string, pair<pair<int, int>, int> > > cuts = lr_sketch.find_cuts(false);
-    map<string, pair<int, int> > ans;
+map<string, pair<pair<int, int>, int> > InsertionAssembler::find_cuts(bool left) {
+    vector<pair<string, pair<pair<int, int>, pair<int, int> > > > cuts = lr_sketch.find_cuts(false);
+    map<string, pair<pair<int, int>, int> > ans;
     for (auto it = cuts.begin(); it != cuts.end(); it++) {
-        if (!(it->second.first.first > 300 && it->second.first.second < it->second.second - 300 ))
-            continue;
-        int start = left ? it->second.first.first : 1;
-        int end = left ? it->second.second : it->second.first.second;
-        ans.insert({it->first, {start, end}});
+        int start, end;
+        if (it->second.second.second == FRW) {
+            start = left ? it->second.first.first : 1;
+            end = left ? it->second.second.first : it->second.first.second;
+        }
+        else {
+            start = left ? 1 : it->second.first.first;
+            end = left ? it->second.first.second : it->second.second.first;
+        }
+        ans.insert({it->first, {{start, end}, it->second.second.second}});
     }
+
     return ans;
 }
 
@@ -117,7 +128,7 @@ string InsertionAssembler::get_overlap(vector<string> l, vector<string> r, strin
 pair<string, int> InsertionAssembler::assemble(vector<string> left_reads, vector<string> right_reads) {
     string left_seg, right_seg, lanchor, ranchor;
     vector<string> lsegs, rsegs;
-    map<string, pair<int, int> > lcuts, rcuts, mid;
+    map<string, pair<pair<int, int>, int> > lcuts, rcuts, mid;
     int cut_size, support = left_reads.size() + right_reads.size();
 
     while (true) {

@@ -10,7 +10,25 @@ using namespace std;
 
 //TODO merge finding cuts
 
-cut_ranges::cut_ranges(const string &lrPath) : lr_path(lrPath) {}
+cut_ranges::cut_ranges() {}
+
+cut_ranges::cut_ranges(const string &lrPath, bool build_index) : lr_path(lrPath) {
+    if (build_index) {
+        string lr_name;
+        ifstream fin;
+        fin.open(lr_path);
+        string line;
+
+        while (!fin.eof()) {
+            getline(fin, line);
+            if (line[0] == '>') {
+                lr_name = line.substr(1, line.size() - 1);
+                read_offsets.insert({lr_name, fin.tellg()});
+                getline(fin, line);
+            }
+        }
+    }
+}
 
 void cut_ranges::add_range(string lr, int start, int end) {
 	auto curr_lr = lr_ranges.find(lr);
@@ -29,7 +47,7 @@ void cut_ranges::extract() {
 	ifstream fin;
 	fin.open(lr_path);
 	string line;
-	
+
 	while (!fin.eof()) {
 		getline(fin, line);
 		if (line[0] == '>') {
@@ -37,9 +55,10 @@ void cut_ranges::extract() {
 			istringstream iss(line);
     		vector<string> tokens{istream_iterator<string>{iss}, istream_iterator<string>{}};
 			lr_name = tokens[0].substr(1, line.size() - 1);
-
 			auto i = lr_ranges.find(lr_name);
 			if (i != lr_ranges.end()) {
+			    //TODO: DON'T BUILD OFFSET UNLESS IN LONG INSERTION
+			    read_offsets.insert({lr_name, fin.tellg()});
 				getline(fin, line);
 				int end = i->second.second;
 				if (end > line.size())
@@ -52,46 +71,58 @@ void cut_ranges::extract() {
 }
 
 string cut_ranges::get_cut(string lr_name, int start, int end) {
-	int length = end - start;
-	auto i = reads.find(lr_name);
-	if (length > i->second.second.size())
-		length = i->second.second.size();
-	string cut = i->second.second.substr(start - i->second.first, end - start);
+    string cut;
+    if (read_offsets.empty()) {
+        int length = end - start;
+        auto i = reads.find(lr_name);
+        if (length > i->second.second.size())
+            length = i->second.second.size();
+        cut = i->second.second.substr(start - i->second.first, length);
+    }
+	else {
+        ifstream fin;
+        fin.open(lr_path);
+        fin.seekg(read_offsets[lr_name]);
+        string line;
+        getline(fin, line);
+        cut = line.substr(start, end - start);
+	}
 	return cut;
 }
 
 //TODO ERROR HANDLING, OPTIMIZE
-std::pair<std::string, std::pair<int, int>> cut_consensus_bimodal(vector<string> alignments, int left_reads
-        ,int right_reads, int bimodal_reads) {
-//    int th = (alignments.size() - 1)/2;
+std::pair<std::string, std::pair<int, int>> cut_consensus_bimodal(vector<string> alignments, int left_reads,
+		int right_reads, int bimodal_reads) {
     int cnt = alignments.size() - 1;
-    int th_left = 0.8 * (bimodal_reads + left_reads);
-    int th_right = 0.8 * (bimodal_reads + right_reads);
+    int th_left = 0.5 * (bimodal_reads + left_reads);
+    int th_right = 0.5 * (bimodal_reads + right_reads);
     string consensus = alignments[alignments.size() - 1];
+
     int left = 0, right = 0;
-
-    for (int idx = 100; idx > 0; idx = idx/2) {
-        for (int i = 0; i < alignments.size() - 2; i++) {
+    int gap_cnt;
+    for (int idx = 0; idx < alignments[0].size(); idx = idx + 50) {
+        gap_cnt = 0;
+        for (int i = 0; i < alignments.size() - 1; i++) {
             if (alignments[i][idx] == '-')
-                cnt--;
+                gap_cnt++;
         }
-        if (cnt < th_left) {
-            left = idx * 2;
-            break;
-        }
-    }
-    cnt = alignments.size() - 1;
-    for (int idx = 100; idx > 0; idx = idx/2) {
-        for (int i = 0; i < alignments.size() - 2; i++) {
-            if (alignments[i][alignments[i].size() - idx - 1] == '-')
-                cnt--;
-        }
-        if (cnt < th_right) {
-            right = idx * 2;
+        if (gap_cnt < th_left) {
+            left = idx;
             break;
         }
     }
 
+    for (int idx = 0; idx < alignments[0].size(); idx = idx + 50) {
+        gap_cnt = 0;
+        for (int i = 0; i < alignments.size() - 1; i++) {
+            if (alignments[i][alignments[i].size() - idx - 1] == '-')
+                gap_cnt++;
+        }
+        if (gap_cnt < th_right) {
+            right = idx;
+            break;
+        }
+    }
     pair<int, int> ans = {left, right};
     string cut = consensus.substr(left, consensus.size() - right - left);
     cut.erase(std::remove(cut.begin(), cut.end(), '-'), cut.end());
@@ -99,32 +130,33 @@ std::pair<std::string, std::pair<int, int>> cut_consensus_bimodal(vector<string>
 }
 
 std::pair<std::string, std::pair<int, int>> cut_consensus_single(vector<string> alignments) {
-    int th = (alignments.size() - 1)/2;
+    int th = 0.6 * (alignments.size() - 1);
     string consensus = alignments[alignments.size() - 1];
     int left = 0, right = 0;
-    int gap_cnt = 0;
-    for (int idx = 100; idx > 0; idx = idx/2) {
-        for (int i = 0; i < alignments.size() - 2; i++) {
+    int gap_cnt;
+    for (int idx = 0; idx < alignments[0].size(); idx = idx + 50) {
+        gap_cnt = 0;
+        for (int i = 0; i < alignments.size() - 1; i++) {
             if (alignments[i][idx] == '-')
                 gap_cnt++;
         }
-        if (gap_cnt > th) {
-            left = idx * 2;
-            break;
-        }
-    }
-    gap_cnt = 0;
-    for (int idx = 100; idx > 0; idx = idx/2) {
-        for (int i = 0; i < alignments.size() - 2; i++) {
-            if (alignments[i][alignments[i].size() - idx - 1] == '-')
-                gap_cnt++;
-        }
-        if (gap_cnt > th) {
-            right = idx * 2;
+        if (gap_cnt < th) {
+            left = idx;
             break;
         }
     }
 
+    for (int idx = 0; idx < alignments[0].size(); idx = idx + 50) {
+        gap_cnt = 0;
+        for (int i = 0; i < alignments.size() - 1; i++) {
+            if (alignments[i][alignments[i].size() - idx - 1] == '-')
+                gap_cnt++;
+        }
+        if (gap_cnt < th) {
+            right = idx;
+            break;
+        }
+    }
     pair<int, int> ans = {left, right};
     string cut = consensus.substr(left, consensus.size() - right - left);
     cut.erase(std::remove(cut.begin(), cut.end(), '-'), cut.end());

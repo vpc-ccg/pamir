@@ -7,10 +7,12 @@
 class cut_ranges {
 	private:
         std::string lr_path;
+		std::map<std::string, std::uint64_t> read_offsets;
 		std::map<std::string, std::pair<int, int> > lr_ranges;
 
 	public:
-        cut_ranges(const std::string &lrPath);
+		cut_ranges();
+		cut_ranges(const std::string &lrPath, bool build_index = false);
         std::map<std::string, std::pair<int, std::string> > reads;
 		void add_range(std::string lr, int start, int end);
 		void extract();

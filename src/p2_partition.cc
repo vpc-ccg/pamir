@@ -68,7 +68,8 @@ p2_partition::p2_partition (const string &partition_file_path, const string &ran
 
 //CALL ON EACH CLUSTER
 void p2_partition::add_cuts(vector<pair<pair<string, string>, pair<int,int> > > short_reads,
-                            vector<pair<string, pair<pair<int, int>, int> > > cuts, int p_start, int p_end, string p_ref) {
+                            vector<pair<string, pair<pair<int, int>, pair<int, int> > > > cuts,
+                            int p_start, int p_end, string p_ref) {
     partition_count++;
     size_t pos = ftell(partition_out_file);
     fwrite(&pos, 1, sizeof(size_t), partition_out_index_file);
@@ -78,7 +79,7 @@ void p2_partition::add_cuts(vector<pair<pair<string, string>, pair<int,int> > > 
                 i.second.second);
     }
     for (auto &i: cuts) {
-        fprintf(partition_out_file, "%s %d %d %d\n", i.first.c_str(), i.second.first.first, i.second.first.second, i.second.second);
+        fprintf(partition_out_file, "%s %d %d %d %d\n", i.first.c_str(), i.second.first.first, i.second.first.second, i.second.second.first, i.second.second.second);
     }
     partition_id++;
 }
@@ -123,14 +124,14 @@ int p2_partition::get_old_id () {
 }
 
 //read next partition
-pair<vector<pair<pair<string, string>, pair<int,int> > >, vector <pair<string, pair<pair<int, int>, int> > > >
+pair<vector<pair<pair<string, string>, pair<int,int> > >, vector<pair<string, pair<pair<int, int>, pair<int, int> > > > >
         p2_partition::read_partition() {
 
     int sr_sz, cut_sz, i;
     char pref[MAXB];
     char name[MAXB], read[MAXB];
     if (start > end)
-        return pair<vector<pair<pair<string, string>, pair<int,int> > >, vector <pair<string, pair<pair<int, int>, int> > > > ();
+        return pair<vector<pair<pair<string, string>, pair<int,int> > >, vector<pair<string, pair<pair<int, int>, pair<int, int> > > > > ();
 
     partition_count++;
     start++;
@@ -150,9 +151,9 @@ pair<vector<pair<pair<string, string>, pair<int,int> > >, vector <pair<string, p
 
     for (i = 0; i < cut_sz; i++) {
         fgets(pref, MAXB, partition_file);
-        int start_pos, end_pos, type;
-        sscanf(pref, "%s %d %d %d", name, &start_pos, &end_pos, &type);
-        cut_candidates.push_back({string(name), {{start_pos, end_pos}, type}});
+        int start_pos, end_pos, type, orientation;
+        sscanf(pref, "%s %d %d %d %d", name, &start_pos, &end_pos, &type, &orientation);
+        cut_candidates.push_back({string(name), {{start_pos, end_pos}, {type, orientation}}});
     }
 
     return {short_reads, cut_candidates};

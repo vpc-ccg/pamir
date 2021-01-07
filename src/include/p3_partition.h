@@ -10,14 +10,16 @@
 #include <unordered_set>
 using namespace std;
 
-struct classified_cuts {
+typedef pair<pair<string, string>, pair<int,int> > read_cut_info;
+
+typedef struct {
     int size = 0;
     bool bimodal = false;
-    vector<pair<pair<string, string>, pair<int,int> > > bimodal_cuts;
-    vector<pair<pair<string, string>, pair<int,int> > > left_cuts;
-    vector<pair<pair<string, string>, pair<int,int> > > right_cuts;
-    vector<pair<pair<string, string>, pair<int,int> > > misc_cuts;
-};
+    vector<read_cut_info > bimodal_cuts;
+    vector<read_cut_info > left_cuts;
+    vector<read_cut_info > right_cuts;
+    vector<read_cut_info > misc_cuts;
+} classified_cuts;
 
 class p3_partition {
 private:
@@ -34,7 +36,9 @@ private:
 
     int start;
     int end;
+    int total;
     FILE* partition_file;
+
 
     classified_cuts cuts;
     vector<pair<pair<string, string>, pair<int,int> > > short_reads;
@@ -48,13 +52,14 @@ public:
     p3_partition (const string&,  const string&);
     ~p3_partition (void);
 
-    void add_reads(vector<pair<pair<string, string>, pair<int,int> > > short_reads, vector<pair<pair<string, string>, pair<pair<int,int>, int> > > cuts, int p_start, int p_end, string p_ref);
-    pair<vector<pair<pair<string, string>, pair<int,int> > >, classified_cuts> read_partition ();
+    void add_reads(vector<pair<pair<string, string>, pair<int,int> > > short_reads, vector<pair<pair<string, string>, pair<pair<int,int>, pair<int, int> > > > cuts, int p_start, int p_end, string p_ref);
+    pair<vector<read_cut_info >, classified_cuts> read_partition ();
 
     int get_start (void);
     int get_end (void);
     string get_reference (void);
     int get_id ();
+    int get_total();
 };
 
 

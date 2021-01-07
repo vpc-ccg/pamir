@@ -359,6 +359,64 @@ void sketch (const string &longread, const string &dat_path, int k, int w)
     Sketch lr_sketch = Sketch(longread, dat_path, k, w);
 }
 /*********************************************************************************************/
+void find_reads (const string &partition_file, const string &dat_path, const string &range, const string &prefix)
+{
+    Sketch lr_sketch = Sketch(dat_path);
+
+    //TODO FIX NAME - Get ouput as an argument
+    string p2 = "partition-p2-" + range;
+    genome_partition pt(partition_file, range);
+    p2_partition pt_2(p2, true);
+
+    while (1)
+    {
+        auto p 			= pt.read_partition();
+		
+        // end of the partition file
+        if ( !p.size() )
+            break;
+
+        vector<pair<string, pair<pair<int, int>, pair<int, int> > > > cut_candidates;
+
+        string chrName  = pt.get_reference();
+        int pt_start    = pt.get_start();
+        int pt_end      = pt.get_end();
+
+        // cluster has too many or too few reads
+        if ( p.size() > 7000 || p.size() <= 2 ) {
+            Logger::instance().info("-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");
+            Logger::instance().info(" + Cluster ID      : %d\n", pt.get_id());
+            Logger::instance().info(" + Short Reads Count     : %lu\n", p.size());
+            Logger::instance().info("INFO: Skipped Processing - Too few or Too many short reads\n");
+
+            pt_2.add_cuts(p, cut_candidates, pt_start, pt_end, chrName);
+            continue;
+        }
+
+        vector<string> reads;
+        for (int i =0;i<p.size();i++)
+        {
+            reads.push_back(p[i].first.second);
+        }
+
+        lr_sketch.sketch_query(reads);
+
+        cut_candidates = lr_sketch.find_cuts(true);
+
+        if (cut_candidates.size() == 0) {
+            Logger::instance().info("-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");
+            Logger::instance().info(" + Cluster ID      : %d\n", pt.get_id());
+            Logger::instance().info(" + Short Reads Count     : %lu\n", p.size());
+            Logger::instance().info("INFO: Skipped Processing - No Long reads found\n");
+
+            pt_2.add_cuts(p, cut_candidates, pt_start, pt_end, chrName);
+            continue;
+        }
+
+        pt_2.add_cuts(p, cut_candidates, pt_start, pt_end, chrName);
+    }
+}
+/*********************************************************************************************/
 void extract_reads(const string &partition_file, const string &longread, const string &range, const string &prefix)
 {
 	p2_partition pt(partition_file, range);
@@ -382,8 +440,8 @@ void extract_reads(const string &partition_file, const string &longread, const s
 
     ranges.extract();
 	
-	//TODO FIX NAME
-	string p3 = "partition-p3";
+	//TODO FIX NAME + get output name as argument
+	string p3 = "partition-p3-" + range;
 	p2_partition pt_2(partition_file, range);
 	p3_partition pt_3(p3, true);
 	
@@ -393,7 +451,7 @@ void extract_reads(const string &partition_file, const string &longread, const s
 		if ( !p.first.size() )
 			break;
 
-        vector<pair<pair<string, string>, pair<pair<int, int>, int> > > cuts;
+		vector<pair<pair<string, string>, pair<pair<int, int>, pair<int, int> > > > cuts;
 
         string chrName  = pt_2.get_reference();
         int pt_start    = pt_2.get_start();
@@ -402,7 +460,7 @@ void extract_reads(const string &partition_file, const string &longread, const s
         // cluster has too many or too few reads
         if ( p.first.size() > 7000 || p.first.size() <= 2 ) {
             Logger::instance().info("-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");
-            Logger::instance().info(" + Cluster ID      : %d\n", pt.get_id());
+            Logger::instance().info(" + Cluster ID      : %d\n", pt_2.get_id());
             Logger::instance().info(" + Short Reads Count     : %lu\n", p.first.size());
             Logger::instance().info("INFO: Skipped Processing - Too few or Too many short reads\n");
 
@@ -412,7 +470,7 @@ void extract_reads(const string &partition_file, const string &longread, const s
         // cluster has too many or too few reads
         else if ( p.second.size() == 0 ) {
             Logger::instance().info("-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");
-            Logger::instance().info(" + Cluster ID      : %d\n", pt.get_id());
+            Logger::instance().info(" + Cluster ID      : %d\n", pt_2.get_id());
             Logger::instance().info(" + Short Reads Count     : %lu\n", p.first.size());
             Logger::instance().info("INFO: Skipped Processing - No long reads found\n");
 
@@ -421,11 +479,18 @@ void extract_reads(const string &partition_file, const string &longread, const s
         }
 
 		for (int i = 0; i < p.second.size(); i++) {
-            cuts.push_back({{p.second[i].first, ranges.get_cut(p.second[i].first, p.second[i].second.first.first,
-                p.second[i].second.first.second)}, {{p.second[i].second.first.first, p.second[i].second.first.second},
-                                                    p.second[i].second.second}});
-		}
+            string tmp = ranges.get_cut(p.second[i].first, p.second[i].second.first.first,
+                                        p.second[i].second.first.second);
+            string cut;
+            if (p.second[i].second.second.second == REV)
+                cut = reverse_complement(tmp);
+            else
+                cut = tmp;
+            cuts.push_back({{p.second[i].first, cut}, {{p.second[i].second.first.first, p.second[i].second.first.second},
+                                                {p.second[i].second.second.first, p.second[i].second.second.second}}});
+        }
 
+		fix_reverse(cuts);
         pt_3.add_reads(p.first, cuts, pt_start, pt_end, chrName);
 
 	}
@@ -722,6 +787,10 @@ int main(int argc, char **argv)
             if (argc != 6) throw "Usage:4 parameters needed\tpamir sketch [long-read-file] [dat-path] [kmer-size] [window-size]";
             sketch(argv[2], argv[3], atoi(argv[4]), atoi(argv[5]));
 		}
+		else if (mode == "find") {
+            if (argc != 6) throw "Usage:4 parameters needed\tpamir find [partition-file] [dat-files-path] [range] dir_prefix ";
+            find_reads(argv[2], argv[3], argv[4], argv[5]);
+        }
 		else if (mode == "extract") {
 			if (argc != 6) throw "Usage:4 parameters needed\tpamir extract [partition-file] [long-read-file] [range] dir_prefix";
 			extract_reads(argv[2], argv[3], argv[4], argv[5]);
