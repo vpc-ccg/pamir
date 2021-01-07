@@ -28,6 +28,7 @@
 #include "p3_partition.h"
 #include "cut_ranges.h"
 #include "insertion_assembler.h"
+#include "progressbar.h"
 #include "spoa/spoa.hpp"
 
 
@@ -525,14 +526,22 @@ void consensus (const string &partition_file, const string &reference, const str
 	int n_buffer         =   0;
 	int n_buffer2         =   0;
 
+	int cnt = 0;
+	char comment[20];
+	ProgressBar progress(80);
+
 	while (1) 
 	{
 		auto p 			= pt.read_partition();
-		
+
 		// end of the partition file
 		if ( !p.first.size() )
 			break;
 	
+        cnt += 1;
+       	sprintf(comment, "%10d / %-10d", cnt, pt.get_total());
+       	progress.update(((float)cnt/(float)pt.get_total()) * 100, comment);
+
 		// cluster has too many or too few reads
 		if ( p.first.size() > 7000 || p.first.size() <= 2 ) {
             Logger::instance().info("-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");
