@@ -526,7 +526,7 @@ void consensus (const string &partition_file, const string &reference, const str
 	int n_buffer         =   0;
 	int n_buffer2         =   0;
 
-	int cnt = 0;
+	int cnt = 0, sp = 0, bi = 0, li = 0;
 	char comment[20];
 	ProgressBar progress(80);
 
@@ -616,6 +616,8 @@ void consensus (const string &partition_file, const string &reference, const str
                                                                      p.second.bimodal_cuts.size());
 
             consensus.push_back({ans.first, p.second.left_cuts.size() + p.second.bimodal_cuts.size() + p.second.right_cuts.size()});
+
+			bi++;
         }
 		else {
             //SINGLE PEAK
@@ -633,6 +635,8 @@ void consensus (const string &partition_file, const string &reference, const str
                 pair<string, pair<int, int>> ans = cut_consensus_single(msa);
 
                 consensus.push_back({ans.first, p.second.left_cuts.size()});
+
+				sp++;
             }
             //LONG INSERTION
             else if (!p.second.left_cuts.empty() && !p.second.right_cuts.empty()) {
@@ -682,6 +686,8 @@ void consensus (const string &partition_file, const string &reference, const str
                 pair<string, int> ans = ia.assemble(left_reads, right_reads);
 
                 consensus.push_back(ans);
+
+				li++;
             }
         }
 
@@ -699,7 +705,6 @@ void consensus (const string &partition_file, const string &reference, const str
                 al.extract_calls(cluster_id, reports_lq, reports, contig_support, ref_start, "<<<");
             }
         }
-
 
         //print_calls new version
 		tmp_ref.clear();//string tmp_ref = ""; 
@@ -743,6 +748,12 @@ void consensus (const string &partition_file, const string &reference, const str
 			vcf_info_lq.clear();
 		}
 	}
+
+		Logger::instance().error("Processed %d clusters:\n", pt.get_total());
+		Logger::instance().error("          # Single-Peak Clusters    : %d\n", sp);
+		Logger::instance().error("          # Bimodal Clusters        : %d\n", bi);
+		Logger::instance().error("          # Long Insertion Clusters : %d\n", li);
+
 	// Sanity check for the last record
 	if ( 0 < vcf_info.size()){	fprintf( fo_vcf, "%s", vcf_info.c_str());}
 	//if ( 0 < vcf_info_del.size()){	fprintf( fo_vcf_del, "%s", vcf_info_del.c_str());}
