@@ -16,7 +16,7 @@ string ProgressBar::make_bar(float progress) {
     if (progress<100)
         out += ">";
 
-    for (int i=steps; i<size; i++)
+    for (int i=steps+1; i<size; i++)
         out += " ";
     out += "]";
 
@@ -30,9 +30,10 @@ void ProgressBar::update(float progress, string prefix) {
     int mm = (((int)elapsed_time) % 3600) / 60;
     int ss = (int) elapsed_time % 60;
 
-    fprintf (stderr, "\r%s %s %0.2f%% Elapsed Time: %0.2d:%0.2d:%0.2d", prefix.c_str(), out.c_str(), progress, hh, mm, ss);
-    if (abs(100 -progress )< 0.001)
-        fprintf(stderr, "\n");
+    fprintf (stderr, "\r%s %s %6.2f%% Elapsed Time: %0.2d:%0.2d:%0.2d", prefix.c_str(), out.c_str(), progress, hh, mm, ss);
+    if (abs(100 -progress )< 0.0000000000000001) {
+		fprintf(stderr, "\n");
+	}
 }
 
 double ProgressBar::get_time(void)
