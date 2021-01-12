@@ -1,13 +1,13 @@
 #include <deque>
+#include <mutex>
+#include <thread>
 #include <string>
-#include <fstream>
 #include <iostream>
 #include <assert.h>
 #include <algorithm>
 #include "logger.h"
 #include "common.h"
 #include "MurmurHash3.h"
-#include "progressbar.h"
 
 #include "sketch.h"
 
@@ -17,18 +17,36 @@ using namespace std;
 const int MAXN = 30000;
 const int BUCKET_SIZE = 100;
 
+ProgressBar sketch_progress(80);
+ProgressBar sort_progress(80);
+uint64_t size_read = 0;
+int sort_completed = 0;
+
+mutex read_mutex, name_mutex, sort_mutex;
+
 Sketch::Sketch() {}
+
+std::ifstream::pos_type filesize(const string filename) {
+    std::ifstream in(filename, std::ifstream::ate | std::ifstream::binary);
+    return in.tellg();
+}
 
 Sketch::Sketch(string lp, string dp, int k, int w) {
     kmer_size = k;
     window_size = w;
     lr_path = lp;
 	dat_path = dp;
-	ref_minimizers_vec.reserve(50000);
-	build_sketch();
-	if (!ref_minimizers.empty()) {
-		dump();
-	}
+
+    gz_fin = gzopen(lr_path.c_str(), "rb");
+    if (!gz_fin) {
+        Logger::instance().info("Could not create file. Quitting.\n");
+        exit(1);
+    }
+
+    file_size = filesize(lr_path);
+    zbuffer = (char *) malloc(BUFFSIZE);
+
+	build_sketch_mt();
 }
 
 Sketch::Sketch(string dp) {
@@ -37,82 +55,123 @@ Sketch::Sketch(string dp) {
 	compute_freq_th();
 }
 
-void Sketch::dump() {
-	Logger::instance().info("Saving sketch and sequence names to: %s\n", dat_path.c_str());
+void Sketch::dump(vector<pair<uint64_t, Location> > &ref_minimizers_vec) {
+    //Write minimizers
     ofstream fout(dat_path + "/sketch.dat", ios::out | ios::binary);
-	if (!fout) {
-		Logger::instance().info("Could not create file. Quitting.\n");
-		return;
-	}
-
-	fout.write((char*)&total_entries, sizeof(uint64_t));
-
-    for (auto it = ref_minimizers.begin(); it != ref_minimizers.end(); it++) {
-        typename vector<Location>::size_type size = it->second.size();
-        fout.write((char*)&it->first, sizeof(uint64_t));
-        fout.write((char*)&size, sizeof(size));
-        fout.write((char*)&(it->second[0]), size * sizeof(Location));
+    if (!fout) {
+        Logger::instance().info("Could not create file. Quitting.\n");
+        exit(1);
     }
+
+    ProgressBar write_prog(80);
+    write_prog.update(0.0, "Writing Sketch ");
+
+    uint32_t hash_entries = 1;
+    uint64_t prv_hash, cnt = 0;
+    vector<pair<uint64_t, uint32_t> > hash_sizes;
+    uint64_t total_entries = ref_minimizers_vec.size();
+    fout.write((char*)&total_entries, sizeof(uint64_t));
+
+    int write_buf_size = 0;
+    Location* write_buf = (Location*)malloc(1000000 * sizeof(Location));
+
+    if (!ref_minimizers_vec.empty()) {
+        prv_hash = ref_minimizers_vec[0].first;
+        fout.write((char*)&(ref_minimizers_vec[0].second), sizeof(Location));
+
+        for (int i = 1; i < ref_minimizers_vec.size(); i++) {
+            if (ref_minimizers_vec[i].first == prv_hash)
+                hash_entries++;
+            else {
+                hash_sizes.push_back({prv_hash, hash_entries});
+                cnt += hash_entries;
+                prv_hash = ref_minimizers_vec[i].first;
+                hash_entries = 1;
+            }
+            if (write_buf_size == 1000000) {
+                fout.write((char*)write_buf, 1000000 * sizeof(Location));
+                write_buf_size = 0;
+                write_prog.update(((float)cnt/(float)total_entries) * 100, "Writing Sketch ");
+            }
+            write_buf[write_buf_size++] = ref_minimizers_vec[i].second;
+        }
+        if (write_buf_size > 0)
+            fout.write((char*)write_buf, write_buf_size * sizeof(Location));
+        cnt += hash_entries;
+        hash_sizes.push_back({prv_hash, hash_entries});
+
+        for (int i = 0; i < hash_sizes.size(); i++) {
+            fout.write((char*)&(hash_sizes[i].first), sizeof(uint64_t));
+            fout.write((char*)&(hash_sizes[i].second), sizeof(uint32_t));
+        }
+    }
+
+    write_prog.update(((float)cnt/(float)total_entries) * 100, "Writing Sketch ");
+
     fout.close();
 
+    //Write sequences
     ofstream seqout(dat_path + "/sequences.dat", ios::out | ios::binary);
-    for (auto it = sequences.begin(); it != sequences.end(); it++) {
-        uint8_t size = it->second.first.length();
-        seqout.write((char*)&it->first, sizeof(uint32_t));
+    for (uint32_t i = 0; i < names.size(); i++) {
+        uint8_t size = names[i].first.length();
+        seqout.write((char*)&i, sizeof(uint32_t));
         seqout.write((char*)&size, sizeof(uint8_t));
-        seqout.write(it->second.first.c_str(), size);
-        seqout.write((char*)&it->second.second, sizeof(uint16_t));
+        seqout.write(names[i].first.c_str(), size);
+        seqout.write((char*)&names[i].second, sizeof(uint16_t));
     }
     seqout.close();
 }
 
 void Sketch::load() {
-	string sketch_file = dat_path + "/sketch.dat";
-	Logger::instance().info("Loading sketch from: %s\n", sketch_file.c_str());
-    ifstream fin(sketch_file, ios::in | ios::binary);
+    ifstream fin(dat_path + "/sketch.dat", ios::in | ios::binary);
 	if (!fin) {
 		Logger::instance().info("Could not load file. Quitting.\n");
-		return;
+		exit(1);
 	}
 
 	uint64_t cnt = 0;
 	ProgressBar progress(80);
+	progress.update(0.0, "Loading Sketch");
 
+	uint64_t total_entries;
 	fin.read(reinterpret_cast<char*>(&total_entries), sizeof(uint64_t));
+    ref_minimizers.resize(total_entries);
+    fin.read(reinterpret_cast<char*>(&ref_minimizers[0]), total_entries * sizeof(Location));
 
-    uint64_t hash;
+    uint64_t hash, offset = 0;
+    uint32_t entries;
     while(fin.read(reinterpret_cast<char*>(&hash), sizeof(uint64_t))) {
-		progress.update(((float)cnt / (float)total_entries) * 100, "Loading");
-        typename vector<Location>::size_type size = 0;
-        fin.read(reinterpret_cast<char*>(&size), sizeof(size));
-        vector<Location> tmp;
-        tmp.resize(size);
-		cnt += tmp.size();
-        fin.read(reinterpret_cast<char*>(&tmp[0]), size * sizeof(Location));
-        ref_minimizers.insert({hash, tmp});
+        fin.read(reinterpret_cast<char*>(&entries), sizeof(uint32_t));
+		cnt += entries;
+        hashes.insert({hash, {offset, entries}});
+        offset += entries;
+		progress.update(((float)cnt / (float)total_entries) * 100, "Loading Sketch");
     }
     fin.close();
 
-	progress.update(((float)cnt / (float)total_entries) * 100, "Loading");
+//    for (auto it = hashes.begin(); it != hashes.end(); it++) {
+//        cout << it->first << ": ";
+//        for (int i = it->second.first; i < it->second.first + it->second.second; i++)
+//            cout << ref_minimizers[i].seq_id << "-" << ref_minimizers[i].offset << ", ";
+//        cout << endl;
+//    }
 
 	string seq_file = dat_path + "/sequences.dat";
 	Logger::instance().info("Loading sequence names from: %s\n", seq_file.c_str());
     ifstream seqin(seq_file, ios::in | ios::binary);
 	if (!seqin) {
 		Logger::instance().info("Could not load file. Quitting.\n");
-		return;
+		exit(1);
 	}
 
-    uint32_t id;
     string name;
     uint16_t len;
-    while(seqin.read(reinterpret_cast<char*>(&id), sizeof(uint32_t))) {
-        uint8_t size;
-        seqin.read(reinterpret_cast<char*>(&size), sizeof(uint8_t));
-        name.resize(size);
-        seqin.read((char*)(name.c_str()), size);
+    uint8_t name_size;
+    while(seqin.read(reinterpret_cast<char*>(&name_size), sizeof(uint8_t))) {
+        name.resize(name_size);
+        seqin.read((char*)(name.c_str()), name_size);
         seqin.read(reinterpret_cast<char*>(&len), sizeof(uint16_t));
-        sequences.insert({id, {name, len}});
+        names.push_back({name, len});
     }
     seqin.close();
 }
@@ -122,7 +181,7 @@ void Sketch::sketch_query(vector<string> reads, int k, int w) {
     rev_query_minimizers.clear();
 	kmer_size = k;
 	window_size = w;
-	build_sketch(reads);
+	build_sketch_query(reads);
 }
 
 void Sketch::sketch_query(string query, int k, int w) {
@@ -132,44 +191,134 @@ void Sketch::sketch_query(string query, int k, int w) {
     window_size = w;
     vector<string> queries;
     queries.push_back(query);
-    build_sketch(queries);
+    build_sketch_query(queries);
 }
 
-void Sketch::build_sketch() {
-    int id = 0;
-    ifstream fin;
-
-	Logger::instance().info("Building sketch from: %s\n", lr_path.c_str());
-    fin.open(lr_path);
-    if (!fin) {
-		Logger::instance().info("Could not open file. Quitting.\n");
-		return;
-	}
-
-	string tmp, name;
-    int size;
-    while (!fin.eof()) {
-        getline(fin, tmp);
-        if (tmp[0] == '>') {
-            name = tmp.substr(1, tmp.size() - 1);
-        } else {
-            size = tmp.size();
-            sequences.insert({id, {name, size}});
-            transform(tmp.begin(), tmp.end(), tmp.begin(), ::toupper);
-            get_ref_minimizers(&tmp[0], id, tmp.size());
-            id++;
-
-			if (id % 100000 == 0) {
-                update_ref_sketch();
-            }
-        }
+void Sketch::read_buffer() {
+    buff_size = gzread(gz_fin, zbuffer, BUFFSIZE);
+    size_read = gzoffset(gz_fin);
+    buff_pos = 0;
+    if (buff_size != 0)
+        sketch_progress.update(((float)size_read/(float)file_size) * 100, "Building Sketch");
+    if (size_read == file_size)
+        sort_progress.update(0.0, "Sorting Entries");
+    if (buff_size == 0 and gzeof(gz_fin) == 0) {
+        buff_size = -1;
     }
-    update_ref_sketch();
-	
-	Logger::instance().info("Sketched %d reads.\n", id);
+    if (buff_size < 0) {
+        int err;
+        fprintf(stderr, "gzread error: %s\n", gzerror(gz_fin, &err));
+        exit(1);
+    }
 }
 
-void Sketch::build_sketch(vector<string> reads) {
+inline uint32_t Sketch::read_line(string& seq) {
+    char cur;
+
+    uint32_t i = 0;
+    while (true) {
+        if (buff_pos >= buff_size) {
+            read_buffer();
+            if (buff_size == 0)
+                return 0;
+        }
+
+        cur = zbuffer[buff_pos++];
+        if (cur == '\n') {
+            return i;
+        }
+
+        seq += cur;
+        i++;
+    }
+}
+
+void Sketch::build_sketch(int tid, ProgressBar progress, vector<pair<uint64_t, Location> > &ref_minimizers_vec) {
+    string name, read;
+    name.reserve(100);
+    read.reserve(100000);
+    int curr_id;
+    uint16_t nm_sz;
+    int rd_sz;
+
+    vector<pair<uint64_t, Location> > new_vec;
+    new_vec.reserve(10000000);
+    while (true) {
+        // MUTEX
+        read_mutex.lock();
+        nm_sz = read_line(name);
+        if (!nm_sz) {
+            read_mutex.unlock();
+            break;
+        }
+        rd_sz = read_line(read);
+        curr_id = read_id;
+        read_id++;
+        read_mutex.unlock();
+        // MUTEX END
+
+        transform(read.begin(), read.end(), read.begin(), ::toupper);
+        get_ref_minimizers(&read[0], curr_id, read.size(), new_vec);
+
+        name_mutex.lock();
+        names.push_back({name.substr(1, nm_sz - 1), rd_sz});
+        name_mutex.unlock();
+
+        read.clear();
+        name.clear();
+    }
+
+    sort(new_vec.begin(), new_vec.end(), [](const auto &a, const auto &b) { return a.first < b.first;});
+
+    sort_mutex.lock();
+    sort_completed++;
+    sort_progress.update(((float)sort_completed/(float)thread_cnt) * 100, "Sorting Entries");
+    sort_mutex.unlock();
+
+    ref_minimizers_vec = new_vec;
+}
+
+void Sketch::build_sketch_mt() {
+	sketch_progress.update(0.0, "Building Sketch");
+
+    vector<pair<uint64_t, Location> > ref_minimizers_vec[thread_cnt];
+
+	thread myThreads[thread_cnt];
+    for (int i = 0; i < thread_cnt; i++){
+        myThreads[i] = thread(&Sketch::build_sketch, this, i, sketch_progress, std::ref(ref_minimizers_vec[i]));
+    }
+    for (int i = 0; i < thread_cnt; i++){
+        myThreads[i].join();
+    }
+
+    thread merge_threads[thread_cnt/2];
+    int mx_th = thread_cnt/2;
+    ProgressBar merge_prog(80);
+    merge_prog.update(0.0, "Merging Entries");
+    while (mx_th > 0) {
+        for (int i = 0; i < mx_th; i++) {
+            merge_threads[i] = thread(&Sketch::merge, this, ref(ref_minimizers_vec[i]), ref(ref_minimizers_vec[mx_th*2 - i - 1]));
+        }
+        for (int i = 0; i < mx_th; i++){
+            merge_threads[i].join();
+        }
+        merge_prog.update((1.0/(float)mx_th) * 100, "Merging Entries");
+        mx_th /= 2;
+    }
+
+    dump(ref_minimizers_vec[0]);
+}
+
+void Sketch::merge(vector<pair<uint64_t, Location> > &a, vector<pair<uint64_t, Location> > &b) {
+    int mid = a.size();
+    a.insert(a.end(), b.begin(), b.end());
+    b.clear();
+    b.resize(0);
+    inplace_merge(a.begin(), a.begin() + mid, a.end(),
+                  [](auto &a, auto &b) {return a.first < b.first;});
+}
+
+void Sketch::build_sketch_query(vector<string> reads) {
     for (int i = 0; i < reads.size(); i++) {
         transform(reads[i].begin(), reads[i].end(), reads[i].begin(), ::toupper);
         get_query_minimizers(&reads[i][0], i, reads[i].size());
@@ -185,7 +334,7 @@ void Sketch::build_sketch(vector<string> reads) {
     query_minimizers_vec.clear();
 }
 
-void Sketch::get_ref_minimizers(char* read, int id, int len) {
+void Sketch::get_ref_minimizers(char* read, int id, int len, vector<pair<uint64_t, Location> > &ref_minimizers_vec) {
     deque<pair<uint64_t, Location> > window;
 
     char tmp[16];
@@ -209,8 +358,9 @@ void Sketch::get_ref_minimizers(char* read, int id, int len) {
             window.pop_front();
 
         if (i >= win) {
-            if (ref_minimizers_vec.empty() || ref_minimizers_vec.back().first != window.front().first)
+            if (ref_minimizers_vec.empty() || ref_minimizers_vec.back().first != window.front().first) {
                 ref_minimizers_vec.push_back(window.front());
+            }
         }
     }
 }
@@ -241,32 +391,6 @@ void Sketch::get_query_minimizers(char* read, int id, int len) {
     }
 }
 
-void Sketch::update_ref_sketch() {
-	total_entries += ref_minimizers_vec.size();
-    sort(ref_minimizers_vec.begin(), ref_minimizers_vec.end(), [](const auto &a, const auto &b) { return a.first < b.first;});
-    auto idx = ref_minimizers.begin();
-    uint64_t last_hash = UINT64_MAX;
-    for (auto it = ref_minimizers_vec.begin(); it != ref_minimizers_vec.end(); it++) {
-        if (it->first == last_hash) {
-            idx->second.push_back(it->second);
-        }
-        else {
-            last_hash = it->first;
-            idx = ref_minimizers.find(it->first);
-            if (idx == ref_minimizers.end()) {
-                vector<Location> tmp;
-                tmp.reserve(128);
-                tmp.push_back(it->second);
-                idx = ref_minimizers.insert({it->first, tmp}).first;
-            }
-            else {
-                idx->second.push_back(it->second);
-            }
-        }
-    }
-	ref_minimizers_vec.clear();
-}
-
 void Sketch::update_query_sketch(int ort) {
     for (int i = 0; i < query_minimizers_vec.size(); i++) {
         if (ort == FRW)
@@ -278,14 +402,12 @@ void Sketch::update_query_sketch(int ort) {
 
 void Sketch::compute_freq_th() {
     vector<pair<uint64_t, int> > frequencies;
-    for (auto it = ref_minimizers.begin(); it != ref_minimizers.end(); it++) {
-        frequencies.push_back({it->first, it->second.size()});
+    for (auto it = hashes.begin(); it != hashes.end(); it++) {
+        int tmp_frq = it->second.second;
+        if (tmp_frq > freq_th) {
+            freq_th = tmp_frq;
+        }
     }
-    sort(frequencies.begin(), frequencies.end(), [](auto &a, auto &b) {
-        return a.second > b.second;
-    });
-    int top = ref_minimizers.size() * 0.001;
-    freq_th = frequencies[top].second;
 }
 
 int get_avg(vector<int> v) {
@@ -465,7 +587,7 @@ vector<pair<string, pair<pair<int, int>, pair<int, int> > > > Sketch::classify_r
             else if (it->first > curr_cut.peak2.first)
                 right_minimizers.insert(it->second);
         }
-        cuts.push_back({sequences[curr_read].first, {curr_cut.range, {BIMODAL, curr_cut.orientation}}});
+        cuts.push_back({names[curr_read].first, {curr_cut.range, {BIMODAL, curr_cut.orientation}}});
         i += 1;
     }
 
@@ -479,31 +601,31 @@ vector<pair<string, pair<pair<int, int>, pair<int, int> > > > Sketch::classify_r
             float right_similarity = minimizer_similarity(right_minimizers, hits[curr_read]);
 
             if (left_similarity > right_similarity)
-                cuts.push_back({sequences[curr_read].first, {curr_cut.range, {LEFT, curr_cut.orientation}}});
+                cuts.push_back({names[curr_read].first, {curr_cut.range, {LEFT, curr_cut.orientation}}});
             else if (right_similarity > left_similarity)
-                cuts.push_back({sequences[curr_read].first, {curr_cut.range, {RIGHT, curr_cut.orientation}}});
+                cuts.push_back({names[curr_read].first, {curr_cut.range, {RIGHT, curr_cut.orientation}}});
             else
-                cuts.push_back({sequences[curr_read].first, {curr_cut.range, {MISC, curr_cut.orientation}}});
+                cuts.push_back({names[curr_read].first, {curr_cut.range, {MISC, curr_cut.orientation}}});
         }
         //Case 2: No bimodal reads, must classify reads on the go -> first set of seen minimizers are assigned to left
         else if (left_minimizers.empty()) {
             for (int j = 0; j < hits[curr_read].size(); j++) {
                 left_minimizers.insert(hits[curr_read][j].second);
             }
-            cuts.push_back({sequences[curr_read].first, {curr_cut.range, {LEFT, curr_cut.orientation}}});
+            cuts.push_back({names[curr_read].first, {curr_cut.range, {LEFT, curr_cut.orientation}}});
         }
         //Case 3: all seen reads have been classified as left and right is still empty -> if this new read doesn't have
         //        enough similarity with the left set, assign it to right
         else if (right_minimizers.empty()) {
             float left_similarity = minimizer_similarity(left_minimizers, hits[curr_read]);
             if (left_similarity > 0.5) {
-                cuts.push_back({sequences[curr_read].first, {curr_cut.range, {LEFT, curr_cut.orientation}}});
+                cuts.push_back({names[curr_read].first, {curr_cut.range, {LEFT, curr_cut.orientation}}});
                 continue;
             }
             for (int j = 0; j < hits[curr_read].size(); j++) {
                 right_minimizers.insert(hits[curr_read][j].second);
             }
-            cuts.push_back({sequences[curr_read].first, {curr_cut.range, {RIGHT, curr_cut.orientation}}});
+            cuts.push_back({names[curr_read].first, {curr_cut.range, {RIGHT, curr_cut.orientation}}});
         }
     }
     return cuts;
@@ -517,41 +639,41 @@ vector<pair<string, pair<pair<int, int>, pair<int, int> > > > Sketch::find_cuts(
 
     //Find all forward hits
     for (auto it = query_minimizers.begin(); it != query_minimizers.end(); it++) {
-        auto idx = ref_minimizers.find(*it);
-        if (idx == ref_minimizers.end())
+        auto idx = hashes.find(*it);
+        if (idx == hashes.end())
             continue;
-        if (idx->second.size() >= freq_th)
+        if (idx->second.second >= freq_th)
             continue;
-        for (auto i = idx->second.begin(); i != idx->second.end(); i++) {
-            auto j = frw_hits.find(i->seq_id);
+        for (int i = idx->second.first; i < idx->second.first + idx->second.second; i++) {
+            auto j = frw_hits.find(ref_minimizers[i].seq_id);
             if (j == frw_hits.end()) {
                 vector<pair<int, uint64_t> > tmp;
                 tmp.reserve(32);
-                tmp.push_back({i->offset, *it});
-                frw_hits.insert({i->seq_id, tmp});
+                tmp.push_back({ref_minimizers[i].offset, *it});
+                frw_hits.insert({ref_minimizers[i].seq_id, tmp});
             }
             else {
-                j->second.push_back({i->offset, *it});
+                j->second.push_back({ref_minimizers[i].offset, *it});
             }
         }
     }
 
     for (auto it = rev_query_minimizers.begin(); it != rev_query_minimizers.end(); it++) {
-        auto idx = ref_minimizers.find(*it);
-        if (idx == ref_minimizers.end())
+        auto idx = hashes.find(*it);
+        if (idx == hashes.end())
             continue;
-        if (idx->second.size() >= freq_th)
+        if (idx->second.second >= freq_th)
             continue;
-        for (auto i = idx->second.begin(); i != idx->second.end(); i++) {
-            auto j = rev_hits.find(i->seq_id);
+        for (int i = idx->second.first; i < idx->second.first + idx->second.second; i++) {
+            auto j = rev_hits.find(ref_minimizers[i].seq_id);
             if (j == rev_hits.end()) {
                 vector<pair<int, uint64_t> > tmp;
                 tmp.reserve(32);
-                tmp.push_back({i->offset, *it});
-                rev_hits.insert({i->seq_id, tmp});
+                tmp.push_back({ref_minimizers[i].offset, *it});
+                rev_hits.insert({ref_minimizers[i].seq_id, tmp});
             }
             else {
-                j->second.push_back({i->offset, *it});
+                j->second.push_back({ref_minimizers[i].offset, *it});
             }
         }
     }
@@ -576,6 +698,7 @@ vector<pair<string, pair<pair<int, int>, pair<int, int> > > > Sketch::find_cuts(
     }
 	if (cuts_tmp_frw.size() > 200)
                 return cuts;
+
     MIN_HITS = 0.25 * rev_query_minimizers.size();
     vector<pair<int, cut> > cuts_tmp_rev;
     for (auto it = rev_hits.begin(); it != rev_hits.end(); it++) {
@@ -594,6 +717,7 @@ vector<pair<string, pair<pair<int, int>, pair<int, int> > > > Sketch::find_cuts(
     }
 	if (cuts_tmp_frw.size() + cuts_tmp_rev.size() > 200)
                 return cuts;
+
     if (cuts_tmp_frw.empty() && cuts_tmp_rev.empty())
         cuts =  vector<pair<string, pair<pair<int, int>, pair<int, int> > > >();
     else if (classify) {
@@ -609,7 +733,7 @@ vector<pair<string, pair<pair<int, int>, pair<int, int> > > > Sketch::find_cuts(
     else {
         for (int i = 0; i < cuts_tmp_frw.size(); i++) {
             pair<int, cut> curr = cuts_tmp_frw[i];
-            cuts.push_back({sequences[curr.first].first, {curr.second.range, {sequences[curr.first].second, curr.second.orientation}}});
+            cuts.push_back({names[curr.first].first, {curr.second.range, {names[curr.first].second, curr.second.orientation}}});
         }
     }
 

@@ -49,7 +49,7 @@ DEPS = $(OBJECTS:.o=.d) $(UTIL_OBJ:.o=.d) $(PROCESSING_OBJ:.o=.d)
 COMPILE_FLAGS = -std=c++14 #-Wall -Wextra #Removed because pamir gives way too many warnings 
 INCLUDES = -I $(SRC_PATH)/include/
 
-LFLAGS = $(LDFLAGS) -lm -lz -L$(SPOA_LIB) -lspoa -no-pie
+LFLAGS = $(LDFLAGS) -lm -lz -L$(SPOA_LIB) -lspoa -no-pie -lpthread
 #LFLAGS = -lm -lz -no-pie
 
 .PHONY: default_make
