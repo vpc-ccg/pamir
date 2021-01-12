@@ -25,6 +25,8 @@ string ProgressBar::make_bar(float progress) {
 
 void ProgressBar::update(float progress, string prefix) {
     string out = make_bar(progress);
+    if (progress == 0)
+        start_time = get_time();
     double elapsed_time = get_time() - start_time;
     int hh = (int)elapsed_time / 3600;
     int mm = (((int)elapsed_time) % 3600) / 60;
