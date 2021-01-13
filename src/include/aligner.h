@@ -56,7 +56,11 @@ public:
     int extract_calls(const int &, vector <tuple<string, int, int, string, int, float>> &,
                       vector <tuple<string, int, int, string, int, float>> &, const int &, const int &, string);
 
+    int extract_calls(const int &, vector <tuple<string, int, int, string, int, float>> &,
+    vector <tuple<string, int, int, string, int, float>> &, const int &, const int &, string, string &);
+
     void dump(string);//void dump(FILE *fo, string);
+    void dump(string, string&);
     int get_start();
 
     int get_end();

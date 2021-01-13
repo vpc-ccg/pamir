@@ -369,6 +369,126 @@ int aligner::extract_calls( const int &cluster_id, vector<tuple<string, int, int
 	return mapped;
 }
 /********************************************************************************/
+int aligner::extract_calls( const int &cluster_id, vector<tuple<string, int, int, string, int, float > > &reports_lq, vector<tuple<string, int, int, string, int, float > > &reports, const int &contig_support, const int &ref_start, string direction, string &output)
+{
+	ref_abs_start = ref_start + p_start;
+	dump(direction, output);
+
+	int mapped					= 0;
+	int insertion_start_loc 	= -1;
+	int insertion_end_loc		= -1;
+	double fwdIden 				= get_identity();
+	string insertion_content;
+	int fwdS, fwdE, fwdAS, fwdAE;
+	//if( fwdIden > 1.0 && ( left_anchor > 5 && right_anchor > 5 ) && ( left_anchor > 16 || right_anchor > 16 ) )
+	if( fwdIden > 1.0 && ( left_anchor > 50 || right_anchor > 50 )  )
+	{
+//		fwdS = p_start;
+		fwdS = ref_start + p_start;
+		fwdAS 					= 0;
+		fwdAE 					= a.length()-1;
+		int del_len				= 0;
+		int ins_len				= 0;
+		int deletion_start_loc 	= 0;
+		int deletion_end_loc 	= 0;
+		int isdeletion			= 0;
+		string deletion_content;
+		if( b.length() > 0 )
+		{
+			int p = 0;
+			while( p < b.length() )
+			{
+				del_len=0;
+				for( ; p < b.length(); p++ )
+				{
+					if( b[p] == '-' )
+					{
+						deletion_start_loc = p;
+
+                        del_len = 1;
+                        break;
+					}
+				}
+				for( ; p < b.length(); p++ )
+				{
+					if( b[p] != '-' )
+					{
+						deletion_end_loc = p;
+						break;
+					}
+					else
+						del_len++;
+				}
+				if( del_len >= 5 && deletion_start_loc != -1 && deletion_start_loc + 1 != insertion_end_loc )
+				{
+					isdeletion         = 1;
+					deletion_content   = a.substr(deletion_start_loc,deletion_end_loc-deletion_start_loc);
+					deletion_start_loc = deletion_start_loc+fwdS;
+//					if(deletion_content.length()>0)
+					if(deletion_content.length()>0 && fwdIden > 1.0 && ( left_anchor > 5 && right_anchor > 5 ) && ( left_anchor > 16 || right_anchor > 16 ) )
+					{
+						reports.push_back(tuple<string, int, int, string, int, float>("DEL", deletion_start_loc, deletion_content.length(), deletion_content, contig_support, fwdIden ) );
+					}
+				}
+			}
+		}
+		if( isdeletion == 0 and a.length() > 0 )
+		{
+			int p 						= 0;
+			int decreaseFromInsStartLoc = 0;
+			int prevLen					= 0;
+			while( p < a.length() )
+			{
+				ins_len = 0;
+				for( ; p < a.length(); p++ )
+				{
+					if( a[p] == '-' )
+					{
+						insertion_start_loc = p;
+
+
+                        ins_len = 1;
+                        break;
+					}
+				}
+				for( ; p < a.length(); p++ )
+				{
+					if( a[p] != '-' )
+					{
+						insertion_end_loc = p;
+						break;
+					}
+					else
+						ins_len++;
+				}
+				if( ins_len >= 5 && insertion_start_loc != -1 && insertion_start_loc + 1 != insertion_end_loc )
+				{
+					insertion_content   = b.substr(insertion_start_loc,insertion_end_loc-insertion_start_loc);
+					insertion_start_loc = insertion_start_loc+fwdS - 1;
+
+                    insertion_start_loc = insertion_start_loc-prevLen;
+					//if( insertion_content.length() > 0 )
+					if( insertion_content.length() > 0 && ( left_anchor > 5 && right_anchor > 5 ) && ( left_anchor > 16 || right_anchor > 16 ) )
+					{
+                        output += "(-) " + to_string(insertion_start_loc) + "\t" + to_string(insertion_content.length()) + "\t" +
+                                    insertion_content + "\t" + to_string(contig_support) + " (-)\n";
+						reports.push_back(tuple<string, int, int, string, int, float>("INS", insertion_start_loc, insertion_content.length(), insertion_content, contig_support, fwdIden ) );
+						mapped = 1;
+					}
+					else if (insertion_content.length()>0 && (left_anchor >= 16 || right_anchor >= 16))
+					{
+						reports_lq.push_back(tuple<string, int, int, string, int, float>("INS", insertion_start_loc, insertion_content.length(), insertion_content, contig_support, fwdIden ) );
+					}
+				}
+				prevLen += ins_len;
+				p++;
+			}
+		}
+	}
+	return mapped;
+}
+/********************************************************************************/
+
 void aligner::dump(string direction)
 {
 	string cnt = "";
@@ -382,6 +502,21 @@ void aligner::dump(string direction)
 			cnt+=' ';
 	}
     Logger::instance().info("\n%s I:%6.2f   %s\nG(%10d): %s\n               %s\nA(%10d): %s\n", direction.c_str(), get_identity(), cnt.c_str(), ref_abs_start,a.c_str(), c.c_str(), 1,b.c_str());
+}/********************************************************************************/
+void aligner::dump(string direction, string& output)
+{
+	string cnt = "";
+	for (int i=1; i<=a.length(); i++)
+	{
+		if (i%10==0)
+			cnt+='0';
+		else if(i%5==0)
+			cnt+='5';
+		else
+			cnt+=' ';
+	}
+    output += "\n" + direction + " I:" + to_string(get_identity()) + "   " + cnt + "\nG(" + to_string(ref_abs_start) + "): " + a + "\n               "
+            + c + "\nA(" + "1" + "): " + b + "\n";
 }
 /********************************************************************************/
 int aligner::get_start()
