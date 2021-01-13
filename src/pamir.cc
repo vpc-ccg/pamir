@@ -30,6 +30,7 @@
 #include "insertion_assembler.h"
 #include "progressbar.h"
 #include "spoa/spoa.hpp"
+#include "process_partition.h"
 
 
 using namespace std;
@@ -135,28 +136,6 @@ reset:
 	if ( num_read == 0)
 		goto reset;
 	return num_cluster;
-}
-/******************************************************************/
-void append_vcf(const string &chrName, const string &reference, const vector< tuple< string, int, int, string, int, float > > &reports, const int &clusterId, string &vcf_str, string &vcf_str_del )
-{
-	for(int r=0;r<reports.size();r++)
-	{
-    	if(get<0>(reports[r])== "INS")
-		{
-			vcf_str += 	chrName;	vcf_str += 	"\t";
-			vcf_str +=	std::to_string(get<1>(reports[r]));	vcf_str += "\t.\t";
-			vcf_str +=  reference.at(r);
-			vcf_str +=  "\t";
-            vcf_str += reference.at(r);
-            vcf_str += get<3>(reports[r]);
-            vcf_str +=  "\t";
-			vcf_str +=  std::to_string( get<5>(reports[r]));
-			vcf_str +=  "\tPASS\t";
-			vcf_str += "Cluster=";	vcf_str +=	std::to_string( clusterId ) ;
-			vcf_str += ";Support=";	vcf_str	+=	std::to_string( get<4>(reports[r])) ;
-			vcf_str += "\n";
-		}
-	}
 }
 /*******************************************************************/
 void print_header(const string &header_file, const string &reference)
@@ -496,12 +475,18 @@ void extract_reads(const string &partition_file, const string &longread, const s
 	}
 }
 /*********************************************************************************************/
-void consensus (const string &partition_file, const string &reference, const string lr_path, const string dat_path, const string &range, const string &name, int max_len, const string &prefix)
+void consensus (const string &partition_file, const string &reference, const string lr_path, const string dat_path,
+                const string &range, const string &name, int max_len, const string &prefix)
 {
-	const double MAX_AT_GC 		= 0.7;
+    ProcessPartition processor = ProcessPartition(4, lr_path, dat_path, partition_file, range, max_len, reference,
+                                                  prefix, name);
+    processor.process();
+}
+/*********************************************************************************************/
+void consensus_old (const string &partition_file, const string &reference, const string lr_path, const string dat_path, const string &range, const string &name, int max_len, const string &prefix)
+{
 	const int MAX_REF_LEN		= 300000000;
 	int LENFLAG					= 1000;//500;//1000;
-	char *line 					= new char[MAX_CHAR];
     string out_vcf = prefix + "/" + name + ".vcf";
 	FILE *fo_vcf 				= fopen(out_vcf.c_str(), "w");
     string out_vcf_del = prefix + "/" + name + "_DELS.vcf";
