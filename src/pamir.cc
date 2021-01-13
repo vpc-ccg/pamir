@@ -37,14 +37,14 @@ using namespace std;
 //TODO Implement repeaet master after genome file is converted to util
 /****************************************************************/
 // For outputing specific log
-void log_idx (const string &log_file ) 
+void log_idx (const string &log_file )
 {
 	FILE *fin = fopen(log_file.c_str(), "rb");
 	FILE *fidx = fopen((log_file + ".idx").c_str(), "wb");
 	char *readline = (char*)malloc(MAX_CHAR);
 	char *token = (char*)malloc(100);
 	size_t idx_pos = ftell(fin);
-	int l_id, offset;	
+	int l_id, offset;
 	int num_inserted = 0; // to resolve skipping partition issue
 
 	fwrite( &idx_pos, 1, sizeof(size_t), fidx); // initialize an log for partition id ZERO
@@ -64,7 +64,7 @@ void log_idx (const string &log_file )
 			fwrite( &idx_pos, 1, sizeof(size_t), fidx);
 			num_inserted++;
 		}
-		idx_pos = ftell(fin);	
+		idx_pos = ftell(fin);
 	}
 	fclose(fin);
 	fclose(fidx);
@@ -120,7 +120,7 @@ reset:
 	{	exit(1); fprintf(stderr, "Incorrect Start at %s", pref);
 	}
 	fprintf( fo, "%s", pref);
-	
+
 	fgets(pref, MAXB, fi);
 	while ( 0 != strncmp("-<=*=>-*-<", pref, 10) )
 	{
@@ -146,7 +146,7 @@ void print_header(const string &header_file, const string &reference)
 	// access genome information
 	genome toread(reference.c_str());
 	char *absref = new char[1000];
-	char *baseref = new char[1000]; 
+	char *baseref = new char[1000];
 	strcpy(absref,reference.c_str());
 	baseref = strtok(absref,"/");
 	char *prevref = new char[500];
@@ -169,7 +169,7 @@ void print_header(const string &header_file, const string &reference)
 					"##INFO=<ID=Cluster,Number=1,Type=Integer,Description=\"ID of the cluster the variant is extracted from\">\n"
 					"##INFO=<ID=Support,Number=1,Type=Integer,Description=\"Number of reads/contigs supporting the contig\">\n"
 					"##INFO=<ID=SEQ,Number=1,Type=String,Description=\"Variant sequence\">\n";
-	
+
 	string prevName="";
 	string name = toread.get_name();
 	int ssize = toread.get_size();
@@ -184,7 +184,7 @@ void print_header(const string &header_file, const string &reference)
 		ssize = toread.get_size();
 	}
 	header_info +=	"#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n";
-	
+
 	FILE *fo = fopen(header_file.c_str(),"w");
 	fprintf(fo, "%s", header_info.c_str() );
 	fclose(fo);
@@ -204,13 +204,13 @@ void assemble (const string &partition_file, const string &reference, const stri
     string out_vcf_lq = prefix  + "/" + name + "_LOW_QUAL.vcf";
     FILE *fo_vcf_del 			= fopen(out_vcf_del.c_str(), "w");
 	FILE *fo_vcf_lq 			= fopen(out_vcf_lq.c_str(), "w");
-	
+
 	assembler as(max_len, 15);
 	genome ref(reference.c_str());
 	map<string,string> chroms;
 	genome_partition pt(partition_file, range);
 	aligner al(max_len + 2010 );
-	
+
 	string tmp_ref; tmp_ref.reserve(4);
 	string tmp_ref_lq; tmp_ref_lq.reserve(4);
 	string vcf_info=""; vcf_info.reserve(10000000);
@@ -220,13 +220,13 @@ void assemble (const string &partition_file, const string &reference, const stri
 	int n_buffer         =   0;
 	int n_buffer2         =   0;
 
-	while (1) 
+	while (1)
 	{
 		auto p 			= pt.read_partition();
 		// end of the partition file
-		if ( !p.size() ) 
+		if ( !p.size() )
 			break;
-		
+
 		// cluster has too many or too few reads
 		if ( p.size() > 7000 || p.size() <= 2 ) {
             Logger::instance().info("-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");
@@ -249,13 +249,13 @@ void assemble (const string &partition_file, const string &reference, const stri
         Logger::instance().info(" + Discovery Range : %s:%d-%d\n", chrName.c_str(), ref_start, ref_end);
         Logger::instance().info(" + Reference       : %s\n\n", ref_part.c_str());
 		// if the genomic region is too big
-		if (ref_end - ref_start > MAX_REF_LEN) 
+		if (ref_end - ref_start > MAX_REF_LEN)
 			continue;
-		
+
 		// holding the calls info, can be used to detect the repeated calls, etc.
 		vector< tuple< string, int, int, string, int, float > > reports;//reports.clear();
 		vector< tuple< string, int, int, string, int, float > > reports_lq;//reports.clear();
-		
+
 		vector<string> reads;
 		for (int i =0;i<p.size();i++)
 		{
@@ -273,26 +273,26 @@ void assemble (const string &partition_file, const string &reference, const stri
                 Logger::instance().info("%s %s %d %d\n",
 					contig.read_information[z].name.c_str(),
 					contig.read_information[z].seq.c_str(),
-					contig.read_information[z].location, 
+					contig.read_information[z].location,
 					contig.read_information[z].location_in_contig);
 			al.align(ref_part, contig.data);
 			if(al.extract_calls(cluster_id, reports_lq, reports, contig_support, ref_start,">>>")==0)
-			{ 
-				string rc_contig = reverse_complement(contig.data);	
+			{
+				string rc_contig = reverse_complement(contig.data);
 				al.align(ref_part, rc_contig);
 				al.extract_calls(cluster_id, reports_lq, reports, contig_support, ref_start, "<<<");
 			}
 		}
 		//print_calls new version
-		tmp_ref.clear();//string tmp_ref = ""; 
+		tmp_ref.clear();//string tmp_ref = "";
 		for (int j =0; j <reports.size();j++)
 		{
 			int tmp_end = get<1>(reports[j]);
 			tmp_ref += ref.get_base_at(chrName, tmp_end);
 			//tmp_ref += ref.extract(chrName, tmp_end, tmp_end);
 		}
-		
-		tmp_ref_lq.clear();//string tmp_ref = ""; 
+
+		tmp_ref_lq.clear();//string tmp_ref = "";
 		for (int j =0; j <reports_lq.size();j++)
 		{
 			int tmp_end = get<1>(reports_lq[j]);
@@ -351,7 +351,7 @@ void find_reads (const string &partition_file, const string &dat_path, const str
     while (1)
     {
         auto p 			= pt.read_partition();
-		
+
         // end of the partition file
         if ( !p.size() )
             break;
@@ -379,9 +379,7 @@ void find_reads (const string &partition_file, const string &dat_path, const str
             reads.push_back(p[i].first.second);
         }
 
-        lr_sketch.sketch_query(reads);
-
-        cut_candidates = lr_sketch.find_cuts(true);
+        cut_candidates = lr_sketch.query(reads, true);
 
         if (cut_candidates.size() == 0) {
             Logger::instance().info("-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");
@@ -401,10 +399,10 @@ void extract_reads(const string &partition_file, const string &longread, const s
 {
 	p2_partition pt(partition_file, range);
 	cut_ranges ranges = cut_ranges(longread);
-	
+
 	while (1) {
 		auto p 			= pt.read_partition();
-	
+
 		if ( !p.first.size() )
 			break;
 
@@ -419,12 +417,12 @@ void extract_reads(const string &partition_file, const string &longread, const s
 	}
 
     ranges.extract();
-	
+
 	//TODO FIX NAME + get output name as argument
 	string p3 = "partition-p3-" + p3_name;
 	p2_partition pt_2(partition_file, range);
 	p3_partition pt_3(p3, true);
-	
+
 	while (1) {
 
 		auto p 			= pt_2.read_partition();
@@ -478,7 +476,7 @@ void extract_reads(const string &partition_file, const string &longread, const s
 void consensus (const string &partition_file, const string &reference, const string lr_path, const string dat_path,
                 const string &range, const string &name, int max_len, const string &prefix)
 {
-    ProcessPartition processor = ProcessPartition(4, lr_path, dat_path, partition_file, range, max_len, reference,
+    ProcessPartition processor = ProcessPartition(1, lr_path, dat_path, partition_file, range, max_len, reference,
                                                   prefix, name);
     processor.process();
 }

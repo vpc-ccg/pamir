@@ -87,8 +87,10 @@ map<string, pair<pair<int, int>, int> > check_end(map<string, pair<pair<int, int
     return mid;
 }
 
-map<string, pair<pair<int, int>, int> > InsertionAssembler::find_cuts(bool left) {
-    vector<pair<string, pair<pair<int, int>, pair<int, int> > > > cuts = lr_sketch.find_cuts(false);
+map<string, pair<pair<int, int>, int> > InsertionAssembler::find_cuts(string& segment, bool left) {
+    vector<string> dummy;
+    dummy.push_back(segment);
+    vector<pair<string, pair<pair<int, int>, pair<int, int> > > > cuts = lr_sketch.query(dummy, false);
     map<string, pair<pair<int, int>, int> > ans;
     for (auto it = cuts.begin(); it != cuts.end(); it++) {
         int start, end;
@@ -147,8 +149,7 @@ pair<string, int> InsertionAssembler::assemble(vector<string>& left_reads, vecto
             lanchor = left_seg.substr(left_seg.size() - cut_size, cut_size);
         else
             lanchor = left_seg;
-        lr_sketch.sketch_query(lanchor);
-		lcuts = find_cuts(true);
+		lcuts = find_cuts(lanchor, true);
 
         right_seg = build_segment(right_reads);
         rsegs.push_back(right_seg);
@@ -157,8 +158,7 @@ pair<string, int> InsertionAssembler::assemble(vector<string>& left_reads, vecto
             ranchor = right_seg.substr(0, cut_size);
         else
             ranchor = right_seg;
-        lr_sketch.sketch_query(ranchor);
-        rcuts = find_cuts(false);
+        rcuts = find_cuts(ranchor, false);
 
         mid = check_end(lcuts, rcuts);
         if (mid.size() != 0) {

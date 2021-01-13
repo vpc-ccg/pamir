@@ -46,10 +46,12 @@ Sketch::Sketch(string lp, string dp, int k, int w) {
     file_size = filesize(lr_path);
     zbuffer = (char *) malloc(BUFFSIZE);
 
-	build_sketch_mt();
+    build_sketch();
 }
 
-Sketch::Sketch(string dp) {
+Sketch::Sketch(string dp, int k, int w) {
+    kmer_size = k;
+    window_size = w;
 	dat_path = dp;
 	load();
 	compute_freq_th();
@@ -158,22 +160,14 @@ void Sketch::load() {
     seqin.close();
 }
 
-void Sketch::sketch_query(vector<string> reads, int k, int w) {
-    query_minimizers.clear();
-    rev_query_minimizers.clear();
-	kmer_size = k;
-	window_size = w;
-	build_sketch_query(reads);
-}
+vector<pair<string, pair<pair<int, int>, pair<int, int> > > > Sketch::query(vector<string> &reads, bool classify) {
+    unordered_set<uint64_t> frw_minimizers;
+    unordered_set<uint64_t> rev_minimizers;
+    vector<pair<uint64_t, int> > minimizers_vec;
 
-void Sketch::sketch_query(string query, int k, int w) {
-    query_minimizers.clear();
-    rev_query_minimizers.clear();
-    kmer_size = k;
-    window_size = w;
-    vector<string> queries;
-    queries.push_back(query);
-    build_sketch_query(queries);
+    build_query_sketch(reads, minimizers_vec, frw_minimizers, rev_minimizers);
+
+    return find_cuts(classify, frw_minimizers, rev_minimizers);
 }
 
 void Sketch::read_buffer() {
@@ -215,7 +209,7 @@ inline uint32_t Sketch::read_line(string& seq) {
     }
 }
 
-void Sketch::build_sketch(int tid, ProgressBar progress, vector<pair<uint64_t, Location> > &ref_minimizers_vec) {
+void Sketch::build_sketch_mt(int id, const ProgressBar progress, vector<pair<uint64_t, Location> > &ref_minimizers_vec) {
     string name, read;
     name.reserve(100);
     read.reserve(100000);
@@ -257,14 +251,14 @@ void Sketch::build_sketch(int tid, ProgressBar progress, vector<pair<uint64_t, L
     ref_minimizers_vec = new_vec;
 }
 
-void Sketch::build_sketch_mt() {
+void Sketch::build_sketch() {
 	sketch_progress.update(0.0, "Building Sketch");
 
     vector<pair<uint64_t, Location> > ref_minimizers_vec[thread_cnt];
 
 	thread myThreads[thread_cnt];
     for (int i = 0; i < thread_cnt; i++){
-        myThreads[i] = thread(&Sketch::build_sketch, this, i, sketch_progress, std::ref(ref_minimizers_vec[i]));
+        myThreads[i] = thread(&Sketch::build_sketch_mt, this, i, sketch_progress, std::ref(ref_minimizers_vec[i]));
     }
     for (int i = 0; i < thread_cnt; i++){
         myThreads[i].join();
@@ -297,20 +291,23 @@ void Sketch::merge(vector<pair<uint64_t, Location> > &a, vector<pair<uint64_t, L
                   [](auto &a, auto &b) {return a.first < b.first;});
 }
 
-void Sketch::build_sketch_query(vector<string> reads) {
+void Sketch::build_query_sketch(vector<string> &reads, vector<pair<uint64_t, int> > &minimizers_vec,
+                                unordered_set<uint64_t> &frw_minimizers, unordered_set<uint64_t> &rev_minimizers) {
     for (int i = 0; i < reads.size(); i++) {
         transform(reads[i].begin(), reads[i].end(), reads[i].begin(), ::toupper);
-        get_query_minimizers(&reads[i][0], i, reads[i].size());
+        get_query_minimizers(&reads[i][0], i, reads[i].size(), minimizers_vec);
     }
-    update_query_sketch(FRW);
-    query_minimizers_vec.clear();
+    for (int i = 0; i < minimizers_vec.size(); i++)
+        frw_minimizers.insert(minimizers_vec[i].first);
+    minimizers_vec.clear();
 
     for (int i = 0; i < reads.size(); i++) {
         string q = reverse_complement(reads[i]);
-        get_query_minimizers(&q[0], i, q.size());
+        get_query_minimizers(&q[0], i, q.size(), minimizers_vec);
     }
-    update_query_sketch(REV);
-    query_minimizers_vec.clear();
+    for (int i = 0; i < minimizers_vec.size(); i++)
+        rev_minimizers.insert(minimizers_vec[i].first);
+    minimizers_vec.clear();
 }
 
 void Sketch::get_ref_minimizers(char* read, int id, int len, vector<pair<uint64_t, Location> > &ref_minimizers_vec) {
@@ -344,7 +341,7 @@ void Sketch::get_ref_minimizers(char* read, int id, int len, vector<pair<uint64_
     }
 }
 
-void Sketch::get_query_minimizers(char* read, int id, int len) {
+void Sketch::get_query_minimizers(char* read, int id, int len, vector<pair<uint64_t, int> > &minimizers_vec) {
     deque<pair<uint64_t, int> > window;
 
     char tmp[16];
@@ -364,18 +361,9 @@ void Sketch::get_query_minimizers(char* read, int id, int len) {
             window.pop_front();
 
         if (i >= win) {
-            if (query_minimizers_vec.empty() || query_minimizers_vec.back().first != window.front().first)
-                query_minimizers_vec.push_back(window.front());
+            if (minimizers_vec.empty() || minimizers_vec.back().first != window.front().first)
+                minimizers_vec.push_back(window.front());
         }
-    }
-}
-
-void Sketch::update_query_sketch(int ort) {
-    for (int i = 0; i < query_minimizers_vec.size(); i++) {
-        if (ort == FRW)
-            query_minimizers.insert(query_minimizers_vec[i].first);
-        else
-            rev_query_minimizers.insert(query_minimizers_vec[i].first);
     }
 }
 
@@ -636,14 +624,15 @@ pair<uint64_t , uint64_t> Sketch::find_hit(const uint64_t &hv) {
         return {0, 0};
 };
 
-vector<pair<string, pair<pair<int, int>, pair<int, int> > > > Sketch::find_cuts(bool classify) {
+vector<pair<string, pair<pair<int, int>, pair<int, int> > > > Sketch::find_cuts(bool classify, unordered_set<uint64_t> frw_minimizers,
+unordered_set<uint64_t> rev_minimizers) {
     map<int, vector<pair<int, uint64_t> > > frw_hits;
     map<int, vector<pair<int, uint64_t> > > rev_hits;
 
     vector<pair<string, pair<pair<int, int>, pair<int, int> > > > cuts, cuts_frv, cuts_rev;
 
     //Find all forward hits
-    for (auto it = query_minimizers.begin(); it != query_minimizers.end(); it++) {
+    for (auto it = frw_minimizers.begin(); it != frw_minimizers.end(); it++) {
         auto idx = find_hit(*it);
         if (idx.second == 0)
             continue;
@@ -663,7 +652,7 @@ vector<pair<string, pair<pair<int, int>, pair<int, int> > > > Sketch::find_cuts(
         }
     }
 
-    for (auto it = rev_query_minimizers.begin(); it != rev_query_minimizers.end(); it++) {
+    for (auto it = rev_minimizers.begin(); it != rev_minimizers.end(); it++) {
         auto idx = find_hit(*it);
         if (idx.second == 0)
             continue;
@@ -684,7 +673,7 @@ vector<pair<string, pair<pair<int, int>, pair<int, int> > > > Sketch::find_cuts(
     }
 
     //Find cuts on each picked long read
-    int MIN_HITS = 0.25 * query_minimizers.size();;
+    int MIN_HITS = 0.25 * frw_minimizers.size();;
 
     vector<pair<int, cut> > cuts_tmp_frw;
     for (auto it = frw_hits.begin(); it != frw_hits.end(); it++) {
@@ -704,7 +693,7 @@ vector<pair<string, pair<pair<int, int>, pair<int, int> > > > Sketch::find_cuts(
 	if (cuts_tmp_frw.size() > 200)
                 return cuts;
 
-    MIN_HITS = 0.25 * rev_query_minimizers.size();
+    MIN_HITS = 0.25 * rev_minimizers.size();
     vector<pair<int, cut> > cuts_tmp_rev;
     for (auto it = rev_hits.begin(); it != rev_hits.end(); it++) {
         auto f = frw_hits.find(it->first);

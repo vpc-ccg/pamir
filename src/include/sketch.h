@@ -29,10 +29,10 @@ struct Location {
 };
 
 struct cut {
-    std::pair<int, int> range;
+    pair<int, int> range;
     int type;
-    std::pair<int, int> peak1;
-    std::pair<int, int> peak2;
+    pair<int, int> peak1;
+    pair<int, int> peak2;
     int number_of_minimizers;
     int orientation;
 };
@@ -50,52 +50,49 @@ struct hash_t {
 
 class Sketch {
 	private:
-		int kmer_size;
-		int window_size;
-        std::string lr_path;
-		std::string dat_path;
-		uint64_t file_size;
-		int read_id = 0;
-		static const int thread_cnt = 16;
-		gzFile gz_fin;
+        int kmer_size;
+        gzFile gz_fin;
         char *zbuffer;
+		int window_size;
+        int read_id = 0;
+        int freq_th = 0;
+        uint64_t file_size;
+        string lr_path;
+		string dat_path;
         int32_t buff_pos = 0;
         int32_t buff_size = 0;
+		static const int thread_cnt = 16;
 
-        int freq_th = 0;
-        std::vector<std::pair<uint64_t, int> > query_minimizers_vec;
-        void update_query_sketch(int ort);
-        void compute_freq_th();
-        void dump(std::vector<std::pair<uint64_t, Location> > &ref_minimizers_vec);
+        vector<hash_t> hashes;
+        vector<Location> ref_minimizers;
+        vector<pair<string, uint16_t> > names;
+
         void load();
+        void compute_freq_th();
+        void update_query_sketch(int ort);
+        void dump(vector<pair<uint64_t, Location> > &ref_minimizers_vec);
 
-        void merge(std::vector<std::pair<uint64_t, Location> > &a, std::vector<std::pair<uint64_t, Location> > &b);
         void read_buffer();
-        uint32_t read_line(std::string& seq);
-        std::pair<uint64_t, uint64_t> find_hit(const uint64_t &hv);
+        uint32_t read_line(string& seq);
+        pair<uint64_t, uint64_t> find_hit(const uint64_t &hv);
+        void merge(vector<pair<uint64_t, Location> > &a, vector<pair<uint64_t, Location> > &b);
 
 	public:
-        std::vector<std::pair<std::string, uint16_t> > names;
-        std::vector<hash_t> hashes;
-        std::vector<Location> ref_minimizers;
-		std::unordered_set<uint64_t> query_minimizers;
-        std::unordered_set<uint64_t> rev_query_minimizers;
-
         Sketch();
-		Sketch(std::string dat_path);
-        Sketch(std::string lr_path, std::string dat_path, int k = 15, int w = 10);
-		void build_sketch(int id, const ProgressBar progress, std::vector<std::pair<uint64_t, Location> > &ref_minimizers_vec);
-		void build_sketch_mt();
-		void build_sketch_query(std::vector<std::string>);
-        void sketch_query(std::vector<std::string> reads, int k = 15, int w = 10);
-        void sketch_query(std::string query, int k = 15, int w = 10);
-		void get_ref_minimizers(char* read, int read_id, int len, std::vector<std::pair<uint64_t, Location> > &ref_minimizers_vec);
-        void get_query_minimizers(char* read, int read_id, int len);
-        std::vector<std::pair<std::string, std::pair<std::pair<int, int>, std::pair<int, int> > > > find_cuts(bool classify);
-        std::vector<std::pair<std::string, std::pair<std::pair<int, int>, std::pair<int, int > > > > classify_reads
-                    (std::map<int, std::vector<std::pair<int, uint64_t> > > hits,std::vector<std::pair<int, cut> > cuts_tmp);
+		Sketch(string dat_path, int k = 15, int w = 10);
+        Sketch(string lr_path, string dat_path, int k = 15, int w = 10);
+        void build_sketch();
+		void build_sketch_mt(int, const ProgressBar, vector<pair<uint64_t, Location> > &);
+        void get_ref_minimizers(char*, int, int, vector<pair<uint64_t, Location> > &);
+
+        vector<pair<string, pair<pair<int, int>, pair<int, int> > > > query(vector<string>&, bool);
+        void build_query_sketch(vector<string>&, vector<pair<uint64_t, int> >&, unordered_set<uint64_t> &, unordered_set<uint64_t> &);
+        void get_query_minimizers(char*, int, int, vector<pair<uint64_t, int> > &);
+
+        vector<pair<string, pair<pair<int, int>, pair<int, int> > > > find_cuts(bool, unordered_set<uint64_t>, unordered_set<uint64_t>);
+        vector<pair<string, pair<pair<int, int>, pair<int, int > > > > classify_reads (map<int, vector<pair<int, uint64_t> > >, vector<pair<int, cut> >);
 };
 
-void fix_reverse(std::vector<std::pair<std::pair<std::string, std::string>, std::pair<std::pair<int, int>, std::pair<int, int> > > > &cuts);
+void fix_reverse(vector<pair<pair<string, string>, pair<pair<int, int>, pair<int, int> > > > &cuts);
 
 #endif
