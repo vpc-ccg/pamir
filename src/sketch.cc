@@ -68,7 +68,7 @@ void Sketch::dump(vector<pair<uint64_t, Location> > &ref_minimizers_vec) {
 
     uint32_t hash_entries = 1;
     uint64_t prv_hash, cnt = 0;
-    vector<pair<uint64_t, uint32_t> > hash_sizes;
+    vector<hash_t> hash_sizes;
     uint64_t total_entries = ref_minimizers_vec.size();
     fout.write((char*)&total_entries, sizeof(uint64_t));
 
@@ -83,7 +83,7 @@ void Sketch::dump(vector<pair<uint64_t, Location> > &ref_minimizers_vec) {
             if (ref_minimizers_vec[i].first == prv_hash)
                 hash_entries++;
             else {
-                hash_sizes.push_back({prv_hash, hash_entries});
+                hash_sizes.push_back(hash_t{prv_hash, cnt});
                 cnt += hash_entries;
                 prv_hash = ref_minimizers_vec[i].first;
                 hash_entries = 1;
@@ -98,12 +98,11 @@ void Sketch::dump(vector<pair<uint64_t, Location> > &ref_minimizers_vec) {
         if (write_buf_size > 0)
             fout.write((char*)write_buf, write_buf_size * sizeof(Location));
         cnt += hash_entries;
-        hash_sizes.push_back({prv_hash, hash_entries});
+        hash_sizes.push_back(hash_t{prv_hash, cnt});
 
-        for (int i = 0; i < hash_sizes.size(); i++) {
-            fout.write((char*)&(hash_sizes[i].first), sizeof(uint64_t));
-            fout.write((char*)&(hash_sizes[i].second), sizeof(uint32_t));
-        }
+        uint64_t total_hashes = hash_sizes.size();
+        fout.write((char*)&total_hashes, sizeof(uint64_t));
+        fout.write((char*)&hash_sizes[0], total_hashes * sizeof(hash_t));
     }
 
     write_prog.update(((float)cnt/(float)total_entries) * 100, "Writing Sketch ");
@@ -114,7 +113,7 @@ void Sketch::dump(vector<pair<uint64_t, Location> > &ref_minimizers_vec) {
     ofstream seqout(dat_path + "/sequences.dat", ios::out | ios::binary);
     for (uint32_t i = 0; i < names.size(); i++) {
         uint8_t size = names[i].first.length();
-        seqout.write((char*)&i, sizeof(uint32_t));
+//        seqout.write((char*)&i, sizeof(uint32_t));
         seqout.write((char*)&size, sizeof(uint8_t));
         seqout.write(names[i].first.c_str(), size);
         seqout.write((char*)&names[i].second, sizeof(uint16_t));
@@ -129,32 +128,15 @@ void Sketch::load() {
 		exit(1);
 	}
 
-	uint64_t cnt = 0;
-	ProgressBar progress(80);
-	progress.update(0.0, "Loading Sketch");
-
-	uint64_t total_entries;
+	uint64_t total_entries, total_hashes;
 	fin.read(reinterpret_cast<char*>(&total_entries), sizeof(uint64_t));
     ref_minimizers.resize(total_entries);
     fin.read(reinterpret_cast<char*>(&ref_minimizers[0]), total_entries * sizeof(Location));
+    fin.read(reinterpret_cast<char*>(&total_hashes), sizeof(uint64_t));
+    hashes.resize(total_hashes);
+    fin.read(reinterpret_cast<char*>(&hashes[0]), total_hashes * sizeof(hash_t));
 
-    uint64_t hash, offset = 0;
-    uint32_t entries;
-    while(fin.read(reinterpret_cast<char*>(&hash), sizeof(uint64_t))) {
-        fin.read(reinterpret_cast<char*>(&entries), sizeof(uint32_t));
-		cnt += entries;
-        hashes.insert({hash, {offset, entries}});
-        offset += entries;
-		progress.update(((float)cnt / (float)total_entries) * 100, "Loading Sketch");
-    }
     fin.close();
-
-//    for (auto it = hashes.begin(); it != hashes.end(); it++) {
-//        cout << it->first << ": ";
-//        for (int i = it->second.first; i < it->second.first + it->second.second; i++)
-//            cout << ref_minimizers[i].seq_id << "-" << ref_minimizers[i].offset << ", ";
-//        cout << endl;
-//    }
 
 	string seq_file = dat_path + "/sequences.dat";
 	Logger::instance().info("Loading sequence names from: %s\n", seq_file.c_str());
@@ -251,6 +233,7 @@ void Sketch::build_sketch(int tid, ProgressBar progress, vector<pair<uint64_t, L
             read_mutex.unlock();
             break;
         }
+        names.push_back({name.substr(1, nm_sz - 1), rd_sz});
         rd_sz = read_line(read);
         curr_id = read_id;
         read_id++;
@@ -259,10 +242,6 @@ void Sketch::build_sketch(int tid, ProgressBar progress, vector<pair<uint64_t, L
 
         transform(read.begin(), read.end(), read.begin(), ::toupper);
         get_ref_minimizers(&read[0], curr_id, read.size(), new_vec);
-
-        name_mutex.lock();
-        names.push_back({name.substr(1, nm_sz - 1), rd_sz});
-        name_mutex.unlock();
 
         read.clear();
         name.clear();
@@ -401,13 +380,19 @@ void Sketch::update_query_sketch(int ort) {
 }
 
 void Sketch::compute_freq_th() {
-    vector<pair<uint64_t, int> > frequencies;
-    for (auto it = hashes.begin(); it != hashes.end(); it++) {
-        int tmp_frq = it->second.second;
-        if (tmp_frq > freq_th) {
-            freq_th = tmp_frq;
-        }
+    vector<int> frequencies;
+    uint64_t prv_offset = 0;
+    for (auto it = hashes.begin() + 1; it != hashes.end(); it++) {
+        int tmp_frq = it->offset - prv_offset;
+        prv_offset = it->offset;
+        frequencies.push_back(tmp_frq);
     }
+    frequencies.push_back(ref_minimizers.size() - prv_offset);
+    sort(frequencies.begin(), frequencies.end(), [](auto &a, auto &b) {
+        return a > b;
+    });
+    int top = hashes.size() * 0.001;
+    freq_th = frequencies[top];
 }
 
 int get_avg(vector<int> v) {
@@ -631,6 +616,26 @@ vector<pair<string, pair<pair<int, int>, pair<int, int> > > > Sketch::classify_r
     return cuts;
 }
 
+pair<uint64_t , uint64_t> Sketch::find_hit(const uint64_t &hv) {
+    vector<hash_t>::iterator it = std::lower_bound(hashes.begin(), hashes.end(), hv, hash_t());
+    if (it == hashes.end()) {
+        return {0, 0};
+    }
+    else if (it->hash_value == hv) {
+        int offset = it->offset;
+        uint64_t size = 0;
+        if (it+1 != hashes.end()) {
+            size = (it+1)->offset - it->offset;
+        }
+        else {
+            size = ref_minimizers.size() - it->offset;
+        }
+        return {offset, size};
+    }
+    else
+        return {0, 0};
+};
+
 vector<pair<string, pair<pair<int, int>, pair<int, int> > > > Sketch::find_cuts(bool classify) {
     map<int, vector<pair<int, uint64_t> > > frw_hits;
     map<int, vector<pair<int, uint64_t> > > rev_hits;
@@ -639,12 +644,12 @@ vector<pair<string, pair<pair<int, int>, pair<int, int> > > > Sketch::find_cuts(
 
     //Find all forward hits
     for (auto it = query_minimizers.begin(); it != query_minimizers.end(); it++) {
-        auto idx = hashes.find(*it);
-        if (idx == hashes.end())
+        auto idx = find_hit(*it);
+        if (idx.second == 0)
             continue;
-        if (idx->second.second >= freq_th)
+        if (idx.second >= freq_th)
             continue;
-        for (int i = idx->second.first; i < idx->second.first + idx->second.second; i++) {
+        for (auto i = idx.first; i < idx.first + idx.second; i++) {
             auto j = frw_hits.find(ref_minimizers[i].seq_id);
             if (j == frw_hits.end()) {
                 vector<pair<int, uint64_t> > tmp;
@@ -659,12 +664,12 @@ vector<pair<string, pair<pair<int, int>, pair<int, int> > > > Sketch::find_cuts(
     }
 
     for (auto it = rev_query_minimizers.begin(); it != rev_query_minimizers.end(); it++) {
-        auto idx = hashes.find(*it);
-        if (idx == hashes.end())
+        auto idx = find_hit(*it);
+        if (idx.second == 0)
             continue;
-        if (idx->second.second >= freq_th)
+        if (idx.second >= freq_th)
             continue;
-        for (int i = idx->second.first; i < idx->second.first + idx->second.second; i++) {
+        for (int i = idx.first; i < idx.first + idx.second; i++) {
             auto j = rev_hits.find(ref_minimizers[i].seq_id);
             if (j == rev_hits.end()) {
                 vector<pair<int, uint64_t> > tmp;

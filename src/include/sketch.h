@@ -37,6 +37,17 @@ struct cut {
     int orientation;
 };
 
+struct hash_t {
+    uint64_t hash_value;
+    uint64_t offset;
+    bool operator() (const uint64_t& i, const hash_t &b) {
+        return (i < b.hash_value);
+    }
+    bool operator() (const hash_t &b, const uint64_t& i) {
+        return (b.hash_value < i);
+    }
+};
+
 class Sketch {
 	private:
 		int kmer_size;
@@ -61,10 +72,11 @@ class Sketch {
         void merge(std::vector<std::pair<uint64_t, Location> > &a, std::vector<std::pair<uint64_t, Location> > &b);
         void read_buffer();
         uint32_t read_line(std::string& seq);
+        std::pair<uint64_t, uint64_t> find_hit(const uint64_t &hv);
 
 	public:
         std::vector<std::pair<std::string, uint16_t> > names;
-		std::map<uint64_t, std::pair<uint64_t, uint32_t> > hashes;
+        std::vector<hash_t> hashes;
         std::vector<Location> ref_minimizers;
 		std::unordered_set<uint64_t> query_minimizers;
         std::unordered_set<uint64_t> rev_query_minimizers;
