@@ -11,7 +11,6 @@
 #include "aligner.h"
 #include "cut_ranges.h"
 #include "spoa/spoa.hpp"
-#include "insertion_assembler.h"
 
 using namespace std;
 
@@ -20,15 +19,19 @@ mutex pt_mutex, log_mutex, vcf_mutex;
 ProcessPartition::ProcessPartition(int maxThreads, const string &lrPath, const string &datPath,
                                    const string &partition_file, const string &range, int max_len,
                                    const string &reference_name, const string &prefix, const string &vcf_name) :
-                                   max_threads(maxThreads), lr_path(lrPath), dat_path(datPath), max_len(max_len),
-                                   reference_name(reference_name) {
+                                   max_threads(maxThreads), max_len(max_len), reference_name(reference_name) {
     partition = new p3_partition(partition_file, range);
-//    partition = p3_partition(partition_file, range);
     total = partition->get_total();
+
+    sketch = new Sketch(datPath);
+    extractor = new cut_ranges(lrPath, true);
+    ia = new InsertionAssembler(sketch, extractor);
+
     progress = new ProgressBar(80);
     char comment[20];
     sprintf(comment, "%10d / %-10d", 0, total);
     progress->update((0.0/(float)total) * 100, comment);
+
     string out_vcf = prefix + "/" + vcf_name + ".vcf";
     fo_vcf 				= fopen(out_vcf.c_str(), "w");
     string out_vcf_lq = prefix  + "/" + vcf_name + "_LOW_QUAL.vcf";
@@ -77,7 +80,6 @@ void ProcessPartition::thread_process(int tid) {
     auto alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kSW, 2, -32, -64, -1);
     genome reference(reference_name.c_str());
     aligner al(max_len + 2010);
-//    InsertionAssembler ia = InsertionAssembler(dat_path, lr_path);
 
     while (1) {
         cluster p = get_cluster();
@@ -222,9 +224,9 @@ void ProcessPartition::thread_process(int tid) {
                     right_reads = reads_1;
                 }
 
-//                pair<string, int> ans = ia.assemble(left_reads, right_reads);
+                pair<string, int> ans = ia->assemble(left_reads, right_reads);
 
-//                consensus.push_back(ans);
+                consensus.push_back(ans);
 
                 long_no++;
             }

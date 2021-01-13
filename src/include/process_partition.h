@@ -4,8 +4,10 @@
 #include <string>
 
 #include "sketch.h"
+#include "cut_ranges.h"
 #include "progressbar.h"
 #include "p3_partition.h"
+#include "insertion_assembler.h"
 
 struct cluster {
     string chrName;
@@ -20,17 +22,18 @@ class ProcessPartition {
         int total;
         int max_len;
         FILE *fo_vcf;
+        Sketch* sketch;
         FILE *fo_vcf_lq;
         int long_no = 0;
         int single_no = 0;
         int bimodal_no = 0;
         int LENFLAG	= 1000;
         int max_threads = 1;
-        std::string lr_path;
-        std::string dat_path;
         string reference_name;
         ProgressBar* progress;
         int processed_cnt = 0;
+        cut_ranges* extractor;
+        InsertionAssembler* ia;
         p3_partition* partition;
         int MAX_REF_LEN	= 300000000;
 
