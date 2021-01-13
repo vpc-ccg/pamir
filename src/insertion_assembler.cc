@@ -1,23 +1,24 @@
 #include "insertion_assembler.h"
 
+#include <mutex>
 #include <string>
-#include <cstring>
 #include <iterator>
 #include <algorithm>
 #include "common.h"
 
-#include <chrono>
-
 using namespace std;
 
-InsertionAssembler::InsertionAssembler(const string &dat_path, const string &lr_path) : lr_path(lr_path) {
-    alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kSW, 2, -32, -64, -1);
-    lr_sketch = Sketch(dat_path);
-    read_extractor = cut_ranges(lr_path, true);
+mutex extract_lock;
+
+InsertionAssembler::InsertionAssembler(Sketch* sketch, cut_ranges* read_extractor) {
+    lr_sketch = sketch;
+    extractor = read_extractor;
 }
 
 string InsertionAssembler::build_segment(vector<string> &cuts) {
+    spoa::Graph graph{};
     graph.Clear();
+    auto alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kSW, 2, -32, -64, -1);
     for (int i = 0; i < cuts.size(); i++) {
         auto alignment = alignment_engine->Align(cuts[i], graph);
         graph.AddAlignment(alignment, cuts[i]);
@@ -63,7 +64,9 @@ string InsertionAssembler::build_segment(vector<string> &cuts) {
 vector<string> InsertionAssembler::extract_reads(map<string, pair<pair<int, int>, int> > &cuts) {
     vector<string> ext;
     for (auto it = cuts.begin(); it != cuts.end(); it++) {
-        string r = read_extractor.get_cut(it->first, it->second.first.first, it->second.first.second);
+        extract_lock.lock();
+        string r = extractor->get_cut(it->first, it->second.first.first, it->second.first.second);
+        extract_lock.unlock();
         if (it->second.second == REV)
             ext.push_back(reverse_complement(r));
         else
@@ -90,7 +93,7 @@ map<string, pair<pair<int, int>, int> > check_end(map<string, pair<pair<int, int
 map<string, pair<pair<int, int>, int> > InsertionAssembler::find_cuts(string& segment, bool left) {
     vector<string> dummy;
     dummy.push_back(segment);
-    vector<pair<string, pair<pair<int, int>, pair<int, int> > > > cuts = lr_sketch.query(dummy, false);
+    vector<pair<string, pair<pair<int, int>, pair<int, int> > > > cuts = lr_sketch->query(dummy, false);
     map<string, pair<pair<int, int>, int> > ans;
     for (auto it = cuts.begin(); it != cuts.end(); it++) {
         int start, end;
@@ -109,6 +112,7 @@ map<string, pair<pair<int, int>, int> > InsertionAssembler::find_cuts(string& se
 }
 
 string InsertionAssembler::get_overlap(vector<string>& l, vector<string>& r, string& m) {
+    spoa::Graph graph{};
     auto alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kOV, 2, -32, -64, -1);
     graph.Clear();
     for (int i = 0; i < l.size(); i++) {
