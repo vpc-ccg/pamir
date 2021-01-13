@@ -510,7 +510,6 @@ void consensus (const string &partition_file, const string &reference, const str
 	FILE *fo_vcf_lq 			= fopen(out_vcf_lq.c_str(), "w");
 	
 	genome ref(reference.c_str());
-	map<string,string> chroms;
 	p3_partition pt(partition_file, range);
 	aligner al(max_len + 2010);
 	auto alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kSW, 2, -32, -64, -1);
