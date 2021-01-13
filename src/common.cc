@@ -68,3 +68,23 @@ int check_AT_GC(const string &contig, const double &MAX_AT_GC)
 		return 1;
 }
 /*******************************************************************/
+void append_vcf(const string &chrName, const string &reference,
+                const vector< tuple< string, int, int, string, int, float > > &reports, const int &clusterId,
+                string &vcf_str, string &vcf_str_del ) {
+    for (int r = 0; r < reports.size(); r++) {
+        if(get<0>(reports[r]) == "INS") {
+            vcf_str += 	chrName;	vcf_str += 	"\t";
+            vcf_str +=	std::to_string(get<1>(reports[r]));	vcf_str += "\t.\t";
+            vcf_str +=  reference.at(r);
+            vcf_str +=  "\t";
+            vcf_str += reference.at(r);
+            vcf_str += get<3>(reports[r]);
+            vcf_str +=  "\t";
+            vcf_str +=  std::to_string( get<5>(reports[r]));
+            vcf_str +=  "\tPASS\t";
+            vcf_str += "Cluster=";	vcf_str +=	std::to_string(clusterId) ;
+            vcf_str += ";Support=";	vcf_str	+=	std::to_string(get<4>(reports[r])) ;
+            vcf_str += "\n";
+        }
+    }
+}

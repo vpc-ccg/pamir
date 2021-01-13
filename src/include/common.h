@@ -8,6 +8,7 @@
 #include <cstdio>
 #include <vector>
 #include <sys/time.h>
+#include <tuple>
 #include "logger.h"
 
 #define KB  1024LL
@@ -29,6 +30,9 @@ string reverse_complement ( const string & );
 string reverse ( const string & );
 string S (const char* fmt, ...);
 int check_AT_GC(const string &, const double &);
+void append_vcf(const string &chrName, const string &reference,
+                const vector< tuple< string, int, int, string, int, float > > &reports, const int &clusterId,
+        string &vcf_str, string &vcf_str_del );
 /*************************************************/
 inline int max22(int a, int b)
 {
