@@ -14,7 +14,7 @@ private:
     int size;
     double start_time;
     string description;
-
+    float prv_val;
 
     struct timeval start;
     string make_bar(float);
