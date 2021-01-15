@@ -62,13 +62,15 @@ p2_partition::p2_partition (const string &partition_file_path, const string &ran
     if ( end > offsets.size() )
         end = offsets.size();
 
+    total = end - start + 1;
+
     partition_file = fopen(partition_file_path.c_str(), "rb");
     fseek(partition_file, offsets[start-1], SEEK_SET);
 }
 
 //CALL ON EACH CLUSTER
 void p2_partition::add_cuts(vector<pair<pair<string, string>, pair<int,int> > > short_reads,
-                            vector<pair<string, pair<pair<int, int>, pair<int, int> > > > cuts,
+                            vector<pair<int, pair<pair<int, int>, pair<int, int> > > > cuts,
                             int p_start, int p_end, string p_ref) {
     partition_count++;
     size_t pos = ftell(partition_out_file);
@@ -79,7 +81,7 @@ void p2_partition::add_cuts(vector<pair<pair<string, string>, pair<int,int> > > 
                 i.second.second);
     }
     for (auto &i: cuts) {
-        fprintf(partition_out_file, "%s %d %d %d %d\n", i.first.c_str(), i.second.first.first, i.second.first.second, i.second.second.first, i.second.second.second);
+        fprintf(partition_out_file, "%d %d %d %d %d\n", i.first, i.second.first.first, i.second.first.second, i.second.second.first, i.second.second.second);
     }
     partition_id++;
 }
@@ -123,15 +125,18 @@ int p2_partition::get_old_id () {
     return 0;
 }
 
-//read next partition
-pair<vector<pair<pair<string, string>, pair<int,int> > >, vector<pair<string, pair<pair<int, int>, pair<int, int> > > > >
-        p2_partition::read_partition() {
+int p2_partition::get_total() {
+    return total;
+}
 
-    int sr_sz, cut_sz, i;
+//read next partition
+pair<vector<pair<pair<string, string>, pair<int,int> > >, vector<pair<int, pair<pair<int, int>, pair<int, int> > > > >
+        p2_partition::read_partition() {
+    int sr_sz, cut_sz, i, id;
     char pref[MAXB];
     char name[MAXB], read[MAXB];
     if (start > end)
-        return pair<vector<pair<pair<string, string>, pair<int,int> > >, vector<pair<string, pair<pair<int, int>, pair<int, int> > > > > ();
+        return pair<vector<pair<pair<string, string>, pair<int,int> > >, vector<pair<int, pair<pair<int, int>, pair<int, int> > > > > ();
 
     partition_count++;
     start++;
@@ -152,8 +157,8 @@ pair<vector<pair<pair<string, string>, pair<int,int> > >, vector<pair<string, pa
     for (i = 0; i < cut_sz; i++) {
         fgets(pref, MAXB, partition_file);
         int start_pos, end_pos, type, orientation;
-        sscanf(pref, "%s %d %d %d %d", name, &start_pos, &end_pos, &type, &orientation);
-        cut_candidates.push_back({string(name), {{start_pos, end_pos}, {type, orientation}}});
+        sscanf(pref, "%d %d %d %d %d", &id, &start_pos, &end_pos, &type, &orientation);
+        cut_candidates.push_back({id, {{start_pos, end_pos}, {type, orientation}}});
     }
 
     return {short_reads, cut_candidates};
