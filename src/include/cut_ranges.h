@@ -4,19 +4,28 @@
 #include <map>
 #include <vector>
 
+typedef std::pair<int, std::pair<int, std::string> > read_cut;
+
 class cut_ranges {
 	private:
         std::string lr_path;
 		std::map<std::string, std::uint64_t> read_offsets;
 		std::map<std::string, std::pair<int, int> > lr_ranges;
+		std::vector<std::string> names;
+        std::vector<std::pair<int, std::pair<int, int> > > ranges;
 
 	public:
 		cut_ranges();
-		cut_ranges(const std::string &lrPath, bool build_index = false);
+        cut_ranges(const std::string &, bool build_index = false);
+		cut_ranges(const std::string &, const std::string &, const std::string &, bool build_index = false);
         std::map<std::string, std::pair<int, std::string> > reads;
-		void add_range(std::string lr, int start, int end);
+        std::vector<read_cut> reads_new;
+		void add_range(int id, int start, int end);
 		void extract();
-		std::string get_cut(std::string lr_name, int start, int end);
+        void extract_new();
+		std::string get_cut(int id, int start, int end);
+		std::pair<std::string, std::string> get_cut_new(int id, int start, int end);
+        read_cut find_read(int id);
 };
 
 std::pair<std::string, std::pair<int, int>> cut_consensus_bimodal(std::vector<std::string> alignments,

@@ -1,16 +1,69 @@
+#include "cut_ranges.h"
+
 #include <cstring>
 #include <fstream>
 #include <sstream>
 #include <iostream>
 #include <iterator>
 #include <algorithm>
-#include "cut_ranges.h"
+
+#include "logger.h"
 
 using namespace std;
 
 //TODO merge finding cuts
 
 cut_ranges::cut_ranges() {}
+
+cut_ranges::cut_ranges(const string &lrPath, const string &dat_path, const string &ranges_path, bool build_index) : lr_path(lrPath) {
+    string seq_file = dat_path + "/sequences.dat";
+    Logger::instance().info("Loading sequence names from: %s\n", seq_file.c_str());
+    ifstream seqin(seq_file, ios::in | ios::binary);
+    if (!seqin) {
+        Logger::instance().info("Could not load file. Quitting.\n");
+        exit(1);
+    }
+
+    string name;
+    uint16_t len;
+    uint8_t name_size;
+    while(seqin.read(reinterpret_cast<char*>(&name_size), sizeof(uint8_t))) {
+        name.resize(name_size);
+        seqin.read((char*)(name.c_str()), name_size);
+        seqin.read(reinterpret_cast<char*>(&len), sizeof(uint16_t));
+        names.push_back(name);
+    }
+    seqin.close();
+
+    Logger::instance().info("Loading ranges from: %s\n", ranges_path.c_str());
+    ifstream ranges_file(ranges_path, ios::in | ios::binary);
+    if (!ranges_file) {
+        Logger::instance().info("Could not load file. Quitting.\n");
+        exit(1);
+    }
+
+    uint32_t size;
+    ranges_file.read(reinterpret_cast<char*>(&size), sizeof(uint32_t));
+    ranges.resize(size);
+    ranges_file.read(reinterpret_cast<char*>(&ranges[0]), size * sizeof(pair<uint32_t, pair<int, int> >));
+    ranges_file.close();
+
+    if (build_index) {
+        string lr_name;
+        ifstream fin;
+        fin.open(lr_path);
+        string line;
+
+        while (!fin.eof()) {
+            getline(fin, line);
+            if (line[0] == '>') {
+                lr_name = line.substr(1, line.size() - 1);
+                read_offsets.insert({lr_name, fin.tellg()});
+                getline(fin, line);
+            }
+        }
+    }
+}
 
 cut_ranges::cut_ranges(const string &lrPath, bool build_index) : lr_path(lrPath) {
     if (build_index) {
@@ -30,16 +83,16 @@ cut_ranges::cut_ranges(const string &lrPath, bool build_index) : lr_path(lrPath)
     }
 }
 
-void cut_ranges::add_range(string lr, int start, int end) {
-	auto curr_lr = lr_ranges.find(lr);
-	if (curr_lr == lr_ranges.end())
-		lr_ranges.insert(pair<string, pair<int, int>>(lr, pair<int, int>(start, end)));
-	else {
-		if (start < curr_lr->second.first)
-			curr_lr->second.first = start;
-		if (end > curr_lr->second.second)
-			curr_lr->second.second = end;
-	}
+void cut_ranges::add_range(int id, int start, int end) {
+//	auto curr_lr = lr_ranges.find(lr);
+//	if (curr_lr == lr_ranges.end())
+//		lr_ranges.insert(pair<string, pair<int, int>>(lr, pair<int, int>(start, end)));
+//	else {
+//		if (start < curr_lr->second.first)
+//			curr_lr->second.first = start;
+//		if (end > curr_lr->second.second)
+//			curr_lr->second.second = end;
+//	}
 }
 
 void cut_ranges::extract() {
@@ -63,32 +116,74 @@ void cut_ranges::extract() {
 					end = line.size();
 				string read = line.substr(i->second.first - 1, end - i->second.first);
 				reads.insert(pair<string, pair<int, string> >(lr_name, pair<int, string> (i->second.first, read)));
+//                reads_new.push_back({lr_name, {i->second.first, read}});
 			}
 		}
 	}
 }
 
-string cut_ranges::get_cut(string lr_name, int start, int end) {
-    string cut;
-    if (read_offsets.empty()) {
-        int length = end - start;
-        auto i = reads.find(lr_name);
-        if (length > i->second.second.size())
-            length = i->second.second.size();
-        cut = i->second.second.substr(start - i->second.first, end - start);
-    }
-	else {
-        ifstream fin;
-        fin.open(lr_path);
-        fin.seekg(read_offsets[lr_name]);
-        string line;
+void cut_ranges::extract_new() {
+    ifstream fin;
+    fin.open(lr_path);
+    string line;
+
+    int curr_read = 0;
+    vector<pair<int, pair<int, int> > >::iterator search_read = ranges.begin();
+
+    while (!fin.eof() && search_read != ranges.end()) {
         getline(fin, line);
-		int s = start;
-		if (s == 1)
-			s = 0;
-        cut = line.substr(s, end - s);
-	}
-	return cut;
+        getline(fin, line);
+        if (curr_read == (*search_read).first) {
+            string read = line.substr((*search_read).second.first - 1, (*search_read).second.second);
+            reads_new.push_back({curr_read, {(*search_read).second.first, read}});
+            search_read++;
+        }
+        curr_read++;
+    }
+}
+
+//string cut_ranges::find_read(string &name) {
+//    vector<pair<string, pair<int, string> >>::iterator it = std::lower_bound(reads_new.begin(), reads_new.end(), hv, hash_t());
+//    if (it == hashes.end()) {
+//        return {0, 0};
+//    }
+//    else if (it->hash_value == hv) {
+//        int offset = it->offset;
+//        uint64_t size = 0;
+//        if (it+1 != hashes.end()) {
+//            size = (it+1)->offset - it->offset;
+//        }
+//        else {
+//            size = ref_minimizers.size() - it->offset;
+//        }
+//        return {offset, size};
+//    }
+//    else
+//        return {0, 0};
+//};
+
+read_cut cut_ranges::find_read(int id) {
+    read_cut dummy;
+    dummy.first = id;
+    vector<read_cut>::iterator it = std::lower_bound(reads_new.begin(), reads_new.end(), dummy);
+    return (*it);
+}
+
+pair<string, string> cut_ranges::get_cut_new(int lr_id, int start, int end) {
+    string cut;
+    read_cut read = find_read(lr_id);
+    cut = read.second.second.substr(start - read.second.first, end - start);
+	return {names[lr_id], cut};
+}
+
+string cut_ranges::get_cut(int lr_id, int start, int end) {
+//    string cut;
+//    int length = end - start;
+//    auto i = reads.find(lr_name);
+//    if (length > i->second.second.size())
+//        length = i->second.second.size();
+//    cut = i->second.second.substr(start - i->second.first, end - start);
+//    return cut;
 }
 
 //TODO ERROR HANDLING, OPTIMIZE
