@@ -74,7 +74,6 @@ void ProcessPartition::thread_process(int tid) {
     int n_buffer         =   0;
     int n_buffer2         =   0;
     int log_buffer = 0;
-    char tmp[2000];
 
     spoa::Graph graph{};
     auto alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kSW, 2, -32, -64, -1);
@@ -163,6 +162,7 @@ void ProcessPartition::thread_process(int tid) {
         else {
             //SINGLE PEAK
             if (p.reads.second.right_cuts.size() < 2) {
+
                 logger_out += " + Type              : single peak\n\n";
 
                 graph.Clear();
@@ -224,9 +224,9 @@ void ProcessPartition::thread_process(int tid) {
                     right_reads = reads_1;
                 }
 
-                pair<string, int> ans = ia->assemble(left_reads, right_reads);
+//                pair<string, int> ans = ia->assemble(left_reads, right_reads);
 
-                consensus.push_back(ans);
+//                consensus.push_back(ans);
 
                 long_no++;
             }
@@ -237,6 +237,11 @@ void ProcessPartition::thread_process(int tid) {
 
             logger_out += "\n\n>>>>> Length: " + to_string(consensus[i].first.size()) +
                     " Support: " + to_string(contig_support) + " Contig: " + consensus[i].first + "\n";
+
+            if (consensus[i].first.size() > 30000) {
+                logger_out += "\nContig too long, skipping.\n";
+                continue;
+            }
 
             //Align consensus
             al.align(ref_part, consensus[i].first);
