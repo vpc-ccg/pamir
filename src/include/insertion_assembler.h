@@ -14,8 +14,8 @@ class InsertionAssembler {
         cut_ranges* extractor;
 
         std::string build_segment(std::vector<std::string>& cuts);
-        std::vector<std::string> extract_reads(std::map<std::string, std::pair<std::pair<int, int>, int > >& cuts);
-        std::map<std::string, std::pair<std::pair<int, int>, int> > find_cuts(string&, bool left);
+        std::vector<std::string> extract_reads(std::map<int, std::pair<std::pair<int, int>, int > >& cuts);
+        std::map<int, std::pair<std::pair<int, int>, int> > find_cuts(string&, bool left);
         std::string get_overlap(std::vector<std::string>& l, std::vector<std::string>& r, std::string& m);
     public:
         InsertionAssembler(Sketch* sketch, cut_ranges* read_extractor);

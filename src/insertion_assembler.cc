@@ -61,7 +61,7 @@ string InsertionAssembler::build_segment(vector<string> &cuts) {
     return cut;
 }
 
-vector<string> InsertionAssembler::extract_reads(map<string, pair<pair<int, int>, int> > &cuts) {
+vector<string> InsertionAssembler::extract_reads(map<int, pair<pair<int, int>, int> > &cuts) {
     vector<string> ext;
     for (auto it = cuts.begin(); it != cuts.end(); it++) {
         extract_lock.lock();
@@ -76,8 +76,8 @@ vector<string> InsertionAssembler::extract_reads(map<string, pair<pair<int, int>
     return ext;
 }
 
-map<string, pair<pair<int, int>, int> > check_end(map<string, pair<pair<int, int>, int> > &l, map<string, pair<pair<int, int>, int> > &r) {
-    map<string, pair<pair<int, int>, int> > mid;
+map<int, pair<pair<int, int>, int> > check_end(map<int, pair<pair<int, int>, int> > &l, map<int, pair<pair<int, int>, int> > &r) {
+    map<int, pair<pair<int, int>, int> > mid;
     for (auto it = l.begin(); it != l.end(); it++) {
         auto f = r.find(it->first);
         if (f != r.end() && it->second.second == f->second.second) {
@@ -90,11 +90,11 @@ map<string, pair<pair<int, int>, int> > check_end(map<string, pair<pair<int, int
     return mid;
 }
 
-map<string, pair<pair<int, int>, int> > InsertionAssembler::find_cuts(string& segment, bool left) {
+map<int, pair<pair<int, int>, int> > InsertionAssembler::find_cuts(string& segment, bool left) {
     vector<string> dummy;
     dummy.push_back(segment);
-    vector<pair<string, pair<pair<int, int>, pair<int, int> > > > cuts = lr_sketch->query(dummy, false);
-    map<string, pair<pair<int, int>, int> > ans;
+    vector<pair<int, pair<pair<int, int>, pair<int, int> > > > cuts = lr_sketch->query(dummy, false);
+    map<int, pair<pair<int, int>, int> > ans;
     for (auto it = cuts.begin(); it != cuts.end(); it++) {
         int start, end;
         if (it->second.second.second == FRW) {
@@ -138,7 +138,7 @@ pair<string, int> InsertionAssembler::assemble(vector<string>& left_reads, vecto
 
     string left_seg, right_seg, lanchor, ranchor;
     vector<string> lsegs, rsegs;
-    map<string, pair<pair<int, int>, int> > lcuts, rcuts, mid;
+    map<int, pair<pair<int, int>, int> > lcuts, rcuts, mid;
     unordered_set<uint64_t> l_minimizers_frw, l_minimizers_rev, r_minimizers_frw, r_minimizers_rev;
     int cut_size, support = left_reads.size() + right_reads.size();
     int step = 1;
