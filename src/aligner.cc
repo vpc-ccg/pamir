@@ -96,6 +96,22 @@ void aligner::clear(int a, int b)
 			gapb[j][i]=0;
 	}
 }
+/**************************************************/
+void aligner::empty()
+{
+	identity = 0;
+    score[0][0] = gapa[0][0] = gapb[0][0] = 0;
+    for (int i=1; i<= MAX_SIDE; i++)
+    {
+        score[i][0] = 0;
+        gapa[0][i] = gapa[i][0] = GAP_OPENING_SCORE + (i-1)*GAP_EXTENSION_SCORE;
+        gapb[0][i] = gapb[i][0] = GAP_OPENING_SCORE + (i-1)*GAP_EXTENSION_SCORE;
+
+    }
+    for (int i=1; i<=MAX_SIDE; i++)
+        score[0][i] = GAP_OPENING_SCORE + (i-1)*GAP_EXTENSION_SCORE;
+
+}
 /*************************************************/
 void aligner::align(const string &ref, const string &ass)
 {
@@ -515,8 +531,12 @@ void aligner::dump(string direction, string& output)
 		else
 			cnt+=' ';
 	}
-    output += "\n" + direction + " I:" + to_string(get_identity()) + "   " + cnt + "\nG(" + to_string(ref_abs_start) + "): " + a + "\n               "
-            + c + "\nA(" + "1" + "): " + b + "\n";
+	char identity[20], gl[20], al[20];
+	sprintf(identity, "%6.2f", get_identity());
+    sprintf(gl, "%10d", ref_abs_start);
+    sprintf(al, "%10d", 1);
+    output += "\n" + direction + " I:" + identity + "   " + cnt + "\nG(" + gl + "): " + a + "\n               "
+            + c + "\nA(" + al + "): " + b + "\n";
 }
 /********************************************************************************/
 int aligner::get_start()

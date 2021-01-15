@@ -42,9 +42,8 @@ private:
     int right_anchor;
     int ref_abs_start;
 private:
-    void clear(int, int);
-
     void print_matrix(string, const string &, const string &, int **);
+    void clear(int, int);
 
 public:
     aligner(int reflen = 10000);
@@ -74,6 +73,8 @@ public:
     string get_a();
 
     string get_b();
+
+    void empty();
 };
 
 #endif
