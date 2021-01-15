@@ -31,6 +31,8 @@ private:
     int end;
     FILE* partition_file;
 
+    int total;
+
 
 
 
@@ -79,6 +81,7 @@ public:
 	string get_reference (void);
 	void output_partitions();
 	int get_id ();
+	int get_total();
 };
 
 

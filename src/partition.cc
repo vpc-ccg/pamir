@@ -60,6 +60,8 @@ genome_partition::genome_partition (const string &partition_file_path, const str
     if ( end > offsets.size() )
         end = offsets.size();
 
+    total = end - start + 1;
+
     partition_file = fopen(partition_file_path.c_str(), "rb");
     fseek(partition_file, offsets[start-1], SEEK_SET);
 }
@@ -251,6 +253,10 @@ int genome_partition::get_end ()
 string genome_partition::get_reference ()
 {
 	return p_ref;
+}
+
+int genome_partition::get_total() {
+    return total;
 }
 
 void genome_partition::get_next () {
