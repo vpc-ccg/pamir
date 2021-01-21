@@ -61,13 +61,15 @@ string InsertionAssembler::build_segment(vector<string> &cuts) {
     return cut;
 }
 
-vector<string> InsertionAssembler::extract_reads(map<int, pair<pair<int, int>, int> > &cuts) {
+vector<string> InsertionAssembler::extract_reads(map<id_t, cut> &cuts) {
     vector<string> ext;
     for (auto it = cuts.begin(); it != cuts.end(); it++) {
         extract_lock.lock();
-        string r = extractor->get_cut(it->first, it->second.first.first, it->second.first.second);
+        cerr << "------" << endl;
+        cerr << it->first << " | " << it->second.range.start << " - " << it->second.range.end << endl;
+        string r = extractor->get_cut(lr_sketch->sequences[it->first].first, it->second.range.start, it->second.range.end);
         extract_lock.unlock();
-        if (it->second.second == REV)
+        if (it->second.orientation == REV)
             ext.push_back(reverse_complement(r));
         else
             ext.push_back(r);
@@ -76,36 +78,51 @@ vector<string> InsertionAssembler::extract_reads(map<int, pair<pair<int, int>, i
     return ext;
 }
 
-map<int, pair<pair<int, int>, int> > check_end(map<int, pair<pair<int, int>, int> > &l, map<int, pair<pair<int, int>, int> > &r) {
-    map<int, pair<pair<int, int>, int> > mid;
+map<id_t, cut> check_end(map<id_t, cut> &l, map<id_t, cut> &r) {
+    map<id_t, cut> mid;
     for (auto it = l.begin(); it != l.end(); it++) {
         auto f = r.find(it->first);
-        if (f != r.end() && it->second.second == f->second.second) {
-            if (it->second.second == FRW)
-                mid.insert({it->first, {{f->second.first.first, it->second.first.second}, it->second.second}});
-            else
-                mid.insert({it->first, {{it->second.first.first, f->second.first.second}, it->second.second}});
+        if (f != r.end() && it->second.orientation == f->second.orientation) {
+            offset_t start, end;
+            id_t id = it->first;
+            if (it->second.orientation == FRW) {
+                start = f->second.range.start;
+                end = it->second.range.end;
+            }
+            else {
+                start = it->second.range.start;
+                end = f->second.range.end;
+            }
+            range_s range = {start, end};
+            cut merged_cut;
+            merged_cut.range = range;
+            merged_cut.seq_id = id;
+            merged_cut.orientation = FRW;
+            mid.insert({id, merged_cut});
         }
     }
     return mid;
 }
 
-map<int, pair<pair<int, int>, int> > InsertionAssembler::find_cuts(string& segment, bool left) {
+//TODO: Remove map
+map<id_t, cut> InsertionAssembler::find_cuts(string& segment, bool left) {
     vector<string> dummy;
     dummy.push_back(segment);
-    vector<pair<int, pair<pair<int, int>, pair<int, int> > > > cuts = lr_sketch->query(dummy, false);
-    map<int, pair<pair<int, int>, int> > ans;
+    vector<cut> cuts = lr_sketch->query(dummy, false);
+    map<id_t, cut> ans;
     for (auto it = cuts.begin(); it != cuts.end(); it++) {
-        int start, end;
-        if (it->second.second.second == FRW) {
-            start = left ? it->second.first.first : 1;
-            end = left ? it->second.second.first : it->second.first.second;
+        offset_t start, end;
+        if (it->orientation == FRW) {
+            start = left ? it->range.start : 1;
+            end = left ? lr_sketch->sequences[it->seq_id].second - 1: it->range.end;
         }
         else {
-            start = left ? 1 : it->second.first.first;
-            end = left ? it->second.first.second : it->second.second.first;
+            start = left ? 1 : it->range.start;
+            end = left ? it->range.end : lr_sketch->sequences[it->seq_id].second - 1;
         }
-        ans.insert({it->first, {{start, end}, it->second.second.second}});
+        it->range.start = start;
+        it->range.end = end;
+        ans.insert({it->seq_id, *it});
     }
 
     return ans;
@@ -133,13 +150,13 @@ string InsertionAssembler::get_overlap(vector<string>& l, vector<string>& r, str
     return consensus;
 }
 
-pair<string, int> InsertionAssembler::assemble(vector<string>& left_reads, vector<string>& right_reads) {
-	Logger::instance().info("--- Building Long Insertion ---");
+pair<string, int> InsertionAssembler::assemble(vector<string>& left_reads, vector<string>& right_reads, string &output) {
+	output += "--- Building Long Insertion ---";
 
     string left_seg, right_seg, lanchor, ranchor;
     vector<string> lsegs, rsegs;
-    map<int, pair<pair<int, int>, int> > lcuts, rcuts, mid;
-    unordered_set<uint64_t> l_minimizers_frw, l_minimizers_rev, r_minimizers_frw, r_minimizers_rev;
+    map<id_t, cut> lcuts, rcuts, mid;
+    unordered_set<hash_t> l_minimizers_frw, l_minimizers_rev, r_minimizers_frw, r_minimizers_rev;
     int cut_size, support = left_reads.size() + right_reads.size();
     int step = 1;
 
@@ -178,11 +195,11 @@ pair<string, int> InsertionAssembler::assemble(vector<string>& left_reads, vecto
         left_reads = extract_reads(lcuts);
         right_reads = extract_reads(rcuts);
 
-		Logger::instance().info("\n* STEP %d:\n", step);
-		Logger::instance().info("          Left Segment :  %s\n", left_seg.c_str());
-		Logger::instance().info("          Right Segment:  %s\n", right_seg.c_str());
-		Logger::instance().info("          Picked %d new left cuts\n", left_reads.size());
-		Logger::instance().info("          Picked %d new right cuts\n", right_reads.size());
+		output += "\n* " + to_string(step) + ":\n";
+		output += "          Left Segment :  " + left_seg + "\n";
+		output += "          Right Segment:  " + right_seg + "\n";
+		output += "          Picked " + to_string(left_reads.size()) + " new left cuts\n";
+		output += "          Picked " + to_string(right_reads.size()) + " new right cuts\n";
 
         step += 1;
     }

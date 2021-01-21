@@ -13,13 +13,13 @@ class InsertionAssembler {
         Sketch* lr_sketch;
         cut_ranges* extractor;
 
-        std::string build_segment(std::vector<std::string>& cuts);
-        std::vector<std::string> extract_reads(std::map<int, std::pair<std::pair<int, int>, int > >& cuts);
-        std::map<int, std::pair<std::pair<int, int>, int> > find_cuts(string&, bool left);
-        std::string get_overlap(std::vector<std::string>& l, std::vector<std::string>& r, std::string& m);
+        string build_segment(vector<string>& cuts);
+        vector<string> extract_reads(map<id_t, cut>& cuts);
+        map<id_t, cut> find_cuts(string&, bool left);
+        string get_overlap(vector<string>& l, vector<string>& r, string& m);
     public:
         InsertionAssembler(Sketch* sketch, cut_ranges* read_extractor);
-        std::pair<std::string, int> assemble(std::vector<std::string>& left_reads, std::vector<std::string>& right_reads);
+        pair<string, int> assemble(vector<string>& left_reads, vector<string>& right_reads, string &output);
 };
 
 
