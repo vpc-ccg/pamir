@@ -4,6 +4,8 @@ pamir-obj/
 pamir/
 src/include/logger.h
 src/include/edlib.h
+src/include/spoa/
+src/include/cereal/
 src/edlib.cc
 # Prerequisites
 *.d
