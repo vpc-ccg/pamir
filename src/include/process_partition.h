@@ -15,6 +15,7 @@ struct cluster {
     int pt_start;
     int pt_end;
     pair<vector<read_cut_info >, classified_cuts> reads;
+    int estimated_insertion;
 };
 
 class ProcessPartition {
@@ -22,6 +23,7 @@ class ProcessPartition {
         int total;
         int max_len;
         FILE *fo_vcf;
+        FILE *fo_log;
         Sketch* sketch;
         FILE *fo_vcf_lq;
         int long_no = 0;
