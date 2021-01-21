@@ -8,7 +8,17 @@
 #include <utility>
 #include <zlib.h>
 #include <unordered_set>
+
+#include "sketch.h"
+
 using namespace std;
+
+struct p2_read_s {
+    id_t id;
+    range_s range;
+    type_en type;
+    orientation_en orientation;
+};
 
 class p2_partition {
 private:
@@ -28,8 +38,9 @@ private:
     FILE* partition_file;
 
     int total;
+    int estimated_insertion = -1;
 
-    vector<pair<int, pair<pair<int, int>, pair<int, int> > > > cut_candidates;
+    vector<p2_read_s> cut_candidates;
     vector<pair<pair<string, string>, pair<int,int> > > short_reads;
 
 
@@ -43,9 +54,9 @@ public:
     ~p2_partition (void);
 
     void add_cuts(vector<pair<pair<string, string>, pair<int,int> > > short_reads,
-                  vector<pair<int, pair<pair<int, int>, pair<int, int> > > > cuts,
-                  int p_start, int p_end, string p_ref);
-    pair<vector<pair<pair<string, string>, pair<int,int> > >, vector<pair<int, pair<pair<int, int>, pair<int, int> > > > >
+                  vector<cut> cuts,
+                  int p_start, int p_end, string p_ref, int insertion);
+    pair<vector<pair<pair<string, string>, pair<int,int> > >, vector<p2_read_s> >
         read_partition();
 
     int get_start (void);
@@ -54,6 +65,7 @@ public:
     int get_id ();
     int get_old_id();
     int get_total();
+    int get_estimated_insertion();
 };
 
 

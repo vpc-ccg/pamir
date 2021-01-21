@@ -37,7 +37,9 @@
 using namespace std;
 //TODO Implement repeaet master after genome file is converted to util
 
-void fix_reverse(vector<pair<pair<string, string>, pair<pair<int, int>, pair<int, int> > > > &cuts, aligner &al) {
+void fix_reverse(vector<p3_read_s> &cuts, aligner &al) {
+    Sketch sketch;
+
     vector<int> frw_bimodal, rev_bimodal, frw_right, rev_right, frw_left, rev_left;
     frw_bimodal.reserve(cuts.size());
     rev_bimodal.reserve(cuts.size());
@@ -47,20 +49,20 @@ void fix_reverse(vector<pair<pair<string, string>, pair<pair<int, int>, pair<int
     rev_left.reserve(cuts.size());
 
     for (int i = 0; i < cuts.size(); i++) {
-        if (cuts[i].second.second.second == FRW) {
-            if (cuts[i].second.second.first == BIMODAL)
+        if (cuts[i].orientation == FRW) {
+            if (cuts[i].type == BIMODAL)
                 frw_bimodal.push_back(i);
-            else if (cuts[i].second.second.first == LEFT)
+            else if (cuts[i].type == LEFT)
                 frw_left.push_back(i);
-            else if (cuts[i].second.second.first == RIGHT)
+            else if (cuts[i].type == RIGHT)
                 frw_right.push_back(i);
         }
         else {
-            if (cuts[i].second.second.first == BIMODAL)
+            if (cuts[i].type == BIMODAL)
                 rev_bimodal.push_back(i);
-            else if (cuts[i].second.second.first == LEFT)
+            else if (cuts[i].type == LEFT)
                 rev_left.push_back(i);
-            else if (cuts[i].second.second.first == RIGHT)
+            else if (cuts[i].type == RIGHT)
                 rev_right.push_back(i);
         }
     }
@@ -68,72 +70,49 @@ void fix_reverse(vector<pair<pair<string, string>, pair<pair<int, int>, pair<int
     if ((rev_bimodal.empty() && rev_left.empty() && rev_left.empty()) || (frw_bimodal.empty() && frw_left.empty() && frw_right.empty()))
         return;
 
-    if (!rev_bimodal.empty()) {
-        for (int i = 0; i < rev_left.size(); i++)
-            cuts[rev_left[i]].second.second.first = RIGHT;
-        for (int i = 0; i < rev_right.size(); i++)
-            cuts[rev_right[i]].second.second.first = LEFT;
-    }
+    bool swap = false;
 
     //Case 1: rev and frw have bimodal reads
-    if (!frw_bimodal.empty() && !rev_bimodal.empty())
+    if (!frw_bimodal.empty() && !rev_bimodal.empty()) {
+        for (int i = 0; i < rev_left.size(); i++)
+            cuts[rev_left[i]].type = RIGHT;
+        for (int i = 0; i < rev_right.size(); i++)
+            cuts[rev_right[i]].type = LEFT;
         return;
-
-        //Case 2: frw has bimodal, rev does not
-    else if (!frw_bimodal.empty() && rev_bimodal.empty()) {
-        string rev_1 = cuts[rev_left[0]].first.second;
-        if (!frw_left.empty()) {
-            string left = cuts[frw_left[0]].first.second;
-
-            al.empty();
-            al.align(left, rev_1);
-            if (al.get_left_anchor() < 20 && al.get_right_anchor() < 20) {
-                for (int i = 0; i < rev_left.size(); i++)
-                    cuts[rev_left[i]].second.second.first = RIGHT;
-                for (int i = 0; i < rev_right.size(); i++)
-                    cuts[rev_right[i]].second.second.first = LEFT;
-            }
-        }
     }
-
-        //Case 3: rev has bimodal, frw does not
-    else if (frw_bimodal.empty() && !rev_bimodal.empty()) {
-        if (!rev_left.empty()) {
-            string right = cuts[rev_left[0]].first.second;
-            string frw_1 = cuts[frw_left[0]].first.second;
-
-            al.empty();
-            al.align(right, frw_1);
-            if (al.get_left_anchor() > 20 || al.get_right_anchor() > 20) {
-                for (int i = 0; i < frw_left.size(); i++)
-                    cuts[frw_left[i]].second.second.first = RIGHT;
-                for (int i = 0; i < frw_right.size(); i++)
-                    cuts[frw_right[i]].second.second.first = LEFT;
-            }
-        }
-    }
-
     else {
-        //Case 4: single peak
-        if (frw_right.empty() && rev_right.empty())
-            return;
+        float similarity;
 
-            //Case 5: long insertion
-        else {
-            string frw_1 = cuts[frw_left[0]].first.second;
-            string rev_1 = cuts[rev_left[0]].first.second;
+        if (!(frw_left.empty() && frw_right.empty() || rev_left.empty() && rev_right.empty())) {
+            string frw = frw_left.empty() ? cuts[frw_right[0]].sequence : cuts[frw_left[0]].sequence;
+            type_en frw_type = frw_left.empty() ? RIGHT : LEFT;
 
-            auto t1 = chrono::high_resolution_clock::now();
-            al.empty();
-            al.align(frw_1, rev_1);
+            string rev = rev_left.empty() ? cuts[rev_right[0]].sequence : cuts[rev_left[0]].sequence;
+            type_en rev_type = rev_left.empty() ? RIGHT : LEFT;
 
-            if (al.get_left_anchor() < 20 && al.get_right_anchor() < 20) {
+            similarity = sketch.compare_sequences(frw, rev);
+
+            if ((similarity >= 0.5 && frw_type == rev_type) || (similarity < 0.5 && frw_type != rev_type))
+                return;
+            else {
+                swap = true;
                 for (int i = 0; i < rev_left.size(); i++)
-                    cuts[rev_left[i]].second.second.first = RIGHT;
+                    cuts[rev_left[i]].type = RIGHT;
                 for (int i = 0; i < rev_right.size(); i++)
-                    cuts[rev_right[i]].second.second.first = LEFT;
+                    cuts[rev_right[i]].type = LEFT;
             }
         }
+    }
+
+    if (!rev_bimodal.empty() && !swap) {
+        for (int i = 0; i < frw_left.size(); i++)
+            cuts[frw_left[i]].type = RIGHT;
+        for (int i = 0; i < frw_right.size(); i++)
+            cuts[frw_right[i]].type = LEFT;
+        for (int i = 0; i < rev_left.size(); i++)
+            cuts[rev_left[i]].type = RIGHT;
+        for (int i = 0; i < rev_right.size(); i++)
+            cuts[rev_right[i]].type = LEFT;
     }
 }
 /****************************************************************/
@@ -439,7 +418,6 @@ void sketch (const string &longread, const string &dat_path, int k, int w)
     Sketch lr_sketch = Sketch(longread, dat_path, k, w);
 }
 /*********************************************************************************************/
-double reads_vec = 0, finding_cuts = 0, adding_cuts = 0;
 void find_reads (const string &partition_file, const string &dat_path, const string &range)
 {
     genome_partition pt(partition_file, range);
@@ -457,7 +435,7 @@ void find_reads (const string &partition_file, const string &dat_path, const str
     string p2 = "partition-p2-" + range;
     p2_partition pt_2(p2, true);
 
-    vector<pair<uint32_t, pair<int, int> > > ranges;
+    vector<pair<id_t, range_s> > ranges;
     ranges.reserve(1000000);
 
     while (1)
@@ -472,7 +450,7 @@ void find_reads (const string &partition_file, const string &dat_path, const str
         sprintf(comment, "%10d / %-10d", cnt, total);
         progress.update(((float)cnt/(float)total) * 100, comment);
 
-        vector<pair<int, pair<pair<int, int>, pair<int, int> > > > cut_candidates;
+        vector<cut> cut_candidates;
 
         string chrName  = pt.get_reference();
         int pt_start    = pt.get_start();
@@ -485,29 +463,24 @@ void find_reads (const string &partition_file, const string &dat_path, const str
             Logger::instance().info(" + Short Reads Count     : %lu\n", p.size());
             Logger::instance().info("INFO: Skipped Processing - Too few or Too many short reads\n");
 
-            auto t1 = chrono::high_resolution_clock::now();
-            pt_2.add_cuts(p, cut_candidates, pt_start, pt_end, chrName);
-            auto t2 = chrono::high_resolution_clock::now();
-            adding_cuts += std::chrono::duration<double, std::milli>(t2-t1).count();
+            pt_2.add_cuts(p, cut_candidates, pt_start, pt_end, chrName, -1);
             continue;
         }
-        auto t1 = chrono::high_resolution_clock::now();
+
         vector<string> reads;
         reads.resize(p.size());
-        for (int i =0;i<p.size();i++)
-        {
+        for (int i = 0; i < p.size(); i++)
             reads.push_back(p[i].first.second);
-        }
-        auto t2 = chrono::high_resolution_clock::now();
-        reads_vec += std::chrono::duration<double, std::milli>(t2-t1).count();
 
-        t1 = chrono::high_resolution_clock::now();
+
         cut_candidates = lr_sketch.query(reads, true);
-        t2 = chrono::high_resolution_clock::now();
-        finding_cuts += std::chrono::duration<double, std::milli>(t2-t1).count();
 
-        for (int i = 0; i < cut_candidates.size(); i++)
-            ranges.push_back({cut_candidates[i].first, {cut_candidates[i].second.first}});
+        int estimated_insertion = INT_MAX;
+        for (int i = 0; i < cut_candidates.size(); i++) {
+            ranges.push_back({cut_candidates[i].seq_id, cut_candidates[i].range});
+            if (cut_candidates[i].estimated_insertion != -1 && cut_candidates[i].estimated_insertion < estimated_insertion)
+                estimated_insertion = cut_candidates[i].estimated_insertion;
+        }
 
         if (cut_candidates.size() == 0) {
             Logger::instance().info("-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");
@@ -515,21 +488,19 @@ void find_reads (const string &partition_file, const string &dat_path, const str
             Logger::instance().info(" + Short Reads Count     : %lu\n", p.size());
             Logger::instance().info("INFO: Skipped Processing - No Long reads found\n");
 
-            t1 = chrono::high_resolution_clock::now();
-            pt_2.add_cuts(p, cut_candidates, pt_start, pt_end, chrName);
-            t2 = chrono::high_resolution_clock::now();
-            adding_cuts += std::chrono::duration<double, std::milli>(t2-t1).count();
+            pt_2.add_cuts(p, cut_candidates, pt_start, pt_end, chrName, -1);
             continue;
         }
 
-        t1 = chrono::high_resolution_clock::now();
-        pt_2.add_cuts(p, cut_candidates, pt_start, pt_end, chrName);
-        t2 = chrono::high_resolution_clock::now();
-        adding_cuts += std::chrono::duration<double, std::milli>(t2-t1).count();
+        if (estimated_insertion == INT_MAX)
+            estimated_insertion = -1;
+
+        pt_2.add_cuts(p, cut_candidates, pt_start, pt_end, chrName, estimated_insertion);
     }
 
-    auto t1 = chrono::high_resolution_clock::now();
-    sort(ranges.begin(), ranges.end());
+    sort(ranges.begin(), ranges.end(), [](const pair<id_t, range_s> &a, const pair<id_t, range_s> &b) {
+        return a.first < b.first;
+    });
     uint32_t size = ranges.size();
     uint32_t negs = 0;
 
@@ -538,38 +509,24 @@ void find_reads (const string &partition_file, const string &dat_path, const str
             if (ranges[i].first != ranges[i-1].first)
                 continue;
             else {
-                ranges[i].second.first = min(ranges[i].second.first, ranges[i-1].second.first);
-                ranges[i].second.second = max(ranges[i].second.second, ranges[i-1].second.second);
+                ranges[i].second.start = min(ranges[i].second.start, ranges[i-1].second.start);
+                ranges[i].second.end = max(ranges[i].second.end, ranges[i-1].second.end);
                 ranges[i-1].first = -1;
                 negs++;
             }
         }
     }
 
-    sort(ranges.begin(), ranges.end());
+    sort(ranges.begin(), ranges.end(), [](const pair<id_t, range_s> &a, const pair<id_t, range_s> &b) {
+        return a.first < b.first;
+    });
 
     size -= negs;
 
     ofstream fout("extract_ranges.dat", ios::out | ios::binary);
     fout.write((char*)&size, sizeof(uint32_t));
-    fout.write((char*)&ranges[0], size * sizeof(pair<uint32_t, pair<int, int> >));
+    fout.write((char*)&ranges[0], size * sizeof(pair<id_t, range_s>));
     fout.close();
-    auto t2 = chrono::high_resolution_clock::now();
-    double range_t = std::chrono::duration<double, std::milli>(t2-t1).count();
-
-    cerr << "Reads        :" << (float)reads_vec/1000.0 << endl;
-    cerr << "Finding      :" << (float)finding_cuts/1000.0 << endl;
-    cerr << "       Query         :" << (float)lr_sketch.query_t/1000.0 << endl;
-    cerr << "       Hits          :" << (float)lr_sketch.hits_t/1000.0 << endl;
-    cerr << "               Lower Bound          :" << (float)lr_sketch.lower_bound_t/1000.0 << endl;
-    cerr << "               Map Insert           :" << (float)lr_sketch.hit_map_t/1000.0 << endl;
-    cerr << "               Sort                 :" << (float)lr_sketch.sort_t/1000.0 << endl;
-    cerr << "       Cuts          :" << (float)lr_sketch.cuts_t/1000.0 << endl;
-    cerr << "       Classify      :" << (float)lr_sketch.classify_t/1000.0 << endl;
-    cerr << "       Merge         :" << (float)lr_sketch.final_t/1000.0 << endl;
-    cerr << "Adding       :" << (float)adding_cuts/1000.0 << endl;
-    cerr << "Range        :" << (float)range_t/1000.0 << endl;
-
 }
 /*********************************************************************************************/
 void extract_reads(const string &partition_file, const string &longread, const string &range, const string &p3_name,
@@ -585,7 +542,7 @@ void extract_reads(const string &partition_file, const string &longread, const s
     progress.update(((float)cnt/(float)total) * 100, comment);
 	cut_ranges ranges = cut_ranges(longread, dat_path, ranges_file);
 
-    ranges.extract_new();
+    ranges.extract();
 
 	//TODO FIX NAME + get output name as argument
 	string p3 = "partition-p3-" + p3_name;
@@ -603,7 +560,7 @@ void extract_reads(const string &partition_file, const string &longread, const s
         sprintf(comment, "%10d / %-10d", cnt, total);
         progress.update(((float)cnt/(float)total) * 100, comment);
 
-		vector<pair<pair<string, string>, pair<pair<int, int>, pair<int, int> > > > cuts;
+		vector<p3_read_s> cuts;
 
         string chrName  = pt_2.get_reference();
         int pt_start    = pt_2.get_start();
@@ -616,7 +573,7 @@ void extract_reads(const string &partition_file, const string &longread, const s
             Logger::instance().info(" + Short Reads Count     : %lu\n", p.first.size());
             Logger::instance().info("INFO: Skipped Processing - Too few or Too many short reads\n");
 
-            pt_3.add_reads(p.first, cuts, pt_start, pt_end, chrName);
+            pt_3.add_reads(p.first, cuts, pt_start, pt_end, chrName, pt_2.get_estimated_insertion());
             continue;
         }
         // cluster has too many or too few reads
@@ -626,32 +583,33 @@ void extract_reads(const string &partition_file, const string &longread, const s
             Logger::instance().info(" + Short Reads Count     : %lu\n", p.first.size());
             Logger::instance().info("INFO: Skipped Processing - No long reads found\n");
 
-            pt_3.add_reads(p.first, cuts, pt_start, pt_end, chrName);
+            pt_3.add_reads(p.first, cuts, pt_start, pt_end, chrName, pt_2.get_estimated_insertion());
             continue;
         }
 
 		for (int i = 0; i < p.second.size(); i++) {
-            pair<string, string> tmp = ranges.get_cut_new(p.second[i].first, p.second[i].second.first.first,
-                                        p.second[i].second.first.second);
+            pair<string, string> tmp = ranges.get_cut(p.second[i].id, p.second[i].range.start,
+                                                          p.second[i].range.end);
             string cut;
-            if (p.second[i].second.second.second == REV)
+            if (p.second[i].orientation == REV) {
                 cut = reverse_complement(tmp.second);
+            }
             else
                 cut = tmp.second;
-            cuts.push_back({{tmp.first, cut}, {{p.second[i].second.first.first, p.second[i].second.first.second},
-                                                {p.second[i].second.second.first, p.second[i].second.second.second}}});
+            cuts.push_back((p3_read_s) {.name = tmp.first, .sequence = cut, .range = p.second[i].range,
+                                        .type = p.second[i].type, .orientation = p.second[i].orientation});
         }
 
-		fix_reverse(cuts, al);
+        fix_reverse(cuts, al);
 
-        pt_3.add_reads(p.first, cuts, pt_start, pt_end, chrName);
+        pt_3.add_reads(p.first, cuts, pt_start, pt_end, chrName, pt_2.get_estimated_insertion());
 	}
 }
 /*********************************************************************************************/
 void consensus (const string &partition_file, const string &reference, const string lr_path, const string dat_path,
                 const string &range, const string &name, int max_len, const string &prefix)
 {
-    ProcessPartition processor = ProcessPartition(16, lr_path, dat_path, partition_file, range, max_len, reference,
+    ProcessPartition processor = ProcessPartition(8, lr_path, dat_path, partition_file, range, max_len, reference,
                                                   prefix, name);
     processor.process();
 }

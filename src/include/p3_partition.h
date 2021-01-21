@@ -8,17 +8,28 @@
 #include <utility>
 #include <zlib.h>
 #include <unordered_set>
+
+#include "sketch.h"
+
 using namespace std;
 
 typedef pair<pair<string, string>, pair<int,int> > read_cut_info;
 
+struct p3_read_s {
+    string name;
+    string sequence;
+    range_s range;
+    type_en type;
+    orientation_en orientation;
+};
+
 typedef struct {
     int size = 0;
     bool bimodal = false;
-    vector<read_cut_info > bimodal_cuts;
-    vector<read_cut_info > left_cuts;
-    vector<read_cut_info > right_cuts;
-    vector<read_cut_info > misc_cuts;
+    vector<p3_read_s> bimodal_cuts;
+    vector<p3_read_s> left_cuts;
+    vector<p3_read_s> right_cuts;
+    vector<p3_read_s> misc_cuts;
 } classified_cuts;
 
 class p3_partition {
@@ -39,6 +50,7 @@ private:
     int total;
     FILE* partition_file;
 
+    int estimated_insertion = -1;
 
     classified_cuts cuts;
     vector<pair<pair<string, string>, pair<int,int> > > short_reads;
@@ -52,14 +64,15 @@ public:
     p3_partition (const string&,  const string&);
     ~p3_partition (void);
 
-    void add_reads(vector<pair<pair<string, string>, pair<int,int> > > short_reads, vector<pair<pair<string, string>, pair<pair<int,int>, pair<int, int> > > > cuts, int p_start, int p_end, string p_ref);
-    pair<vector<read_cut_info >, classified_cuts> read_partition ();
+    void add_reads(vector<pair<pair<string, string>, pair<int,int> > > short_reads, vector<p3_read_s> cuts, int p_start, int p_end, string p_ref, int insertion);
+    pair<vector<read_cut_info>, classified_cuts> read_partition ();
 
     int get_start (void);
     int get_end (void);
     string get_reference (void);
     int get_id ();
     int get_total();
+    int get_estimated_insertion();
 };
 
 

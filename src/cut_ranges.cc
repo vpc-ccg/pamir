@@ -45,178 +45,138 @@ cut_ranges::cut_ranges(const string &lrPath, const string &dat_path, const strin
     uint32_t size;
     ranges_file.read(reinterpret_cast<char*>(&size), sizeof(uint32_t));
     ranges.resize(size);
-    ranges_file.read(reinterpret_cast<char*>(&ranges[0]), size * sizeof(pair<uint32_t, pair<int, int> >));
+    ranges_file.read(reinterpret_cast<char*>(&ranges[0]), size * sizeof(pair<id_t, range_s>));
     ranges_file.close();
-
-    if (build_index) {
-        string lr_name;
-        ifstream fin;
-        fin.open(lr_path);
-        string line;
-
-        while (!fin.eof()) {
-            getline(fin, line);
-            if (line[0] == '>') {
-                lr_name = line.substr(1, line.size() - 1);
-                read_offsets.insert({lr_name, fin.tellg()});
-                getline(fin, line);
-            }
-        }
-    }
 }
 
 cut_ranges::cut_ranges(const string &lrPath, bool build_index) : lr_path(lrPath) {
     if (build_index) {
         string lr_name;
-        ifstream fin;
-        fin.open(lr_path);
+        lr_file.open(lr_path);
         string line;
 
-        while (!fin.eof()) {
-            getline(fin, line);
+        while (!lr_file.eof()) {
+            getline(lr_file, line);
             if (line[0] == '>') {
-                lr_name = line.substr(1, line.size() - 1);
-                read_offsets.insert({lr_name, fin.tellg()});
-                getline(fin, line);
+                lr_name = line.substr(1);
+                read_offsets.insert({lr_name, lr_file.tellg()});
+                getline(lr_file, line);
             }
         }
     }
-}
-
-void cut_ranges::add_range(int id, int start, int end) {
-//	auto curr_lr = lr_ranges.find(lr);
-//	if (curr_lr == lr_ranges.end())
-//		lr_ranges.insert(pair<string, pair<int, int>>(lr, pair<int, int>(start, end)));
-//	else {
-//		if (start < curr_lr->second.first)
-//			curr_lr->second.first = start;
-//		if (end > curr_lr->second.second)
-//			curr_lr->second.second = end;
-//	}
+    lr_file.close();
+    lr_file.open(lr_path);
 }
 
 void cut_ranges::extract() {
-	string lr_name;
-	ifstream fin;
-	fin.open(lr_path);
-	string line;
-
-	while (!fin.eof()) {
-		getline(fin, line);
-		if (line[0] == '>') {
-		    //TODO fix
-			istringstream iss(line);
-    		vector<string> tokens{istream_iterator<string>{iss}, istream_iterator<string>{}};
-			lr_name = tokens[0].substr(1, line.size() - 1);
-			auto i = lr_ranges.find(lr_name);
-			if (i != lr_ranges.end()) {
-				getline(fin, line);
-				int end = i->second.second;
-				if (end > line.size())
-					end = line.size();
-				string read = line.substr(i->second.first - 1, end - i->second.first);
-				reads.insert(pair<string, pair<int, string> >(lr_name, pair<int, string> (i->second.first, read)));
-//                reads_new.push_back({lr_name, {i->second.first, read}});
-			}
-		}
-	}
-}
-
-void cut_ranges::extract_new() {
     ifstream fin;
     fin.open(lr_path);
     string line;
 
     int curr_read = 0;
-    vector<pair<int, pair<int, int> > >::iterator search_read = ranges.begin();
+    vector<pair<id_t, range_s> >::iterator search_read = ranges.begin();
 
     while (!fin.eof() && search_read != ranges.end()) {
         getline(fin, line);
         getline(fin, line);
         if (curr_read == (*search_read).first) {
-            string read = line.substr((*search_read).second.first - 1, (*search_read).second.second);
-            reads_new.push_back({curr_read, {(*search_read).second.first, read}});
+            string read = line.substr((*search_read).second.start, (*search_read).second.end);
+            reads.push_back({curr_read, {(*search_read).second.start, read}});
             search_read++;
         }
         curr_read++;
     }
 }
 
-//string cut_ranges::find_read(string &name) {
-//    vector<pair<string, pair<int, string> >>::iterator it = std::lower_bound(reads_new.begin(), reads_new.end(), hv, hash_t());
-//    if (it == hashes.end()) {
-//        return {0, 0};
-//    }
-//    else if (it->hash_value == hv) {
-//        int offset = it->offset;
-//        uint64_t size = 0;
-//        if (it+1 != hashes.end()) {
-//            size = (it+1)->offset - it->offset;
-//        }
-//        else {
-//            size = ref_minimizers.size() - it->offset;
-//        }
-//        return {offset, size};
-//    }
-//    else
-//        return {0, 0};
-//};
-
-read_cut cut_ranges::find_read(int id) {
+read_cut cut_ranges::find_read(id_t id) {
     read_cut dummy;
     dummy.first = id;
-    vector<read_cut>::iterator it = std::lower_bound(reads_new.begin(), reads_new.end(), dummy);
+    vector<read_cut>::iterator it = std::lower_bound(reads.begin(), reads.end(), dummy);
     return (*it);
 }
 
-pair<string, string> cut_ranges::get_cut_new(int lr_id, int start, int end) {
+pair<string, string> cut_ranges::get_cut(id_t lr_id, offset_t start, offset_t end) {
     string cut;
     read_cut read = find_read(lr_id);
     cut = read.second.second.substr(start - read.second.first, end - start);
 	return {names[lr_id], cut};
 }
 
-string cut_ranges::get_cut(int lr_id, int start, int end) {
-//    string cut;
-//    int length = end - start;
-//    auto i = reads.find(lr_name);
-//    if (length > i->second.second.size())
-//        length = i->second.second.size();
-//    cut = i->second.second.substr(start - i->second.first, end - start);
-//    return cut;
+string cut_ranges::get_cut(string name, offset_t start, offset_t end) {
+    string cut;
+    lr_file.seekg(read_offsets[name]);
+    string line;
+    getline(lr_file, line);
+    cut = line.substr(start, end - start - 1);
+    return cut;
 }
 
-//TODO ERROR HANDLING, OPTIMIZE
+//TODO: Check for possible unhandled cases
 std::pair<std::string, std::pair<int, int>> cut_consensus_bimodal(vector<string> alignments, int left_reads,
 		int right_reads, int bimodal_reads) {
-    int cnt = alignments.size() - 1;
     int th_left = 0.5 * (bimodal_reads + left_reads);
     int th_right = 0.5 * (bimodal_reads + right_reads);
     string consensus = alignments[alignments.size() - 1];
 
+    bool up = false, down = false;
+    int step = 200;
+    int prv = 0;
     int left = 0, right = 0;
     int gap_cnt;
-    for (int idx = 0; idx < alignments[0].size(); idx = idx + 50) {
+    for (int idx = min(200, (int)alignments[0].size()/2); idx < min(200, (int)alignments[0].size()/2) + 1; idx += step) {
         gap_cnt = 0;
         for (int i = 0; i < alignments.size() - 1; i++) {
             if (alignments[i][idx] == '-')
                 gap_cnt++;
         }
-        if (gap_cnt < th_left) {
-            left = idx;
-            break;
+        if (gap_cnt > th_left) {
+            if (down)
+                step = abs(prv - idx)/2;
+            else
+                step = idx;
+            prv = idx;
+            up = true;
+            down = false;
+        }
+        else {
+            down = true;
+            if (step != 0 && !up) {
+                step = -abs(prv - idx) / 2;
+                prv = idx;
+            } else {
+                left = idx;
+                break;
+            }
         }
     }
 
-    for (int idx = 0; idx < alignments[0].size(); idx = idx + 50) {
+    up = false;
+    step = 200;
+    prv = 0;
+    for (int idx = min(200, (int)alignments[0].size()/2); idx < min(200, (int)alignments[0].size()/2) + 1; idx += step) {
         gap_cnt = 0;
         for (int i = 0; i < alignments.size() - 1; i++) {
             if (alignments[i][alignments[i].size() - idx - 1] == '-')
                 gap_cnt++;
         }
-        if (gap_cnt < th_right) {
-            right = idx;
-            break;
+        if (gap_cnt > th_right) {
+            if (down)
+                step = abs(prv - idx)/2;
+            else
+                step = idx;
+            prv = idx;
+            up = true;
+            down = false;
+        }
+        else {
+            down = true;
+            if (step != 0 && !up) {
+                step = -abs(prv - idx) / 2;
+                prv = idx;
+            } else {
+                right = idx;
+                break;
+            }
         }
     }
     pair<int, int> ans = {left, right};
@@ -226,33 +186,70 @@ std::pair<std::string, std::pair<int, int>> cut_consensus_bimodal(vector<string>
 }
 
 std::pair<std::string, std::pair<int, int>> cut_consensus_single(vector<string> alignments) {
-    int th = 0.6 * (alignments.size() - 1);
+    int th = 0.4 * (alignments.size() - 1);
     string consensus = alignments[alignments.size() - 1];
+
+    bool up = false, down = false;
     int left = 0, right = 0;
     int gap_cnt;
-    for (int idx = 0; idx < alignments[0].size(); idx = idx + 50) {
+    int step = 200, prv = 0;
+    for (int idx = min(200, (int)alignments[0].size()/2); idx < min(200, (int)alignments[0].size()/2) + 1; idx += step) {
         gap_cnt = 0;
         for (int i = 0; i < alignments.size() - 1; i++) {
             if (alignments[i][idx] == '-')
                 gap_cnt++;
         }
-        if (gap_cnt < th) {
-            left = idx;
-            break;
+        if (gap_cnt > th) {
+            if (down)
+                step = abs(prv - idx)/2;
+            else
+                step = idx;
+            prv = idx;
+            up = true;
+            down = false;
+        }
+        else {
+            down = true;
+            if (step != 0 && !up) {
+                step = -abs(prv - idx) / 2;
+                prv = idx;
+            } else {
+                left = idx;
+                break;
+            }
         }
     }
 
-    for (int idx = 0; idx < alignments[0].size(); idx = idx + 50) {
+    step = 200;
+    prv = 0;
+    up = false, down = false;
+    for (int idx = min(200, (int)alignments[0].size()/2); idx < min(200, (int)alignments[0].size()/2) + 1; idx += step) {
         gap_cnt = 0;
         for (int i = 0; i < alignments.size() - 1; i++) {
             if (alignments[i][alignments[i].size() - idx - 1] == '-')
                 gap_cnt++;
         }
-        if (gap_cnt < th) {
-            right = idx;
-            break;
+        if (gap_cnt > th) {
+            if (down)
+                step = abs(prv - idx)/2;
+            else
+                step = idx;
+            prv = idx;
+            up = true;
+            down = false;
+        }
+        else {
+            down = true;
+            if (step != 0 && !up) {
+                step = -abs(prv - idx) / 2;
+                prv = idx;
+            } else {
+                right = idx;
+                break;
+            }
         }
     }
+
     pair<int, int> ans = {left, right};
     string cut = consensus.substr(left, consensus.size() - right - left);
     cut.erase(std::remove(cut.begin(), cut.end(), '-'), cut.end());
