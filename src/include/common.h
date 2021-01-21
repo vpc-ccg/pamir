@@ -33,6 +33,10 @@ int check_AT_GC(const string &, const double &);
 void append_vcf(const string &chrName, const string &reference,
                 const vector< tuple< string, int, int, string, int, float > > &reports, const int &clusterId,
         string &vcf_str, string &vcf_str_del );
+void append_vcf_hybrid(const string &chrName, const string &reference,
+                       const vector< tuple< string, int, int, string, int, float > > &reports, const int &clusterId, const string& cluster_type,
+int bimodals, int left, int right, int misc, int estimation,
+        string &vcf_str, string &vcf_str_del );
 /*************************************************/
 inline int max22(int a, int b)
 {

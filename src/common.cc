@@ -88,3 +88,31 @@ void append_vcf(const string &chrName, const string &reference,
         }
     }
 }
+/*******************************************************************/
+void append_vcf_hybrid(const string &chrName, const string &reference,
+                       const vector< tuple< string, int, int, string, int, float > > &reports, const int &clusterId, const string& cluster_type,
+        int bimodals, int left, int right, int misc, int estimation,
+        string &vcf_str, string &vcf_str_del ) {
+    for (int r = 0; r < reports.size(); r++) {
+        if(get<0>(reports[r]) == "INS") {
+            vcf_str += 	chrName;	vcf_str += 	"\t";
+            vcf_str +=	std::to_string(get<1>(reports[r]));	vcf_str += "\t.\t";
+            vcf_str +=  reference.at(r);
+            vcf_str +=  "\t";
+            vcf_str += reference.at(r);
+            vcf_str += get<3>(reports[r]);
+            vcf_str +=  "\t";
+            vcf_str +=  std::to_string( get<5>(reports[r]));
+            vcf_str +=  "\tPASS\t";
+            vcf_str += "Cluster=";	vcf_str +=	std::to_string(clusterId) ;
+            vcf_str += ";Support=";	vcf_str	+=	std::to_string(get<4>(reports[r])) ;
+            vcf_str += ";Type="; vcf_str += cluster_type;
+            vcf_str += ";Bimodal="; vcf_str += std::to_string(bimodals);
+            vcf_str += ";G1(L)="; vcf_str += std::to_string(left);
+            vcf_str += ";G2(R)="; vcf_str += std::to_string(right);
+            vcf_str += ";Misc="; vcf_str += std::to_string(misc);
+            vcf_str += ";Estimate="; vcf_str += std::to_string(estimation);
+            vcf_str += "\n";
+        }
+    }
+}
