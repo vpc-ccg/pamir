@@ -43,11 +43,11 @@ aligner::~aligner()
 {
 	for (int i=0; i<= MAX_SIDE; i++)
 	{
-		delete score[i];
-		delete gapa[i];
-		delete gapb[i];
+		delete[] score[i];
+		delete[] gapa[i];
+		delete[] gapb[i];
 	}
-	delete score;
+	delete[] score;
 }
 /*********************************************************/
 void aligner::print_matrix(string name, const string &a, const string &b, int **matrix)
