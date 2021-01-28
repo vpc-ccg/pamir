@@ -183,11 +183,11 @@ pair<string, int> InsertionAssembler::assemble(vector<string>& left_reads, vecto
 
         mid = check_end(lcuts, rcuts);
         if (mid.size() != 0) {
-			Logger::instance().info("\n===> Insertion built in %d steps.", step);
+			output += "\n===> Insertion built in "+ to_string(step) + " steps.";
 			break;
 		}
 		else if (step == 10) {
-			Logger::instance().info("\n===> Could not build insertion properly in %d steps.", step);
+			output += "\n===> Could not build insertion properly in " + to_string(step) + " steps.";
 			break;
 		}
 
