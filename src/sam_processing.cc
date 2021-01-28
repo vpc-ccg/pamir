@@ -75,6 +75,7 @@ cigar::cigar(const string &cgr) {
     }
 }
 
+
 std::ostream &operator<<(std::ostream &os, const cigar &cig) {
     if (cig.cigarray.size() == 0) {
         os << "*";
@@ -120,16 +121,23 @@ void sam_record::analyze_cigar() {
     end_pos = pos;
     head_clip_range = 0;
     tail_clip_range = 0;
+    insertion_pos = pos;
     bool is_first = true;
+    is_fully_mapped = true;
+    if (cig_str == "*")
+        is_fully_mapped = false;
     for (auto cc : cgr) {  // cc is a pair of <int, char>
         auto type = what_is_this_cigar(cc.second);
         if (type == cigar_character_type::matched) {
             end_pos += cc.first;
         } else if (type == cigar_character_type::onquery) {
-
+            insertion_pos = end_pos;
+            is_fully_mapped = false;
         } else if (type == cigar_character_type::onreference) {
             end_pos += cc.first;
+            is_fully_mapped = false;
         } else if (type == cigar_character_type::softclip) {
+            is_fully_mapped = false;
             if (is_first) {
                 head_clip_range = cc.first;
             } else {

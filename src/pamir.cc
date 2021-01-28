@@ -31,6 +31,7 @@
 #include "progressbar.h"
 #include "spoa/spoa.hpp"
 #include "process_partition.h"
+#include "partition_hybrid.h"
 #include <chrono>
 
 
@@ -688,6 +689,10 @@ int main(int argc, char **argv)
 		else if (mode == "consensus") {
             if (argc != 10) throw "Usage:8 parameters needed\tpamir consensus [partition-file] [reference] [long-read-file] [dat-path] [range] [output-file-vcf] [max-len] dir_prefix";
             consensus(argv[2], argv[3], argv[4], argv[5], argv[6], argv[7], atoi(argv[8]), argv[9]);
+		}
+		else if (mode == "partition-hybrid") {
+		    genome_partition_hybrid pt("partition", true);
+		    pt.cluster_reads(argv[2]);
 		}
 		else {
 			throw "Invalid mode selected";

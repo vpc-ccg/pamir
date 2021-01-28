@@ -69,6 +69,8 @@ public:
     int end_pos;
     read_type rg;
 
+    int insertion_pos;
+
     bool invalid = false;
     
     sam_record( const std::string &line);

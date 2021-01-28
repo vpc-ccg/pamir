@@ -39,6 +39,8 @@ ProcessPartition::ProcessPartition(int maxThreads, const string &lrPath, const s
 
     string log_file = prefix + "/" + "all" + ".log";
     fo_log = fopen(log_file.c_str(), "w");
+
+    fprintf(fo_vcf, "%s", "##fileformat=VCFv4.2\n##FILTER=<ID=PASS,Description=\"All filters passed\">\n##INFO=<ID=Cluster,Number=1,Type=Integer,Description=\"ID of the cluster the variant is extracted from\">\n##INFO=<ID=Support,Number=1,Type=Integer,Description=\"Number of reads/contigs supporting the contig\">\n#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO\n");
 }
 
 inline string cluster_header(int cluster_id, int sr_size) {
@@ -174,6 +176,12 @@ void ProcessPartition::thread_process(int tid) {
 
             consensus.push_back({ans.first, p.reads.second.left_cuts.size() + p.reads.second.bimodal_cuts.size() + p.reads.second.right_cuts.size()});
 
+            for (int i = 0; i < msa.size(); i++) {
+                string tmp = msa[i].insert(ans.second.first, "|");
+                string tmp2 = tmp.insert(tmp.size() - ans.second.second, "|");
+                cerr << tmp2 << endl;
+            }
+
             bimodal_no++;
         }
         else {
@@ -181,6 +189,10 @@ void ProcessPartition::thread_process(int tid) {
             if (p.reads.second.right_cuts.size() < 2) {
                 cluster_type = "single-peak";
                 logger_out += " + Type              : single peak\n\n";
+
+                sort(p.reads.second.left_cuts.begin(), p.reads.second.left_cuts.end(), [](const auto &a, const auto &b) {
+                    return a.range.end - a.range.start > b.range.end - b.range.start;
+                });
 
                 graph.Clear();
                 for (int i = 0; i < min(7, (int)p.reads.second.left_cuts.size()); i++) {
@@ -191,6 +203,12 @@ void ProcessPartition::thread_process(int tid) {
                 auto msa = graph.GenerateMultipleSequenceAlignment(true);
 
                 pair<string, pair<int, int>> ans = cut_consensus_single(msa);
+
+                for (int i = 0; i < msa.size(); i++) {
+                    string tmp = msa[i].insert(ans.second.first, "|");
+                    string tmp2 = tmp.insert(tmp.size() - ans.second.second, "|");
+                    cerr << tmp2 << endl;
+                }
 
                 consensus.push_back({ans.first, min(7, (int)p.reads.second.left_cuts.size())});
 
