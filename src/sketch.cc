@@ -417,21 +417,19 @@ int get_avg_new(vector<float> v) {
 }
 
 cut Sketch::find_range(vector<hit>& hits, mem_offset_t start, hash_size_t size) {
-    cerr << "------------------" << endl;
-
     sort(hits.begin() + start, hits.begin() + start + size, hit());
 
     //TODO: Optimize
 
     offset_t min_offset = hits[start].offset;
     offset_t max_offset = hits[start + size - 1].offset + 15;
-    int n = ceil((max_offset - min_offset)/100) * 100;
+    int n = ceil(((max_offset - min_offset)/100) + 2) * 100;
 
     //Create buckets
     vector<pair<offset_t, offset_t> > buckets;
     buckets.reserve(BUCKET_SIZE);
     map<int, float> cnt_new;
-    for (int s = min_offset - 100; s < min_offset + n + 100; s += BUCKET_SIZE) {
+    for (int s = max(min_offset - 200, 0); s < min_offset + n; s += BUCKET_SIZE) {
         buckets.push_back(make_pair(s, s + BUCKET_SIZE));
     }
 
@@ -440,10 +438,7 @@ cut Sketch::find_range(vector<hit>& hits, mem_offset_t start, hash_size_t size) 
         locs.push_back({buckets[i].second, buckets[i].first});
     }
 
-    cerr << "READ: " << sequences[hits[start].seq_id].first << endl;
-    cerr << endl;
      //Populate buckets by hit locations
-    cerr << "MINIMIZER HITS: " << endl;
     cnt_new[0] = 0;
     cnt_new[buckets.size() - 1] = 0;
     int j = 1;
@@ -474,15 +469,11 @@ cut Sketch::find_range(vector<hit>& hits, mem_offset_t start, hash_size_t size) 
     }
 
     //Find bucket weights
-    cerr << endl;
-    cerr << "WEIGHTS" << endl;
     vector<float> freq_new;
     freq_new.reserve(BUCKET_SIZE);
     for (int i = 0; i < buckets.size(); i++) {
         freq_new.push_back(cnt_new[i]);
-        cerr << buckets[i].first << "-" << buckets[i].second << ": " << freq_new[i] << endl;
     }
-    cerr << endl;
     //find cut around highest peak
     int mx_idx = max_element(freq_new.begin(), freq_new.end()) - freq_new.begin();
 
@@ -490,14 +481,14 @@ cut Sketch::find_range(vector<hit>& hits, mem_offset_t start, hash_size_t size) 
 
     offset_t l = mx_idx;
     while (l > 0) {
-        if (freq_new[l - 1] > avg) {
+        if (freq_new[l - 1] > 0) {
             l--;
         } else {
             break;
         }
     }
     offset_t r = mx_idx;
-    while (r < (int)freq_new.size() && freq_new[r] > avg) {
+    while (r < (int)freq_new.size() && freq_new[r] > 0) {
         r++;
     }
     range_s range_1 = {l, r};
@@ -505,34 +496,54 @@ cut Sketch::find_range(vector<hit>& hits, mem_offset_t start, hash_size_t size) 
     //find cut around second highest peak
     range_s range_2;
     //find if peak is on the left side or the right side of maximum peak
+
+    float r_w, l_w;
+
+    //TODO: check sum of weights. not just the one bucket
     int mx_idx_l = max_element(freq_new.begin(), freq_new.begin() + max(l - 1, 0)) - freq_new.begin();
-    int mx_idx_r = max_element(freq_new.begin() + min(r + 1, int (freq_new.size())), freq_new.end()) - freq_new.begin();
+    int mx_idx_r = max_element(freq_new.begin() + min(r + 1, (int) freq_new.size() - 1), freq_new.end()) - freq_new.begin();
 
-    float prv_peak = freq_new[mx_idx] + freq_new[mx_idx - 1] + freq_new[mx_idx + 1];
-    mx_idx = freq_new[mx_idx_l] > freq_new[mx_idx_r] ? mx_idx_l : mx_idx_r;
+    l_w = freq_new[mx_idx_l];
+    r_w = freq_new[mx_idx_r];
 
-    float new_peak = freq_new[mx_idx] + freq_new[mx_idx - 1] + freq_new[mx_idx + 1];
+    if (l - 1 <= 0) {
+        l_w = -1;
+    }
+    if (r + 1 >= freq_new.size()) {
+        r_w = -1;
+    }
 
-    if (mx_idx <= r && mx_idx_l >= l)
-        range_2 = {0, 0};
-        //Discard if new peak is too low comparing to the maximum peak (probably doesn't belong to this insertion)
-    else if (new_peak < prv_peak) {
+    if (l_w == r_w) {
         range_2 = {0, 0};
     }
     else {
-        l = mx_idx;
-        while (l > 0) {
-            if (freq_new[l - 1] > avg) {
-                l--;
-            } else {
-                break;
+        //    float prv_peak = freq_new[mx_idx] + freq_new[mx_idx - 1] + freq_new[mx_idx + 1];
+        float prv_peak = freq_new[mx_idx];
+        mx_idx = l_w > r_w ? mx_idx_l : mx_idx_r;
+//    float new_peak = freq_new[mx_idx] + freq_new[mx_idx - 1] + freq_new[mx_idx + 1];
+        float new_peak = freq_new[mx_idx];
+
+        if (mx_idx <= r && mx_idx_l >= l)
+            range_2 = {0, 0};
+            //Discard if new peak is too low comparing to the maximum peak (probably doesn't belong to this insertion)
+        else if (new_peak < prv_peak/2) {
+            range_2 = {0, 0};
+        }
+        else {
+            l = mx_idx;
+            while (l > 0) {
+                if (freq_new[l - 1] > 0) {
+                    l--;
+                } else {
+                    break;
+                }
             }
+            r = mx_idx;
+            while (r < (int)freq_new.size() && freq_new[r] > 0) {
+                r++;
+            }
+            range_2 = {l, r};
         }
-        r = mx_idx;
-        while (r < (int)freq_new.size() && freq_new[r] > avg) {
-            r++;
-        }
-        range_2 = {l, r};
     }
 
     range_s final_range;
@@ -566,9 +577,6 @@ cut Sketch::find_range(vector<hit>& hits, mem_offset_t start, hash_size_t size) 
         ans.estimated_insertion = abs(ans.peak1.start - ans.peak2.start);
     }
     ans.range = final_range;
-    cerr << "Range 1: " << ans.peak1.start << "-" << ans.peak1.end << endl;
-    cerr << "Range 2: " << ans.peak2.start << "-" << ans.peak2.end << endl;
-    cerr << endl;
 
     return ans;
 }
@@ -754,100 +762,9 @@ float Sketch::compare_sequences(string& seq_a, string& seq_b) {
     return minimizer_similarity(minimizers_a, minimizers_b);
 }
 
-//void Sketch::classify_reads(vector<hit> &hits, vector<cut> &cuts) {
-//    if (cuts.empty())
-//        return;
-//    //cerr << "********" << endl;
-//    //Bimodal reads first, then ordered by number of minimizers used to pick the reads
-//    sort(cuts.begin(), cuts.end());
-//
-//    unordered_set<hash_t> left_minimizers, right_minimizers;
-//
-//    int i = 0;
-//    //Separate left and right minimizers
-//    //cerr << "BIMODALS: " << endl;
-//    while (i < cuts.size() && cuts[i].type == BIMODAL) {
-//        //cerr << endl;
-//        id_t curr_read = cuts[i].seq_id;
-//
-//        auto h = equal_range(hits.begin(), hits.end(), curr_read, hit());
-//        //cerr << sequences[curr_read].first << " | size: " << h.second - h.first << endl;
-//        for (auto it = h.first; it != h.second; it++) {
-//            //Left minimizers
-//            if (it->offset < cuts[i].peak1.end)
-//                left_minimizers.insert(it->hash_value);
-//            //Right minimizers
-//            else if (it->offset > cuts[i].peak2.start)
-//                right_minimizers.insert(it->hash_value);
-//        }
-//        i++;
-//    }
-//
-//    //cerr << "--------" << endl;
-//    for (i; i < cuts.size(); i++) {
-//        //cerr << endl;
-//        id_t curr_read = cuts[i].seq_id;
-//
-//        auto h = equal_range(hits.begin(), hits.end(), curr_read, hit());
-//
-//        int start = h.first - hits.begin();
-//        int size = h.second - h.first;
-//        //cerr << sequences[curr_read].first << " | size: " << size << endl;
-//        //Case 1: We have seen a bimodal read or we have already populated the left and right sets
-//        // -> just compare similarity to left and right sets
-//        if (!left_minimizers.empty() && !right_minimizers.empty()) {
-//            float left_similarity = minimizer_similarity(left_minimizers, hits, start, size);
-//            float right_similarity = minimizer_similarity(right_minimizers, hits, start, size);
-//            //cerr << "1 - left similarity = " << left_similarity << " | right similarity = " << right_similarity << endl;
-//            //cerr << "left minimizers: " << left_minimizers.size() << " | right minimizers: " << right_minimizers.size() << endl;
-//            if (left_similarity > right_similarity) {
-//                cuts[i].type = LEFT;
-//                //cerr << "LEFT" << endl;
-//            }
-//            else if (right_similarity > left_similarity) {
-//                cuts[i].type = RIGHT;
-//                //cerr << "RIGHT" << endl;
-//            }
-//            else {
-//                cuts[i].type = MISC;
-//                //cerr << "MISC" << endl;
-//            }
-//        }
-//        //Case 2: No bimodal reads, must classify reads on the go -> first set of seen minimizers are assigned to left
-//        else if (left_minimizers.empty()) {
-//            //cerr << "2" << endl;
-//            for (auto j = h.first; j != h.second; j++) {
-//                left_minimizers.insert(j->hash_value);
-//            }
-//            cuts[i].type = LEFT;
-//            //cerr << "LEFT" << endl;
-//            //cerr << "left minimizers: " << left_minimizers.size() << endl;
-//        }
-//        //Case 3: all seen reads have been classified as left and right is still empty -> if this new read doesn't have
-//        //        enough similarity with the left set, assign it to right
-//        else if (right_minimizers.empty()) {
-//            float left_similarity = minimizer_similarity(left_minimizers, hits, start, size);
-//            //cerr << "3 - left similarity = " << left_similarity << endl;
-//            if (left_similarity > 0.5) {
-//                //cerr << "LEFT" << endl;
-//                cuts[i].type = LEFT;
-//                continue;
-//            }
-//            for (auto j = h.first; j != h.second; j++) {
-//                right_minimizers.insert(j->hash_value);
-//            }
-//            cuts[i].type = RIGHT;
-//            //cerr << "RIGHT" << endl;
-//            //cerr << "right minimizers: " << right_minimizers.size() << endl;
-//        }
-//    }
-//    return;
-//}
-
 void Sketch::classify_reads(vector<hit> &hits, vector<cut> &cuts) {
     if (cuts.empty())
         return;
-    //cerr << "********" << endl;
     //Bimodal reads first, then ordered by number of minimizers used to pick the reads
     sort(cuts.begin(), cuts.end());
 
@@ -855,13 +772,10 @@ void Sketch::classify_reads(vector<hit> &hits, vector<cut> &cuts) {
 
     int i = 0;
     //Separate left and right minimizers
-    //cerr << "BIMODALS: " << endl;
     while (i < cuts.size() && cuts[i].type == BIMODAL) {
-        //cerr << endl;
         id_t curr_read = cuts[i].seq_id;
 
         auto h = equal_range(hits.begin(), hits.end(), curr_read, hit());
-        //cerr << sequences[curr_read].first << " | size: " << h.second - h.first << endl;
         for (auto it = h.first; it != h.second; it++) {
             //Left minimizers
             if (it->offset < cuts[i].peak1.end)
@@ -873,70 +787,56 @@ void Sketch::classify_reads(vector<hit> &hits, vector<cut> &cuts) {
         i++;
     }
 
-    //cerr << "--------" << endl;
     for (i; i < cuts.size(); i++) {
-        //cerr << endl;
         id_t curr_read = cuts[i].seq_id;
 
         auto h = equal_range(hits.begin(), hits.end(), curr_read, hit());
 
         int start = h.first - hits.begin();
         int size = h.second - h.first;
-        //cerr << sequences[curr_read].first << " | size: " << size << endl;
+        cerr << sequences[curr_read].first << " | size: " << size << endl;
         //Case 1: We have seen a bimodal read or we have already populated the left and right sets
         // -> just compare similarity to left and right sets
         if (!left_minimizers.empty() && !right_minimizers.empty()) {
             pair<float, float> left_similarity = minimizer_similarity_new(left_minimizers, hits, start, size);
             pair<float, float> right_similarity = minimizer_similarity_new(right_minimizers, hits, start, size);
-            //cerr << "1 - left similarity = " << left_similarity.first << " - " << left_similarity.second
-            //<< " | right similarity = " << right_similarity.first << " - " << right_similarity.second << endl;
-            //cerr << "left minimizers: " << left_minimizers.size() << " | right minimizers: " << right_minimizers.size() << endl;
-            if (abs(left_similarity.first - left_similarity.second) > 0.1 ||
-                abs(right_similarity.first - right_similarity.second) > 0.1)
+
+            if (abs(left_similarity.first - left_similarity.second) > 0.3 ||
+                abs(right_similarity.first - right_similarity.second) > 0.3)
                 cuts[i].type = MISC;
             else if (left_similarity > right_similarity) {
                 cuts[i].type = LEFT;
-                //cerr << "LEFT" << endl;
             }
             else if (right_similarity > left_similarity) {
                 cuts[i].type = RIGHT;
-                //cerr << "RIGHT" << endl;
             }
             else {
                 cuts[i].type = MISC;
-                //cerr << "MISC" << endl;
             }
         }
             //Case 2: No bimodal reads, must classify reads on the go -> first set of seen minimizers are assigned to left
         else if (left_minimizers.empty()) {
-            //cerr << "2" << endl;
             for (auto j = h.first; j != h.second; j++) {
                 left_minimizers.insert(j->hash_value);
             }
             cuts[i].type = LEFT;
-            //cerr << "LEFT" << endl;
-            //cerr << "left minimizers: " << left_minimizers.size() << endl;
         }
             //Case 3: all seen reads have been classified as left and right is still empty -> if this new read doesn't have
             //        enough similarity with the left set, assign it to right
         else if (right_minimizers.empty()) {
             pair<float, float> left_similarity = minimizer_similarity_new(left_minimizers, hits, start, size);
-            //cerr << "3 - left similarity = " << left_similarity.first << " - " << left_similarity.second << endl;
             if (abs(left_similarity.first - left_similarity.second) > 0.1) {
                 cuts[i].type = MISC;
                 continue;
             }
             if (left_similarity.first > 0.5) {
                 cuts[i].type = LEFT;
-                //cerr << "LEFT" << endl;
                 continue;
             }
             for (auto j = h.first; j != h.second; j++) {
                 right_minimizers.insert(j->hash_value);
             }
             cuts[i].type = RIGHT;
-            //cerr << "RIGHT" << endl;
-            //cerr << "right minimizers: " << right_minimizers.size() << endl;
         }
     }
     return;
@@ -1018,8 +918,7 @@ vector<cut> Sketch::find_cuts(bool classify, unordered_set<hash_t> &frw_minimize
             size = frw_hits.size() - it;
 
         it += size;
-//        if (size > 5)
-        //cerr << "id: " << sequences[curr_id].first << " | size: " << size << endl;
+
         if (size < MIN_HITS)
             continue;
 
@@ -1033,27 +932,13 @@ vector<cut> Sketch::find_cuts(bool classify, unordered_set<hash_t> &frw_minimize
         //CHANGED
         if (ans.range.end >= sequences[curr_id].second)
             ans.range.end = sequences[curr_id].second - 1;
-//        if (ans.type == BIMODAL) {
-//            cut p1;
-//            p1 = ans;
-//            p1.range = ans.peak1;
-//            p1.type = SINGLE_PEAK;
-//            cut p2;
-//            p2 = ans;
-//            p2.range = ans.peak2;
-//            p2.type = SINGLE_PEAK;
-//            frw_cuts.push_back(p1);
-//            frw_cuts.push_back(p2);
-//        }
+
         frw_cuts.push_back(ans);
     }
 //	if (frw_cuts.size() > 200)
 //                return cuts;
 
-    //cerr << "..............." << endl;
-
     MIN_HITS = 0.25 * rev_minimizers.size();
-    //cerr << "min hits: " << MIN_HITS << endl;
     vector<cut> rev_cuts;
     for (auto it = 0; it < rev_hits.size(); it++) {
         id_t curr_id = rev_hits[it].seq_id;
@@ -1071,8 +956,7 @@ vector<cut> Sketch::find_cuts(bool classify, unordered_set<hash_t> &frw_minimize
             size = rev_hits.size() - it;
 
         it += size;
-//        if (size > 5)
-        //cerr << "id: " << sequences[curr_id].first << " | size: " << size << endl;
+
         if (size < MIN_HITS)
             continue;
 
@@ -1085,18 +969,7 @@ vector<cut> Sketch::find_cuts(bool classify, unordered_set<hash_t> &frw_minimize
         //CHANGED
         if (ans.range.end >= sequences[curr_id].second)
             ans.range.end = sequences[curr_id].second - 1;
-//        if (ans.type == BIMODAL) {
-//            cut p1;
-//            p1 = ans;
-//            p1.range = ans.peak1;
-//            p1.type = SINGLE_PEAK;
-//            cut p2;
-//            p2 = ans;
-//            p2.range = ans.peak2;
-//            p2.type = SINGLE_PEAK;
-//            rev_cuts.push_back(p1);
-//            rev_cuts.push_back(p2);
-//        }
+
         rev_cuts.push_back(ans);
     }
 //	if (frw_cuts.size() + rev_cuts.size() > 200)
@@ -1123,139 +996,3 @@ vector<cut> Sketch::find_cuts(bool classify, unordered_set<hash_t> &frw_minimize
     }
     return cuts;
 }
-//vector<cut> Sketch::find_cuts(bool classify, unordered_set<hash_t> &frw_minimizers, unordered_set<hash_t> &rev_minimizers) {
-//    vector<hit> rev_hits;
-//    vector<hit> frw_hits;
-//    rev_hits.reserve(1024);
-//    frw_hits.reserve(1024);
-//
-//    vector<cut> cuts;
-//
-//    //Find all forward hits
-//    for (auto it = frw_minimizers.begin(); it != frw_minimizers.end(); it++) {
-//        auto idx = find_hit(*it);
-//
-//        if (idx.second == 0 || idx.second >= freq_th)
-//            continue;
-//
-//        for (auto i = idx.first; i < idx.first + idx.second; i++) {
-//            frw_hits.push_back((hit) {.seq_id = ref_minimizers[i].seq_id, .offset = ref_minimizers[i].offset, .hash_value = *it});
-//        }
-//    }
-//    sort(frw_hits.begin(), frw_hits.end());
-//
-//    for (auto it = rev_minimizers.begin(); it != rev_minimizers.end(); it++) {
-//        auto idx = find_hit(*it);
-//
-//        if (idx.second == 0 || idx.second >= freq_th)
-//            continue;
-//
-//        for (auto i = idx.first; i < idx.first + idx.second; i++) {
-//                rev_hits.push_back((hit) {.seq_id = ref_minimizers[i].seq_id, .offset = ref_minimizers[i].offset, .hash_value = *it});
-//        }
-//    }
-//    sort(rev_hits.begin(), rev_hits.end());
-//
-//    //Find cuts on each picked long read
-//    int MIN_HITS = 0.25 * frw_minimizers.size();
-//    //cerr << "min hits: " << MIN_HITS << endl;
-//    vector<cut> frw_cuts;
-//    for (auto it = 0; it < frw_hits.size(); it++) {
-//        id_t curr_id = frw_hits[it].seq_id;
-//
-//        auto curr_idx = it;
-//
-//        auto r = lower_bound(rev_hits.begin(), rev_hits.end(), curr_id, hit());
-//
-//        if (r != rev_hits.end() && r->seq_id == curr_id)
-//            continue;
-//
-//        auto upper = upper_bound(frw_hits.begin(), frw_hits.end(), curr_id, hit());
-//
-//        hash_size_t size = upper - frw_hits.begin() - it;
-//        if (upper == frw_hits.end())
-//            size = frw_hits.size() - it;
-//
-//        it += size;
-////        if (size > 5)
-//            //cerr << "id: " << sequences[curr_id].first << " | size: " << size << endl;
-//        if (size < MIN_HITS)
-//            continue;
-//
-//        cut ans = find_range(frw_hits, curr_idx, size);
-//
-//        if (ans.range.start == 0 && ans.range.end == 0)
-//            continue;
-//        ans.orientation = FRW;
-//        ans.size = size;
-//        ans.seq_id = curr_id;
-//
-//        //CHANGED
-//        if (ans.range.end >= sequences[curr_id].second)
-//            ans.range.end = sequences[curr_id].second - 1;
-//        frw_cuts.push_back(ans);
-//    }
-////	if (frw_cuts.size() > 200)
-////                return cuts;
-//
-//    //cerr << "..............." << endl;
-//
-//    MIN_HITS = 0.25 * rev_minimizers.size();
-//    //cerr << "min hits: " << MIN_HITS << endl;
-//    vector<cut> rev_cuts;
-//    for (auto it = 0; it < rev_hits.size(); it++) {
-//        id_t curr_id = rev_hits[it].seq_id;
-//
-//        auto curr_idx = it;
-//
-//        auto f = lower_bound(frw_hits.begin(), frw_hits.end(), curr_id, hit());
-//        if (f != frw_hits.end() && f->seq_id == curr_id)
-//            continue;
-//
-//        auto upper = upper_bound(rev_hits.begin(), rev_hits.end(), curr_id, hit());
-//        hash_size_t size = upper - rev_hits.begin() - it;
-//
-//        if (upper == rev_hits.end())
-//            size = rev_hits.size() - it;
-//
-//        it += size;
-////        if (size > 5)
-//            //cerr << "id: " << sequences[curr_id].first << " | size: " << size << endl;
-//        if (size < MIN_HITS)
-//            continue;
-//
-//        cut ans = find_range(rev_hits, curr_idx, size);
-//        if (ans.range.start == 0 && ans.range.end == 0)
-//            continue;
-//        ans.orientation = REV;
-//        ans.size = size;
-//        ans.seq_id = curr_id;
-//        //CHANGED
-//        if (ans.range.end >= sequences[curr_id].second)
-//            ans.range.end = sequences[curr_id].second - 1;
-//        rev_cuts.push_back(ans);
-//    }
-////	if (frw_cuts.size() + rev_cuts.size() > 200)
-////                return cuts;
-//
-//    if (frw_cuts.empty() && rev_cuts.empty())
-//        cuts =  vector<cut>();
-//    else if (classify) {
-//        classify_reads(frw_hits, frw_cuts);
-//        classify_reads(rev_hits, rev_cuts);
-//
-//        for (int i = 0; i < frw_cuts.size(); i++) {
-//            cuts.push_back(frw_cuts[i]);
-//        }
-//        for (int i = 0; i < rev_cuts.size(); i++) {
-//            cuts.push_back(rev_cuts[i]);
-//        }
-//    }
-//    else {
-//        for (int i = 0; i < frw_cuts.size(); i++) {
-//            cut curr = frw_cuts[i];
-//            cuts.push_back(curr);
-//        }
-//    }
-//    return cuts;
-//}
