@@ -26,10 +26,12 @@ struct p3_read_s {
 typedef struct {
     int size = 0;
     bool bimodal = false;
+    type_en cluster_type = LONG_INSERTION;
     vector<p3_read_s> bimodal_cuts;
     vector<p3_read_s> left_cuts;
     vector<p3_read_s> right_cuts;
     vector<p3_read_s> misc_cuts;
+    vector<p3_read_s> single_peak_cuts;
 } classified_cuts;
 
 class p3_partition {

@@ -12,7 +12,7 @@ class cut_ranges {
 	private:
         std::string lr_path;
         ifstream lr_file;
-		std::map<std::string, int> read_offsets;
+		std::map<std::string, uint64_t> read_offsets;
 		std::vector<std::string> names;
         std::vector<std::pair<id_t, range_s> > ranges;
 

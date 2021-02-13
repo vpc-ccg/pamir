@@ -49,7 +49,7 @@ public:
 	~genome_partition_hybrid(void);
 	genome_partition_hybrid(const string&, bool);
 
-    void cluster_reads(string map_path);
+    void cluster_reads(string map_path, int len);
 
 	vector<pair<pair<string, string>, pair<int,int> > > read_partition();
 	

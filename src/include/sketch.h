@@ -22,7 +22,55 @@ typedef uint32_t hash_size_t;
 typedef uint16_t offset_t;
 
 enum orientation_en : u_int8_t { FRW = 0, REV = 1};
-enum type_en : u_int8_t {BIMODAL = 0, LEFT = 1, RIGHT = 2, MISC = 3, SINGLE_PEAK = 4};
+enum type_en : u_int8_t {BIMODAL = 0, PARTIAL_LEFT = 1, PARTIAL_RIGHT = 2, MISC = 3, SINGLE_PEAK = 4, LONG_INSERTION = 5};
+enum anchor_en : u_int8_t {FULLY_ANCHORED = 0, LEFT_ANCHORED = 1, RIGHT_ANCHORED = 2};
+
+struct GenomeAnchor {
+    int left_frw;
+    int left_rev;
+    int right_frw;
+    int right_rev;
+
+    bool operator <(const int &y) {
+        return (left_frw + right_frw < y) && (left_rev + right_rev < y);
+    }
+
+    type_en type() {
+        int max_l = max(left_frw, left_rev);
+        int max_r = max(right_frw, right_rev);
+
+        return max_l >= max_r ? PARTIAL_LEFT : PARTIAL_RIGHT;
+    }
+};
+
+struct GenomeAnchorAbs {
+    int left_cnt;           //Number of common minimizers between the left genomic anchor and the read
+    int right_cnt;          //Number of common minimizers between the right genomic anchor and the read
+
+    int left_genome_cnt;
+    int right_genome_cnt;
+
+    bool is_left_anchored() {
+        return left_cnt >= 0.25 * left_genome_cnt;
+    }
+
+    bool is_right_anchored() {
+        return right_cnt >= 0.25 * right_genome_cnt;
+    }
+
+    bool is_anchored() {
+        return (left_cnt >= 0.25 * left_genome_cnt || right_cnt >= 0.25 * right_genome_cnt);
+    }
+
+    anchor_en type() {
+        if (is_left_anchored() && is_right_anchored())
+            return FULLY_ANCHORED;
+        else if (is_left_anchored())
+            return LEFT_ANCHORED;
+        else
+            return RIGHT_ANCHORED;
+    }
+};
 
 //CHECK OCCURNCES
 struct Location {
@@ -35,13 +83,24 @@ struct range_s {
     offset_t end;
 };
 
+//Query: 1, 5, 7, 8
+//
+//Sketch:
+//    1 -> (R1, 10), (R1, 50)
+//    5 -> (R2, 9)
+//    7 -> (R1, 20)
+//
+//Hits:
+//(1, R1, 10), (1, R1, 50), (5, R2, 9)
+//(R1, 1, 10), (R1, 1, 50), (R1, 7, 20), (R2, 5, 9)
+
 struct hit {
     id_t seq_id;
     mem_offset_t offset;
     hash_t hash_value;
 
     bool operator <(const hit &y) {
-        return seq_id < y.seq_id;
+        return seq_id == y.seq_id ? hash_value < y.hash_value : seq_id < y.seq_id;
     }
 
     bool operator () (const id_t &i, const hit &a) const {
@@ -94,6 +153,7 @@ struct seq_data {
 
 class Sketch {
 	private:
+        int short_read_len;
         int kmer_size = 15;
         gzFile gz_fin;
         char *zbuffer;
@@ -106,6 +166,7 @@ class Sketch {
         int32_t buff_pos = 0;
         int32_t buff_size = 0;
 		static const int thread_cnt = 16;
+		int genome_anchor_distance;
 
         vector<minimizer> minimizers;
         vector<Location> ref_minimizers;
@@ -124,24 +185,35 @@ class Sketch {
         vector<pair<string, offset_t> > sequences;
 
         Sketch();
-		Sketch(string dat_path, int k = 15, int w = 10);
+		Sketch(string dat_path, int len, int distance, int k = 15, int w = 10);
         Sketch(string lr_path, string dat_path, int k = 15, int w = 10);
         void build_sketch();
 		void build_sketch_mt(int, const ProgressBar, vector<pair<hash_t, Location> > &);
         void get_ref_minimizers(char*, id_t, int, vector<pair<hash_t, Location> > &);
 
         vector<cut> query(vector<string>&, bool);
+        vector<cut> query(vector<string>&, bool, string&, string&);
         void build_query_sketch(vector<string>&, vector<pair<uint64_t, int> >&, unordered_set<hash_t> &, unordered_set<hash_t> &);
         void get_query_minimizers(char*, id_t, offset_t, vector<pair<uint64_t, int> > &);
 
+        GenomeAnchorAbs get_genome_anchor(pair<vector<hit>, vector<hit> > ref_l_hits, pair<vector<hit>, vector<hit> > ref_r_hits,
+                                          id_t id, orientation_en orientation, int l_cnt, int r_cnt);
+        pair<vector<hit>, vector<hit> > get_hits(unordered_set<hash_t>& query_frw, unordered_set<hash_t>& query_rev);
         cut find_range(vector<hit>& hits, mem_offset_t start, hash_size_t size);
         vector<cut> find_cuts(bool, unordered_set<hash_t> &, unordered_set<hash_t> &);
+        vector<cut> find_cuts(bool, unordered_set<hash_t> &, unordered_set<hash_t> &, string ref_l, string ref_r);
         void classify_reads(vector<hit> &, vector<cut> &);
 
         float compare_sequences(string& seq_a, string& seq_b);
-        float minimizer_similarity(unordered_set<hash_t>& ref, vector<hit>& q, int start, int size);
-        pair<float, float> minimizer_similarity_new(unordered_set<hash_t>& ref, vector<hit>& q, int start, int size);
-        float minimizer_similarity(unordered_set<hash_t>& ref, unordered_set<hash_t>& q);
+        pair<float, float> minimizer_similarity(unordered_set<hash_t>& ref, vector<hit>& q, int start, int size);
+        float minimizer_similarity_single(unordered_set<hash_t>& ref, unordered_set<hash_t>& q);
+
+        pair<vector<hit>, vector<hit> > get_hits(vector<pair<uint64_t, int> >& query_frw, vector<pair<uint64_t, int> >& query_rev);
+        void get_genome_hits(string& ref_l, string& ref_r, vector<pair<uint64_t, int> >&,
+                             vector<pair<uint64_t, int> >&, vector<pair<uint64_t, int> >&, vector<pair<uint64_t, int> >&,
+                             pair<vector<hit>, vector<hit> >& l_hits, pair<vector<hit>, vector<hit> >& r_hits);
+        float estimate_insertion(vector<hit> hits_l, vector<hit> hits_r, vector<pair<uint64_t, int> > l_minimizers,
+                                     vector<pair<uint64_t, int> > r_minimizers, id_t id, GenomeAnchorAbs anchor);
 };
 
 #endif

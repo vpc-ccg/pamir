@@ -170,10 +170,15 @@ pair<vector<read_cut_info>, classified_cuts> p3_partition::read_partition() {
             if (read_tmp.type == BIMODAL) {
                 cuts.bimodal_cuts.push_back(read_tmp);
                 cuts.bimodal = true;
+                cuts.cluster_type = BIMODAL;
             }
-            else if (read_tmp.type == LEFT)
+            else if (read_tmp.type == SINGLE_PEAK) {
+                cuts.single_peak_cuts.push_back(read_tmp);
+                cuts.cluster_type = SINGLE_PEAK;
+            }
+            else if (read_tmp.type == PARTIAL_LEFT)
                 cuts.left_cuts.push_back(read_tmp);
-            else if (read_tmp.type == RIGHT)
+            else if (read_tmp.type == PARTIAL_RIGHT)
                 cuts.right_cuts.push_back(read_tmp);
             else
                 cuts.misc_cuts.push_back(read_tmp);

@@ -71,105 +71,10 @@ genome_partition_hybrid::genome_partition_hybrid (const string &partition_file_p
     fseek(partition_file, offsets[start-1], SEEK_SET);
 }
 
-//void genome_partition_hybrid::cluster_reads(string map_path) {
-//    map_file = map_path;
-//
-//    int search_s = 0;
-//    int s = 0;
-//    int n = 0;
-//
-//    vector<int> breakpoints;
-//
-//    ifstream fin;
-//    fin.open(map_path);
-//    for (string line; getline(fin, line);) {
-//        n++;
-//        sam_record record(line);
-//
-//        if (record.rname != "chr1" || n > 1000000)
-//            break;
-//
-//        if (record.is_fully_mapped) {
-//            cerr << record.qname << endl;
-//            if (s > 30) {
-//                breakpoints.push_back(search_s);
-////                exit(0);
-//            }
-//            s = 0;
-//        }
-//        else {
-//            int loc = record.pos;
-//
-//            int head_clip = loc + record.head_clip_range;
-////            int tail_clip = record.end_pos - record.tail_clip_range;
-//            int tail_clip = 0;
-//            int insertion_pos = loc + record.insertion_pos;
-//
-//            int potential_s = max(max(head_clip, tail_clip), insertion_pos);
-//            s++;
-//            search_s = potential_s;
-//        }
-//    }
-//
-//    fin.close();
-//    fin.open(map_file);
-//
-//    int i = 0;
-//    partition_id = 1;
-//    vector<pair<string, string> > reads;
-//
-//    int curr_breakpoint = breakpoints[i];
-//    int start_range = max(0, curr_breakpoint - 30);
-//    int end_range = curr_breakpoint - 10;
-//
-//    bool f = false;
-//    n = 0;
-//
-//    for (int j = 0; j < breakpoints.size(); j++)
-//        cerr << breakpoints[j] << endl;
-//
-//    for (string line; getline(fin, line);) {
-//        if (n > 1000000)
-//            break;
-//        n++;
-//        sam_record record(line);
-//
-////        cerr << curr_breakpoint << " | " << record.pos << endl;
-//
-//        if (!record.is_fully_mapped && record.pos >= start_range && record.pos <= end_range) {
-//            reads.push_back({record.qname, record.seq});
-//            f = true;
-//        }
-//        else {
-//            if (f) {
-//                size_t pos = ftell(partition_out_file);
-//                fwrite(&pos, 1, sizeof(size_t), partition_out_index_file);
-//                fprintf(partition_out_file, "%d %lu %d %d %s\n", partition_id, reads.size(), curr_breakpoint - 500,
-//                        curr_breakpoint + 500, "chr1");
-//
-//                for (auto &i: reads) {
-//                    fprintf(partition_out_file, "%s %s %d %d\n", i.first.c_str(), i.second.c_str(), 1, 1);
-//                }
-//
-//                partition_count++;
-//                partition_id++;
-//
-//                i++;
-//                if (i >= breakpoints.size())
-//                    break;
-//                curr_breakpoint = breakpoints[i];
-//                start_range = max(0, curr_breakpoint - 130);
-//                end_range = curr_breakpoint - 20;
-//
-//                f = false;
-//                reads.clear();
-//            }
-//        }
-//    }
-//}
-
-void genome_partition_hybrid::cluster_reads(string map_path) {
+void genome_partition_hybrid::cluster_reads(string map_path, int len) {
     map_file = map_path;
+    int MIN_Q = 30;
+    int MIN_FREQ = 10;
 
     map<int, float> cnt_new;
     vector<int> locs;
@@ -180,10 +85,7 @@ void genome_partition_hybrid::cluster_reads(string map_path) {
     for (string line; getline(fin, line);) {
         sam_record record(line);
 
-//        if (record.rname != "chr1")
-//            break;
-
-        if ((!record.is_fully_mapped) && ((record.flag & 2048) != 2048) && (record.mapq > 30)) {
+        if ((!record.is_fully_mapped) && ((record.flag & 2048) != 2048) && (record.mapq > MIN_Q)) {
             int insertion_pos = record.insertion_pos;
 
             if (record.head_clip_range != 0)
@@ -199,33 +101,44 @@ void genome_partition_hybrid::cluster_reads(string map_path) {
 
     sort(locs.begin(), locs.end());
 
-//    cerr << "-----------------" << endl;
-
+    vector<pair<int, int> > frequencies;
     vector<int> breakpoints;
 
     int s = 1;
 
     int prv_s = locs[0];
     for (int i = 1; i < locs.size(); i++) {
-        cerr << locs[i] << endl;
         if (locs[i] == prv_s)
             s++;
 
         else {
-            if (s > 10) {
-                breakpoints.push_back(prv_s);
-                cerr << prv_s << " | " << s << endl;
+            if (s > MIN_FREQ) {
+                frequencies.push_back({prv_s, s});
             }
             s = 1;
             prv_s = locs[i];
         }
     }
 
-    cerr << "-----------------" << endl;
-    cerr << "locs: " << locs.size() << " | breakpoints: " << breakpoints.size() << endl;
-    for (int i = 0; i < breakpoints.size(); i++)
-        cerr << breakpoints[i] << endl;
-
+    prv_s = frequencies[0].first;
+    int s_sum = 0;
+    int s_cnt = 0;
+    int curr_s = frequencies[0].first;
+    int curr_max = frequencies[0].second;
+    for (int i = 1; i < frequencies.size(); i++) {
+        if (frequencies[i].first - prv_s < 5 && frequencies[i].second > 2) {
+            if (frequencies[i].second > curr_max) {
+                curr_max = frequencies[i].second;
+                curr_s = frequencies[i].first;
+            }
+            prv_s = frequencies[i].first;
+        } else {
+            breakpoints.push_back(curr_s);
+            curr_s = frequencies[i].first;
+            curr_max = frequencies[i].second;
+            prv_s = frequencies[i].first;
+        }
+    }
 
     fin.close();
     fin.open(map_path);
@@ -237,24 +150,25 @@ void genome_partition_hybrid::cluster_reads(string map_path) {
 
     int curr = breakpoints[i++];
 
+    string chr;
+
     vector<pair<string, string> > reads;
     for (string line; getline(fin, line);) {
         sam_record record(line);
+        chr = record.rname;
 
-//        if ( || ((record.flag & 2048) == 1) )
-//            continue;
         if ((record.is_fully_mapped) || (record.flag & 2048) == 2048 || (record.mapq < 30))
             continue;
 
-        if ((record.pos > curr - 300) && (record.pos < curr + 150)) {
+        if ((record.pos > curr - len) && (record.pos <= curr)) {
             reads.push_back({record.qname, record.seq});
         }
-        else if (record.pos > curr + 150) {
+        else if (record.pos > curr) {
             if (reads.size() > 0) {
                 size_t pos = ftell(partition_out_file);
                 fwrite(&pos, 1, sizeof(size_t), partition_out_index_file);
-                fprintf(partition_out_file, "%d %lu %d %d %s\n", partition_id, reads.size(), curr - 300,
-                        curr + 300, "chr21");
+                fprintf(partition_out_file, "%d %lu %d %d %s\n", partition_id, reads.size(), curr - len,
+                        curr + len, chr.c_str());
 
                 for (auto &it: reads) {
                     fprintf(partition_out_file, "%s %s %d %d\n", it.first.c_str(), it.second.c_str(), 1, 1);
@@ -269,19 +183,14 @@ void genome_partition_hybrid::cluster_reads(string map_path) {
             if (i >= breakpoints.size())
                 break;
 
-            while (breakpoints[i] - curr < 5) {
-                if (i >= breakpoints.size())
-                    break;
-                curr = breakpoints[i++];
-            }
             curr = breakpoints[i++];
         }
     }
     if (reads.size() > 0) {
         size_t pos = ftell(partition_out_file);
         fwrite(&pos, 1, sizeof(size_t), partition_out_index_file);
-        fprintf(partition_out_file, "%d %lu %d %d %s\n", partition_id, reads.size(), curr - 300,
-                curr + 300, "chr1");
+        fprintf(partition_out_file, "%d %lu %d %d %s\n", partition_id, reads.size(), curr - len,
+                curr + len, chr.c_str());
 
         for (auto &i: reads) {
             fprintf(partition_out_file, "%s %s %d %d\n", i.first.c_str(), i.second.c_str(), 1, 1);

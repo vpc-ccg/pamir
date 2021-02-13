@@ -28,7 +28,7 @@ ProcessPartition::ProcessPartition(int maxThreads, const string &lrPath, const s
     sprintf(comment, "%10d / %-10d", 0, total);
     progress->update((0.0/(float)total) * 100, comment);
 
-    sketch = new Sketch(datPath);
+    sketch = new Sketch(datPath, 0, 0);
     extractor = new cut_ranges(lrPath, true);
     ia = new InsertionAssembler(sketch, extractor);
 
@@ -61,8 +61,10 @@ cluster ProcessPartition::get_cluster() {
     ans.pt_start = partition->get_start();
     ans.cluster_id = partition->get_id();
     ans.estimated_insertion = partition->get_estimated_insertion();
+    ans.cluster_type = ans.reads.second.cluster_type;
     if (ans.reads.first.size() != 0) {
         processed_cnt += 1;
+//        cerr << processed_cnt << endl;
         sprintf(comment, "%10d / %-10d", processed_cnt, total);
         progress->update(((float)processed_cnt/(float)total) * 100, comment);
     }
@@ -140,14 +142,13 @@ void ProcessPartition::thread_process(int tid) {
         vector<pair<string, int> > consensus;
 
         //BIMODAL
-        if (p.reads.second.bimodal) {
+        if (p.cluster_type == BIMODAL) {
             cluster_type = "bimodal";
             logger_out += " + Type                  : bimodal(left: " + to_string(p.reads.second.left_cuts.size()) +
                     ", right: " + to_string(p.reads.second.right_cuts.size()) +
                     ", bimodal: " + to_string(p.reads.second.bimodal_cuts.size()) + ")\n\n";
 
             int b_size = 0, l_size = 0, r_size = 0;
-
 
             graph.Clear();
             sort(p.reads.second.left_cuts.begin(), p.reads.second.left_cuts.end(), [](const auto &a, const auto &b) {
@@ -176,41 +177,47 @@ void ProcessPartition::thread_process(int tid) {
 
             consensus.push_back({ans.first, p.reads.second.left_cuts.size() + p.reads.second.bimodal_cuts.size() + p.reads.second.right_cuts.size()});
 
+            #ifdef DEBUG
+            logger_out += "\nMSA:\n";
             for (int i = 0; i < msa.size(); i++) {
                 string tmp = msa[i].insert(ans.second.first, "|");
                 string tmp2 = tmp.insert(tmp.size() - ans.second.second, "|");
-                cerr << tmp2 << endl;
+                logger_out += tmp2 + "\n";
             }
+            #endif
 
             bimodal_no++;
         }
         else {
             //SINGLE PEAK
-            if (p.reads.second.right_cuts.size() < 2) {
+            if (p.cluster_type == SINGLE_PEAK) {
                 cluster_type = "single-peak";
                 logger_out += " + Type              : single peak\n\n";
 
-                sort(p.reads.second.left_cuts.begin(), p.reads.second.left_cuts.end(), [](const auto &a, const auto &b) {
+                sort(p.reads.second.single_peak_cuts.begin(), p.reads.second.single_peak_cuts.end(), [](const auto &a, const auto &b) {
                     return a.range.end - a.range.start > b.range.end - b.range.start;
                 });
 
                 graph.Clear();
-                for (int i = 0; i < min(7, (int)p.reads.second.left_cuts.size()); i++) {
-                    auto alignment = alignment_engine->Align(p.reads.second.left_cuts[i].sequence, graph);
-                    graph.AddAlignment(alignment, p.reads.second.left_cuts[i].sequence);
+                for (int i = 0; i < min(7, (int)p.reads.second.single_peak_cuts.size()); i++) {
+                    auto alignment = alignment_engine->Align(p.reads.second.single_peak_cuts[i].sequence, graph);
+                    graph.AddAlignment(alignment, p.reads.second.single_peak_cuts[i].sequence);
                 }
 
                 auto msa = graph.GenerateMultipleSequenceAlignment(true);
 
                 pair<string, pair<int, int>> ans = cut_consensus_single(msa);
 
+                #ifdef DEBUG
+                logger_out += "\nMSA:\n";
                 for (int i = 0; i < msa.size(); i++) {
                     string tmp = msa[i].insert(ans.second.first, "|");
                     string tmp2 = tmp.insert(tmp.size() - ans.second.second, "|");
-                    cerr << tmp2 << endl;
+                    logger_out += tmp2 + "\n";
                 }
+                #endif
 
-                consensus.push_back({ans.first, min(7, (int)p.reads.second.left_cuts.size())});
+                consensus.push_back({ans.first, min(7, (int)p.reads.second.single_peak_cuts.size())});
 
                 single_no++;
             }
@@ -219,46 +226,22 @@ void ProcessPartition::thread_process(int tid) {
                 cluster_type = "long";
                 logger_out += " + Type              : long insertion\n\n";
 
-                vector<string> reads_1, reads_2;
                 vector<string> left_reads, right_reads;
 
-                graph.Clear();
                 for (int i = 0; i < p.reads.second.left_cuts.size(); i++) {
-                    auto alignment = alignment_engine->Align(p.reads.second.left_cuts[i].sequence, graph);
-                    graph.AddAlignment(alignment, p.reads.second.left_cuts[i].sequence);
-                    reads_1.push_back(p.reads.second.left_cuts[i].sequence);
+                    left_reads.push_back(p.reads.second.left_cuts[i].sequence);
                 }
-                auto msa_1 = graph.GenerateMultipleSequenceAlignment(true);
-                string cons_1 = msa_1[msa_1.size() - 1];
-                cons_1.erase(std::remove(cons_1.begin(), cons_1.end(), '-'), cons_1.end());
-
-                graph.Clear();
                 for (int i = 0; i < p.reads.second.right_cuts.size(); i++) {
-                    auto alignment = alignment_engine->Align(p.reads.second.right_cuts[i].sequence, graph);
-                    graph.AddAlignment(alignment, p.reads.second.right_cuts[i].sequence);
-                    reads_2.push_back(p.reads.second.right_cuts[i].sequence);
+                    right_reads.push_back(p.reads.second.right_cuts[i].sequence);
                 }
-                auto msa_2 = graph.GenerateMultipleSequenceAlignment(true);
-                string cons_2 = msa_2[msa_2.size() - 1];
-                cons_2.erase(std::remove(cons_2.begin(), cons_2.end(), '-'), cons_2.end());
 
-                string left, right;
-                al.align(ref_part, cons_1);
+                sort(left_reads.begin(), left_reads.end(), [](const auto &a, const auto &b) {
+                    return a.size() > b.size();
+                });
 
-                //left flank
-                if (al.get_left_anchor() > 5) {
-                    left = cons_1;
-                    right = cons_2;
-                    left_reads = reads_1;
-                    right_reads = reads_2;
-                }
-                    //right flank
-                else if (al.get_right_anchor() > 5) {
-                    left = cons_2;
-                    right = cons_1;
-                    left_reads = reads_2;
-                    right_reads = reads_1;
-                }
+                sort(right_reads.begin(), right_reads.end(), [](const auto &a, const auto &b) {
+                    return a.size() > b.size();
+                });
 
                 pair<string, int> ans = ia->assemble(left_reads, right_reads, logger_out);
 

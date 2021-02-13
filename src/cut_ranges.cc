@@ -60,10 +60,12 @@ cut_ranges::cut_ranges(const string &lrPath, bool build_index) : lr_path(lrPath)
             if (line[0] == '>') {
                 lr_name = line.substr(1);
                 read_offsets.insert({lr_name, lr_file.tellg()});
+//                cerr << lr_name <<  " | " << lr_file.tellg() << endl;
                 getline(lr_file, line);
             }
         }
     }
+//    cerr << "----------------------" << endl;
     lr_file.close();
     lr_file.open(lr_path);
 }
@@ -107,13 +109,16 @@ string cut_ranges::get_cut(string name, offset_t start, offset_t end) {
     lr_file.seekg(read_offsets[name]);
     string line;
     getline(lr_file, line);
+    Logger::instance().debug(">%s\n%s\n", name.c_str(), line.c_str());
+//    cerr << read_offsets[name] << endl;
+//    cerr << line << endl;
     cut = line.substr(start, end - start - 1);
     return cut;
 }
 
 //TODO: Check for possible unhandled cases
 std::pair<std::string, std::pair<int, int>> cut_consensus_bimodal(vector<string> alignments, int left_reads,
-		int right_reads, int bimodal_reads) {
+                                                                  int right_reads, int bimodal_reads) {
     int th_left = 0.5 * (bimodal_reads + left_reads);
     int th_right = 0.5 * (bimodal_reads + right_reads);
     string consensus = alignments[alignments.size() - 1];

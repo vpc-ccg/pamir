@@ -3,6 +3,7 @@ CXX ?= g++
 RELEASE_OPT = -O2
 DEBUG_OPT = -g -O0
 PROFILE_OPT = -O2 -pg -g
+DEV_OPT = -O2 -DDEBUG
 
 EXT_PATH = ext
 SRC_PATH = src
@@ -67,6 +68,10 @@ release: dirs
 	
 debug: export CXXFLAGS := $(CXXFLAGS) $(COMPILE_FLAGS) $(DEBUG_OPT)
 debug: dirs
+	@$(MAKE) all
+
+dev: export CXXFLAGS := $(CXXFLAGS) $(COMPILE_FLAGS) $(DEV_OPT)
+dev: dirs
 	@$(MAKE) all
 
 profile: export CXXFLAGS := $(CXXFLAGS) $(COMPILE_FLAGS) $(PROFILE_OPT)

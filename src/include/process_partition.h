@@ -16,6 +16,7 @@ struct cluster {
     int pt_end;
     pair<vector<read_cut_info >, classified_cuts> reads;
     int estimated_insertion;
+    type_en cluster_type;
 };
 
 class ProcessPartition {

@@ -12,11 +12,14 @@
 
 #include "sketch.h"
 
+#include <cstring>
+
 using namespace std;
 
 //TODO FIX
 const int MAXN = 30000;
 const int BUCKET_SIZE = 100;
+int REF_MIN = 10;
 
 ProgressBar sketch_progress(80);
 ProgressBar sort_progress(80);
@@ -50,7 +53,9 @@ Sketch::Sketch(string lp, string dp, int k, int w) {
     build_sketch();
 }
 
-Sketch::Sketch(string dp, int k, int w) {
+Sketch::Sketch(string dp, int len, int distance, int k, int w) {
+    short_read_len = len;
+    genome_anchor_distance = distance;
     kmer_size = k;
     window_size = w;
     dat_path = dp;
@@ -173,15 +178,17 @@ vector<cut> Sketch::query(vector<string> &reads, bool classify) {
 
     build_query_sketch(reads, minimizers_vec, frw_minimizers, rev_minimizers);
 
-    cerr << "frw: " << frw_minimizers.size() << endl;
-    for (auto it = frw_minimizers.begin(); it != frw_minimizers.end(); it++)
-        cerr << *it << endl;
-    cerr << endl;
-    cerr << "rev: " << rev_minimizers.size() << endl;
-    for (auto it = rev_minimizers.begin(); it != rev_minimizers.end(); it++)
-        cerr << *it << endl;
-
     return find_cuts(classify, frw_minimizers, rev_minimizers);
+}
+
+vector<cut> Sketch::query(vector<string> &reads, bool classify, string& ref_l, string& ref_r) {
+    unordered_set<hash_t> frw_minimizers;
+    unordered_set<hash_t> rev_minimizers;
+    vector<pair<uint64_t, int> > minimizers_vec;
+
+    build_query_sketch(reads, minimizers_vec, frw_minimizers, rev_minimizers);
+
+    return find_cuts(classify, frw_minimizers, rev_minimizers, ref_l, ref_r);
 }
 
 void Sketch::read_buffer() {
@@ -422,7 +429,7 @@ cut Sketch::find_range(vector<hit>& hits, mem_offset_t start, hash_size_t size) 
     //TODO: Optimize
 
     offset_t min_offset = hits[start].offset;
-    offset_t max_offset = hits[start + size - 1].offset + 15;
+    offset_t max_offset = hits[start + size - 1].offset + kmer_size;
     int n = ceil(((max_offset - min_offset)/100) + 2) * 100;
 
     //Create buckets
@@ -446,7 +453,6 @@ cut Sketch::find_range(vector<hit>& hits, mem_offset_t start, hash_size_t size) 
     for (auto i = start; i < start + size; i++) {
         offset_t curr_hit_start = hits[i].offset;
         offset_t curr_hit_end = hits[i].offset + kmer_size;
-        cerr << hits[i].hash_value <<  endl;
         float l_weight, r_weight;
         while (curr_hit_start >= buckets[j].second) {
             j++;
@@ -472,6 +478,9 @@ cut Sketch::find_range(vector<hit>& hits, mem_offset_t start, hash_size_t size) 
     vector<float> freq_new;
     freq_new.reserve(BUCKET_SIZE);
     for (int i = 0; i < buckets.size(); i++) {
+#ifdef DEBUG
+        Logger::instance().debug("%d-%d: %f\n", buckets[i].first, buckets[i].second, cnt_new[i]);
+#endif
         freq_new.push_back(cnt_new[i]);
     }
     //find cut around highest peak
@@ -551,8 +560,8 @@ cut Sketch::find_range(vector<hit>& hits, mem_offset_t start, hash_size_t size) 
     cut ans;
 
     if (range_2.start == range_2.end) {
-        final_range.start = locs[range_1.start].first;
-        final_range.end = locs[range_1.end - 1].second;
+        final_range.start = max(0, locs[range_1.start].first - 300);
+        final_range.end = locs[range_1.end - 1].second + 300;
         ans.type = SINGLE_PEAK;
         ans.peak1 = final_range;
         ans.peak2 = {0, 0};
@@ -562,15 +571,15 @@ cut Sketch::find_range(vector<hit>& hits, mem_offset_t start, hash_size_t size) 
         ans.type = BIMODAL;
         //If second peak is on the right side of the first peak
         if (range_1.start < range_2.start) {
-            final_range.start = max(0, locs[range_1.start].first - 100);
-            final_range.end = locs[range_2.end - 1].second + 100;
+            final_range.start = max(0, locs[range_1.start].first - 300);
+            final_range.end = locs[range_2.end - 1].second + 300;
             ans.peak1 = {locs[range_1.start].first, locs[range_1.end - 1].second};
             ans.peak2 = {locs[range_2.start].first, locs[range_2.end - 1].second};
         }
         //If second peak is on the left side of the first peak
         else {
-            final_range.start = max(0, locs[range_2.start].first - 100);
-            final_range.end = locs[range_1.end - 1].second + 100;
+            final_range.start = max(0, locs[range_2.start].first - 300);
+            final_range.end = locs[range_1.end - 1].second + 300;
             ans.peak2 = {locs[range_1.start].first, locs[range_1.end - 1].second};
             ans.peak1 = {locs[range_2.start].first, locs[range_2.end - 1].second};
         }
@@ -581,156 +590,16 @@ cut Sketch::find_range(vector<hit>& hits, mem_offset_t start, hash_size_t size) 
     return ans;
 }
 
-//cut Sketch::find_range(vector<hit>& hits, mem_offset_t start, hash_size_t size) {
-//
-//    sort(hits.begin() + start, hits.begin() + start + size, hit());
-//
-//    //TODO: Optimize
-//
-//    //Create buckets
-//    vector<pair<offset_t, offset_t> > buckets;
-//    buckets.reserve(BUCKET_SIZE);
-//    map<int, hash_size_t> cnt;
-//    for (int s = 0; s < MAXN; s += BUCKET_SIZE) {
-//        buckets.push_back(make_pair(s, s + BUCKET_SIZE));
-//    }
-//
-//    //Populate buckets by hit locations
-//    int j = 0;
-//    for (auto i = start; i < start + size; i++) {
-//        while (hits[i].offset >= buckets[j].second) {
-//            j++;
-//        }
-//        assert(hits[i].offset >= buckets[j].first);
-//        cnt[j]++;
-//    }
-//
-//    //Find bucket weights
-//    vector<hash_size_t> freq;
-//    freq.reserve(BUCKET_SIZE);
-//    for (int i = 0; i < buckets.size(); i++) {
-//        freq.push_back(cnt[i]);
-//    }
-//
-//    //find cut around highest peak
-//    int mx_idx = max_element(freq.begin(), freq.end()) - freq.begin();
-//
-//    int avg = get_avg(freq);
-//
-//    offset_t l = mx_idx;
-//    while (l > 0) {
-//        if (freq[l - 1] > avg) {
-//            l--;
-//        } else {
-//            break;
-//        }
-//    }
-//    offset_t r = mx_idx;
-//    while (r < (int)freq.size() && freq[r] > avg) {
-//        r++;
-//    }
-//    range_s range_1 = {l, r};
-//
-//    //find cut around second highest peak
-//    range_s range_2;
-//    //find if peak is on the left side or the right side of maximum peak
-//    int mx_idx_l = max_element(freq.begin(), freq.begin() + max(l - 1, 0)) - freq.begin();
-//    int mx_idx_r = max_element(freq.begin() + min(r + 1, int (freq.size())), freq.end()) - freq.begin();
-//
-//    hash_size_t prv_peak = freq[mx_idx];
-//    mx_idx = freq[mx_idx_l] > freq[mx_idx_r] ? mx_idx_l : mx_idx_r;
-//
-//    if (mx_idx <= r && mx_idx_l >= l)
-//        range_2 = {0, 0};
-//        //Discard if new peak is too low comparing to the maximum peak (probably doesn't belong to this insertion)
-//    else if (freq[mx_idx] < prv_peak/2) {
-//        range_2 = {0, 0};
-//    }
-//    else {
-//        l = mx_idx;
-//        while (l > 0) {
-//            if (freq[l - 1] > avg) {
-//                l--;
-//            } else {
-//                break;
-//            }
-//        }
-//        r = mx_idx;
-//        while (r < (int)freq.size() && freq[r] > avg) {
-//            r++;
-//        }
-//        range_2 = {l, r};
-//    }
-//
-//    range_s final_range;
-//    uint8_t type;
-//    cut ans;
-//
-//    //Case 1: only one peak found
-//    if (range_2.start == range_2.end) {
-//        if (buckets[range_1.start].first == 0)
-//            final_range.start = 1;
-//        else
-//            final_range.start = buckets[range_1.start].first;
-//        final_range.end = buckets[range_1.end - 1].second;
-//        ans.type = SINGLE_PEAK;
-//        ans.peak1 = final_range;
-//        ans.peak2 = {0, 0};
-//    }
-//    //Case 2: Two peaks found/Bimodal read
-//    else {
-//        ans.type = BIMODAL;
-//        //If second peak is on the right side of the first peak
-//        if (range_1.start < range_2.start) {
-//            if (buckets[range_1.start].first == 0)
-//                final_range.start = 1;
-//            else
-//                final_range.start = buckets[range_1.start].first;
-//            final_range.end = buckets[range_2.end - 1].second;
-//            ans.peak1 = {buckets[range_1.start].first, buckets[range_1.end - 1].second};
-//            ans.peak2 = {buckets[range_2.start].first, buckets[range_2.end - 1].second};
-//        }
-//        //If second peak is on the left side of the first peak
-//        else {
-//            if (buckets[range_2.start].first == 0)
-//                final_range.start = 1;
-//            else
-//                final_range.start = buckets[range_2.start].first;
-//            final_range.end = buckets[range_1.end - 1].second;
-//            ans.peak2 = {buckets[range_1.start].first, buckets[range_1.end - 1].second};
-//            ans.peak1 = {buckets[range_2.start].first, buckets[range_2.end - 1].second};
-//        }
-//
-//    }
-//
-//    ans.range = final_range;
-//
-//    return ans;
-//}
-
-float Sketch::minimizer_similarity(unordered_set<hash_t>& ref, vector<hit>& q, int start, int size) {
+pair<float, float> Sketch::minimizer_similarity(unordered_set<hash_t>& ref, vector<hit>& q, int start, int size) {
     int cnt = 0;
     for (auto i = start; i < start + size; i++) {
         if (find(ref.begin(), ref.end(), q[i].hash_value) != ref.end())
             cnt++;
     }
-    //cerr << "q/ref: " << float(cnt)/float(size) << endl;
-    //cerr << "ref/q: " << float(cnt)/float(ref.size()) << endl;
-    return float(cnt)/float(size);
-}
-
-pair<float, float> Sketch::minimizer_similarity_new(unordered_set<hash_t>& ref, vector<hit>& q, int start, int size) {
-    int cnt = 0;
-    for (auto i = start; i < start + size; i++) {
-        if (find(ref.begin(), ref.end(), q[i].hash_value) != ref.end())
-            cnt++;
-    }
-//    cerr << "q/ref: " << float(cnt)/float(size) << endl;
-//    cerr << "ref/q: " << float(cnt)/float(ref.size()) << endl;
     return {float(cnt)/float(size), float(cnt)/float(ref.size())};
 }
 
-float Sketch::minimizer_similarity(unordered_set<hash_t>& ref, unordered_set<hash_t>& q) {
+float Sketch::minimizer_similarity_single(unordered_set<hash_t>& ref, unordered_set<hash_t>& q) {
     int cnt = 0;
     for (auto i = q.begin(); i != q.end(); i++) {
         if (find(ref.begin(), ref.end(), *i) != ref.end())
@@ -759,7 +628,7 @@ float Sketch::compare_sequences(string& seq_a, string& seq_b) {
         minimizers_b.insert(minimizers_vec[i].first);
     minimizers_vec.clear();
 
-    return minimizer_similarity(minimizers_a, minimizers_b);
+    return minimizer_similarity_single(minimizers_a, minimizers_b);
 }
 
 void Sketch::classify_reads(vector<hit> &hits, vector<cut> &cuts) {
@@ -794,21 +663,20 @@ void Sketch::classify_reads(vector<hit> &hits, vector<cut> &cuts) {
 
         int start = h.first - hits.begin();
         int size = h.second - h.first;
-        cerr << sequences[curr_read].first << " | size: " << size << endl;
         //Case 1: We have seen a bimodal read or we have already populated the left and right sets
         // -> just compare similarity to left and right sets
         if (!left_minimizers.empty() && !right_minimizers.empty()) {
-            pair<float, float> left_similarity = minimizer_similarity_new(left_minimizers, hits, start, size);
-            pair<float, float> right_similarity = minimizer_similarity_new(right_minimizers, hits, start, size);
+            pair<float, float> left_similarity = minimizer_similarity(left_minimizers, hits, start, size);
+            pair<float, float> right_similarity = minimizer_similarity(right_minimizers, hits, start, size);
 
             if (abs(left_similarity.first - left_similarity.second) > 0.3 ||
                 abs(right_similarity.first - right_similarity.second) > 0.3)
                 cuts[i].type = MISC;
             else if (left_similarity > right_similarity) {
-                cuts[i].type = LEFT;
+                cuts[i].type = PARTIAL_LEFT;
             }
             else if (right_similarity > left_similarity) {
-                cuts[i].type = RIGHT;
+                cuts[i].type = PARTIAL_RIGHT;
             }
             else {
                 cuts[i].type = MISC;
@@ -819,24 +687,24 @@ void Sketch::classify_reads(vector<hit> &hits, vector<cut> &cuts) {
             for (auto j = h.first; j != h.second; j++) {
                 left_minimizers.insert(j->hash_value);
             }
-            cuts[i].type = LEFT;
+            cuts[i].type = PARTIAL_LEFT;
         }
             //Case 3: all seen reads have been classified as left and right is still empty -> if this new read doesn't have
             //        enough similarity with the left set, assign it to right
         else if (right_minimizers.empty()) {
-            pair<float, float> left_similarity = minimizer_similarity_new(left_minimizers, hits, start, size);
+            pair<float, float> left_similarity = minimizer_similarity(left_minimizers, hits, start, size);
             if (abs(left_similarity.first - left_similarity.second) > 0.1) {
                 cuts[i].type = MISC;
                 continue;
             }
             if (left_similarity.first > 0.5) {
-                cuts[i].type = LEFT;
+                cuts[i].type = PARTIAL_LEFT;
                 continue;
             }
             for (auto j = h.first; j != h.second; j++) {
                 right_minimizers.insert(j->hash_value);
             }
-            cuts[i].type = RIGHT;
+            cuts[i].type = PARTIAL_RIGHT;
         }
     }
     return;
@@ -863,6 +731,160 @@ pair<mem_offset_t, hash_size_t> Sketch::find_hit(const hash_t &hv) {
         return {0, 0};
     }
 };
+
+pair<vector<hit>, vector<hit> > Sketch::get_hits(unordered_set<hash_t>& query_frw, unordered_set<hash_t>& query_rev) {
+    vector<hit> hits_frw;
+    vector<hash_t> frequent_hashes;
+    for (auto it = query_frw.begin(); it != query_frw.end(); it++) {
+        auto idx = find_hit(*it);
+
+        if (idx.second == 0 || idx.second >= freq_th) {
+            frequent_hashes.push_back(*it);
+            continue;
+        }
+
+        for (auto i = idx.first; i < idx.first + idx.second; i++) {
+            hits_frw.push_back((hit) {.seq_id = ref_minimizers[i].seq_id, .offset = ref_minimizers[i].offset, .hash_value = *it});
+        }
+    }
+    sort(hits_frw.begin(), hits_frw.end());
+    for (int i = 0; i < frequent_hashes.size(); i++)
+        query_frw.erase(frequent_hashes[i]);
+    frequent_hashes.clear();
+
+
+    vector<hit> hits_rev;
+    for (auto it = query_rev.begin(); it != query_rev.end(); it++) {
+        auto idx = find_hit(*it);
+
+        if (idx.second == 0 || idx.second >= freq_th) {
+            frequent_hashes.push_back(*it);
+            continue;
+        }
+
+        for (auto i = idx.first; i < idx.first + idx.second; i++) {
+            hits_rev.push_back((hit) {.seq_id = ref_minimizers[i].seq_id, .offset = ref_minimizers[i].offset, .hash_value = *it});
+        }
+    }
+    sort(hits_rev.begin(), hits_rev.end());
+    for (int i = 0; i < frequent_hashes.size(); i++)
+        query_rev.erase(frequent_hashes[i]);
+    frequent_hashes.clear();
+
+    return {hits_frw, hits_rev};
+}
+
+pair<vector<hit>, vector<hit> > Sketch::get_hits(vector<pair<uint64_t, int> >& query_frw, vector<pair<uint64_t, int> >& query_rev) {
+    vector<hit> hits_frw;
+    vector<pair<hash_t, int> > hashes;
+
+    hash_t prv_hash = UINT64_MAX;
+
+    for (auto it = query_frw.begin(); it != query_frw.end(); it++) {
+        auto idx = find_hit(it->first);
+
+        if (idx.second == 0 || idx.second >= freq_th) {
+            continue;
+        }
+
+        hashes.push_back(*it);
+
+        if (it->first != prv_hash) {
+            for (auto i = idx.first; i < idx.first + idx.second; i++) {
+                if (sequences[ref_minimizers[i].seq_id].first == "S1_112901")
+                    Logger::instance().debug("%lld - %d\n", it->first, ref_minimizers[i].offset);
+                hits_frw.push_back((hit) {.seq_id = ref_minimizers[i].seq_id, .offset = ref_minimizers[i].offset, .hash_value = it->first});
+            }
+        }
+        prv_hash = it->first;
+    }
+    sort(hits_frw.begin(), hits_frw.end());
+
+    query_frw = hashes;
+    hashes.clear();
+
+    Logger::instance().debug("------\n");
+
+    vector<hit> hits_rev;
+    for (auto it = query_rev.begin(); it != query_rev.end(); it++) {
+        auto idx = find_hit(it->first);
+
+        if (idx.second == 0 || idx.second >= freq_th) {
+            continue;
+        }
+
+        hashes.push_back(*it);
+
+        if (it->first != prv_hash) {
+            for (auto i = idx.first; i < idx.first + idx.second; i++) {
+                if (sequences[ref_minimizers[i].seq_id].first == "S1_112901")
+                    Logger::instance().debug("%lld - %d\n", it->first, ref_minimizers[i].offset);
+                hits_rev.push_back((hit) {.seq_id = ref_minimizers[i].seq_id, .offset = ref_minimizers[i].offset, .hash_value = it->first});
+            }
+        }
+        prv_hash = it->first;
+    }
+    sort(hits_rev.begin(), hits_rev.end());
+    query_rev = hashes;
+    hashes.clear();
+
+    return {hits_frw, hits_rev};
+}
+
+void Sketch::get_genome_hits(string& ref_l, string& ref_r, vector<pair<uint64_t, int> >& l_frw,
+                     vector<pair<uint64_t, int> >& l_rev, vector<pair<uint64_t, int> >& r_frw, vector<pair<uint64_t, int> >& r_rev,
+                     pair<vector<hit>, vector<hit> >& l_hits, pair<vector<hit>, vector<hit> >& r_hits) {
+    transform(ref_l.begin(), ref_l.end(), ref_l.begin(), ::toupper);
+    get_query_minimizers(&ref_l[0], 0, ref_l.size(), l_frw);
+    sort(l_frw.begin(), l_frw.end());
+
+    string q = reverse_complement(ref_l);
+    get_query_minimizers(&q[0], 0, q.size(), l_rev);
+    sort(l_rev.begin(), l_rev.end());
+
+    transform(ref_r.begin(), ref_r.end(), ref_r.begin(), ::toupper);
+    get_query_minimizers(&ref_r[0], 0, ref_r.size(), r_frw);
+    sort(r_frw.begin(), r_frw.end());
+
+    q = reverse_complement(ref_r);
+    get_query_minimizers(&q[0], 0, q.size(), r_rev);
+    sort(r_rev.begin(), r_rev.end());
+
+    Logger::instance().debug("Genomic Hits:\n");
+    l_hits = get_hits(l_frw, l_rev);
+    r_hits = get_hits(r_frw, r_rev);
+
+    Logger::instance().debug("Frw Left:\n");
+#ifdef DEBUG
+    for (auto i = l_frw.begin(); i != l_frw.end(); i++)
+        Logger::instance().debug("%lld - %d:\n", i->first, i->second);
+#endif
+    Logger::instance().debug("-----\n");
+}
+
+GenomeAnchorAbs Sketch::get_genome_anchor(pair<vector<hit>, vector<hit> > ref_l_hits, pair<vector<hit>, vector<hit> > ref_r_hits,
+                                          id_t id, orientation_en orientation, int l_cnt, int r_cnt) {
+    GenomeAnchorAbs anchor;
+
+    if (orientation == FRW) {
+        auto l_frw = equal_range(ref_l_hits.first.begin(), ref_l_hits.first.end(), id, hit());
+        auto r_frw = equal_range(ref_r_hits.first.begin(), ref_r_hits.first.end(), id, hit());
+        anchor.left_cnt = l_frw.second - l_frw.first;
+        anchor.right_cnt = r_frw.second - r_frw.first;
+        anchor.left_genome_cnt = l_cnt;
+        anchor.right_genome_cnt = r_cnt;
+    }
+    else {
+        auto l_rev = equal_range(ref_r_hits.second.begin(), ref_r_hits.second.end(), id, hit());
+        auto r_rev = equal_range(ref_l_hits.second.begin(), ref_l_hits.second.end(), id, hit());
+        anchor.left_cnt = l_rev.second - l_rev.first;
+        anchor.right_cnt = r_rev.second - r_rev.first;
+        anchor.left_genome_cnt = r_cnt;
+        anchor.right_genome_cnt = l_cnt;
+    }
+
+    return anchor;
+}
 
 vector<cut> Sketch::find_cuts(bool classify, unordered_set<hash_t> &frw_minimizers, unordered_set<hash_t> &rev_minimizers) {
     vector<hit> rev_hits;
@@ -899,7 +921,6 @@ vector<cut> Sketch::find_cuts(bool classify, unordered_set<hash_t> &frw_minimize
 
     //Find cuts on each picked long read
     int MIN_HITS = 0.25 * frw_minimizers.size();
-    //cerr << "min hits: " << MIN_HITS << endl;
     vector<cut> frw_cuts;
     for (auto it = 0; it < frw_hits.size(); it++) {
         id_t curr_id = frw_hits[it].seq_id;
@@ -994,5 +1015,290 @@ vector<cut> Sketch::find_cuts(bool classify, unordered_set<hash_t> &frw_minimize
             cuts.push_back(curr);
         }
     }
+    return cuts;
+}
+
+float Sketch::estimate_insertion(vector<hit> hits_l, vector<hit> hits_r, vector<pair<uint64_t, int> > l_minimizers,
+                                 vector<pair<uint64_t, int> > r_minimizers, id_t id, GenomeAnchorAbs anchor) {
+    if (anchor.type() != FULLY_ANCHORED)
+        return -1;
+
+    auto l = equal_range(hits_l.begin(), hits_l.end(), id, hit());
+    auto r = equal_range(hits_r.begin(), hits_r.end(), id, hit());
+
+    vector<int> read_right_locs, ref_right_locs, read_left_locs, ref_left_locs;
+
+    int cnt = 0;
+    hash_t prv_hash = INT64_MAX;
+
+    for (auto it = l.first; it != l.second - 1 && cnt < 2; it++) {
+        if (it->hash_value != (it+1)->hash_value && it->hash_value != prv_hash) {
+            auto left = lower_bound(l_minimizers.begin(), l_minimizers.end(), make_pair(it->hash_value, 0));
+            auto right = lower_bound(r_minimizers.begin(), r_minimizers.end(), make_pair(it->hash_value, 0));
+            if (right == r_minimizers.end() || right->first != it->hash_value) {
+                read_left_locs.push_back(it->offset);
+                ref_left_locs.push_back(left->second);
+                cnt++;
+            }
+        }
+        prv_hash = it->hash_value;
+    }
+
+    cnt = 0;
+    for (auto it = r.first; it != r.second - 1 && cnt < 2; it++) {
+        if (it->hash_value != (it+1)->hash_value && it->hash_value != prv_hash) {
+            auto right = lower_bound(r_minimizers.begin(), r_minimizers.end(), make_pair(it->hash_value, 0));
+            auto left = lower_bound(l_minimizers.begin(), l_minimizers.end(), make_pair(it->hash_value, 0));
+            if (left == r_minimizers.end() || left->first != it->hash_value) {
+                read_right_locs.push_back(it->offset);
+                ref_right_locs.push_back(right->second);
+                cnt++;
+            }
+        }
+        prv_hash = it->hash_value;
+    }
+
+    if (read_left_locs.empty() || read_right_locs.empty()) {
+        Logger::instance().debug("<No unique minimizers found>\n");
+        return -1;
+    }
+
+    int ins_sum = 0;
+    for (int i = 0; i < read_left_locs.size(); i++) {
+        for (int j = 0; j < read_right_locs.size(); j++) {
+            int tmp = abs(abs(read_right_locs[j] - read_left_locs[i]) - (genome_anchor_distance + ref_right_locs[j] - ref_left_locs[i]));
+            ins_sum += tmp;
+        }
+    }
+
+    int ins_avg = ins_sum/(read_left_locs.size() * read_right_locs.size());
+
+    return ins_avg;
+}
+
+//bool genome_anchor_validation() {
+//    GenomeAnchor anchor = get_genome_anchor(ref_l_hits, ref_r_hits, curr_id);
+//
+//    if (anchor.left_frw < REF_MIN_FRW_L && anchor.right_frw < REF_MIN_FRW_R) {
+//             anchor.right_frw << "-" << anchor.left_rev << "-" << anchor.right_rev << endl;
+//        continue;
+//    }
+//}
+
+vector<cut> Sketch::find_cuts(bool classify, unordered_set<hash_t> &frw_minimizers, unordered_set<hash_t> &rev_minimizers, string ref_l, string ref_r) {
+    vector<hit> rev_hits;
+    vector<hit> frw_hits;
+    rev_hits.reserve(1024);
+    frw_hits.reserve(1024);
+
+    vector<cut> cuts;
+
+    pair<vector<hit>, vector<hit> > hits = get_hits(frw_minimizers, rev_minimizers);
+    frw_hits = hits.first;
+    rev_hits = hits.second;
+
+
+    int MIN_HITS_FRW = 0.25 * frw_minimizers.size();
+    int MIN_HITS_REV = 0.25 * rev_minimizers.size();
+
+    vector<pair<uint64_t, int> > l_frw, l_rev, r_frw, r_rev;
+    pair<vector<hit>, vector<hit> > ref_l_hits, ref_r_hits;
+    get_genome_hits(ref_l, ref_r, l_frw, l_rev, r_frw, r_rev, ref_l_hits, ref_r_hits);
+
+    Logger::instance().debug("Left frw: %d\tLeft rev: %d\tright frw: %d\tright rev: %d\n", l_frw.size(), l_rev.size(), r_frw.size(), r_rev.size());
+
+    int REF_MIN_FRW_L = 0.25 * l_frw.size();
+    int REF_MIN_FRW_R = 0.25 * r_frw.size();
+
+    int REF_MIN_REV_L = 0.25 * l_rev.size();
+    int REF_MIN_REV_R = 0.25 * r_rev.size();
+
+    bool bimodal = false;
+    bool single_peak = false;
+
+    vector<pair<int, id_t> > estimations;
+
+    //Find cuts on each picked long read
+    float est = -1;
+    float est_sum = 0;
+    int est_cnt = 0;
+
+    vector<cut> frw_cuts;
+    for (auto it = 0; it < frw_hits.size(); it++) {
+        id_t curr_id = frw_hits[it].seq_id;
+        auto curr_idx = it;
+
+        auto upper = upper_bound(frw_hits.begin(), frw_hits.end(), curr_id, hit());
+        hash_size_t size = upper - frw_hits.begin() - curr_idx;
+        if (upper == frw_hits.end())
+            size = frw_hits.size() - curr_idx;
+
+        auto rev = equal_range(rev_hits.begin(), rev_hits.end(), curr_id, hit());
+        hash_size_t r_size = rev.second - rev.first;
+
+        it += size;
+
+        if (size < MIN_HITS_FRW || r_size >= MIN_HITS_REV) {
+            continue;
+        }
+
+        Logger::instance().debug("* %s\n", sequences[curr_id].first.c_str());
+
+        GenomeAnchorAbs anchor = get_genome_anchor(ref_l_hits, ref_r_hits, curr_id, FRW, l_frw.size(), r_frw.size());
+        Logger::instance().debug("Min left anchor: %d\tMin right anchor: %d\n", anchor.left_genome_cnt, anchor.right_genome_cnt);
+        Logger::instance().debug("left anchor: %d\tright anchor: %d\n", anchor.left_cnt, anchor.right_cnt);
+
+        if (!anchor.is_anchored()) {
+            continue;
+        }
+
+        cut ans = find_range(frw_hits, curr_idx, size);
+
+        if (ans.type == BIMODAL)
+            bimodal = true;
+        else {
+            if (anchor.type() == LEFT_ANCHORED)
+                ans.type = PARTIAL_LEFT;
+            else if (anchor.type() == RIGHT_ANCHORED)
+                ans.type = PARTIAL_RIGHT;
+        }
+
+        float new_est = estimate_insertion(ref_l_hits.first, ref_r_hits.first, l_frw, r_frw, curr_id, anchor);
+        estimations.push_back({new_est, curr_id});
+
+        Logger::instance().debug("Insertion Estimate  = %f\n", new_est);
+
+        if (new_est > 10) {
+            est_cnt++;
+            est_sum += new_est;
+        }
+        else if (new_est == -1) {
+            if (ans.type != BIMODAL) {
+                if (anchor.type() == LEFT_ANCHORED)
+                    ans.type = PARTIAL_LEFT;
+                else if (anchor.type() == RIGHT_ANCHORED)
+                    ans.type = PARTIAL_RIGHT;
+            }
+        }
+        else {
+            Logger::instance().debug("Dropped\n", new_est);
+            continue;
+        }
+
+        if (ans.range.start == 0 && ans.range.end == 0)
+            continue;
+
+        ans.orientation = FRW;
+        ans.size = size;
+        ans.seq_id = curr_id;
+
+        if (ans.range.end >= sequences[curr_id].second)
+            ans.range.end = sequences[curr_id].second - 1;
+
+        ans.estimated_insertion = est;
+
+        frw_cuts.push_back(ans);
+    }
+
+//	if (frw_cuts.size() > 200)
+//                return cuts;
+
+//========================= REV ===========================
+
+    vector<cut> rev_cuts;
+    for (auto it = 0; it < rev_hits.size(); it++) {
+        id_t curr_id = rev_hits[it].seq_id;
+
+        auto curr_idx = it;
+
+        auto upper = upper_bound(rev_hits.begin(), rev_hits.end(), curr_id, hit());
+        hash_size_t size = upper - rev_hits.begin() - it;
+
+        if (upper == rev_hits.end())
+            size = rev_hits.size() - it;
+
+        auto frw = equal_range(frw_hits.begin(), frw_hits.end(), curr_id, hit());
+        hash_size_t f_size = frw.second - frw.first;
+
+        it += size;
+
+        if (size < MIN_HITS_REV || f_size >= MIN_HITS_FRW) {
+            continue;
+        }
+
+        Logger::instance().debug("* %s\n", sequences[curr_id].first.c_str());
+
+        GenomeAnchorAbs anchor = get_genome_anchor(ref_l_hits, ref_r_hits, curr_id, REV, l_rev.size(), r_rev.size());
+        Logger::instance().debug("Min left anchor: %d\tMin right anchor: %d\n", anchor.left_genome_cnt, anchor.right_genome_cnt);
+        Logger::instance().debug("left anchor: %d\tright anchor: %d\n", anchor.left_cnt, anchor.right_cnt);
+
+        if (!anchor.is_anchored()) {
+            continue;
+        }
+
+        Logger::instance().debug("* %s\n", sequences[curr_id].first.c_str());
+
+        cut ans = find_range(rev_hits, curr_idx, size);
+
+        if (ans.type == BIMODAL)
+            bimodal = true;
+
+        float new_est = estimate_insertion(ref_r_hits.second, ref_l_hits.second, r_rev, l_rev, curr_id, anchor);
+        estimations.push_back({new_est, curr_id});
+
+        Logger::instance().debug("Insertion Estimate  = %f\n", new_est);
+
+        if (new_est > 10) {
+            est_cnt++;
+            est_sum += new_est;
+        }
+        else if (new_est == -1) {
+            if (ans.type != BIMODAL) {
+                if (anchor.type() == LEFT_ANCHORED)
+                    ans.type = PARTIAL_RIGHT;
+                else if (anchor.type() == RIGHT_ANCHORED)
+                    ans.type = PARTIAL_LEFT;
+            }
+        }
+        else {
+            Logger::instance().debug("Dropped\n", new_est);
+            continue;
+        }
+
+        if (ans.range.start == 0 && ans.range.end == 0)
+            continue;
+
+        ans.orientation = REV;
+        ans.size = size;
+        ans.seq_id = curr_id;
+
+        if (ans.range.end >= sequences[curr_id].second)
+            ans.range.end = sequences[curr_id].second - 1;
+
+        ans.estimated_insertion = est;
+
+        rev_cuts.push_back(ans);
+    }
+//	if (frw_cuts.size() + rev_cuts.size() > 200)
+//                return cuts;
+
+    if (frw_cuts.empty() && rev_cuts.empty())
+        cuts =  vector<cut>();
+    else {
+        for (int i = 0; i < frw_cuts.size(); i++) {
+            cuts.push_back(frw_cuts[i]);
+        }
+        for (int i = 0; i < rev_cuts.size(); i++) {
+            cuts.push_back(rev_cuts[i]);
+        }
+    }
+
+    float est_avg;
+    if (est_cnt == 0)
+        est_avg = -1;
+    else
+        est_avg = (float)est_sum/(float)est_cnt;
+    Logger::instance().debug("Average Insertion Length            : %f\n", est_avg);
+
     return cuts;
 }
