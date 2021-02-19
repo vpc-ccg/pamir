@@ -64,7 +64,7 @@ cluster ProcessPartition::get_cluster() {
     ans.cluster_type = ans.reads.second.cluster_type;
     if (ans.reads.first.size() != 0) {
         processed_cnt += 1;
-//        cerr << processed_cnt << endl;
+        cerr << processed_cnt << endl;
         sprintf(comment, "%10d / %-10d", processed_cnt, total);
         progress->update(((float)processed_cnt/(float)total) * 100, comment);
     }
@@ -84,7 +84,8 @@ void ProcessPartition::thread_process(int tid) {
     int log_buffer = 0;
 
     spoa::Graph graph{};
-    auto alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kSW, 2, -32, -64, -1);
+    auto alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kSW, 10, -2, -15, -7);
+//    auto alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kSW, 2, -32, -64, -1);
     genome reference(reference_name.c_str());
     aligner al(max_len + 2010);
 
@@ -151,6 +152,9 @@ void ProcessPartition::thread_process(int tid) {
             int b_size = 0, l_size = 0, r_size = 0;
 
             graph.Clear();
+            sort(p.reads.second.bimodal_cuts.begin(), p.reads.second.bimodal_cuts.end(), [](const auto &a, const auto &b) {
+                return a.range.end - a.range.start > b.range.end - b.range.start;
+            });
             sort(p.reads.second.left_cuts.begin(), p.reads.second.left_cuts.end(), [](const auto &a, const auto &b) {
                 return a.range.end - a.range.start > b.range.end - b.range.start;
             });
@@ -266,9 +270,9 @@ void ProcessPartition::thread_process(int tid) {
             al.align(ref_part, consensus[i].first);
             string ex_msg = "";
             if (al.extract_calls(cluster_id, reports_lq, reports, contig_support, ref_start, ">>>", ex_msg) == 0) {
-                string rc_contig = reverse_complement(consensus[i].first);
-                al.align(ref_part, rc_contig);
-                al.extract_calls(cluster_id, reports_lq, reports, contig_support, ref_start, "<<<", ex_msg);
+//                string rc_contig = reverse_complement(consensus[i].first);
+//                al.align(ref_part, rc_contig);
+//                al.extract_calls(cluster_id, reports_lq, reports, contig_support, ref_start, "<<<", ex_msg);
             }
 
             logger_out += ex_msg;

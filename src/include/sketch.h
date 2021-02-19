@@ -51,15 +51,15 @@ struct GenomeAnchorAbs {
     int right_genome_cnt;
 
     bool is_left_anchored() {
-        return left_cnt >= 0.25 * left_genome_cnt;
+        return left_genome_cnt != 0 && left_cnt >= 0.25 * left_genome_cnt;
     }
 
     bool is_right_anchored() {
-        return right_cnt >= 0.25 * right_genome_cnt;
+        return right_genome_cnt != 0 && right_cnt >= 0.25 * right_genome_cnt;
     }
 
     bool is_anchored() {
-        return (left_cnt >= 0.25 * left_genome_cnt || right_cnt >= 0.25 * right_genome_cnt);
+        return (left_genome_cnt != 0 && left_cnt >= 0.25 * left_genome_cnt || right_genome_cnt != 0 && right_cnt >= 0.25 * right_genome_cnt);
     }
 
     anchor_en type() {
@@ -197,7 +197,8 @@ class Sketch {
         void get_query_minimizers(char*, id_t, offset_t, vector<pair<uint64_t, int> > &);
 
         GenomeAnchorAbs get_genome_anchor(pair<vector<hit>, vector<hit> > ref_l_hits, pair<vector<hit>, vector<hit> > ref_r_hits,
-                                          id_t id, orientation_en orientation, int l_cnt, int r_cnt);
+                                          id_t id, orientation_en orientation, int l_cnt, int r_cnt, vector<pair<uint64_t, int> > genome_l,
+                                          vector<pair<uint64_t, int> > genome_r);
         pair<vector<hit>, vector<hit> > get_hits(unordered_set<hash_t>& query_frw, unordered_set<hash_t>& query_rev);
         cut find_range(vector<hit>& hits, mem_offset_t start, hash_size_t size);
         vector<cut> find_cuts(bool, unordered_set<hash_t> &, unordered_set<hash_t> &);
@@ -214,6 +215,9 @@ class Sketch {
                              pair<vector<hit>, vector<hit> >& l_hits, pair<vector<hit>, vector<hit> >& r_hits);
         float estimate_insertion(vector<hit> hits_l, vector<hit> hits_r, vector<pair<uint64_t, int> > l_minimizers,
                                      vector<pair<uint64_t, int> > r_minimizers, id_t id, GenomeAnchorAbs anchor);
+
+        void get_insertion_minimizers(unordered_set<hash_t>& reads_frw, unordered_set<hash_t>& reads_rev, string& genome,
+                                  unordered_set<hash_t>& insertion_minimizers_frw, unordered_set<hash_t>& insertion_minimizers_rev);
 };
 
 #endif

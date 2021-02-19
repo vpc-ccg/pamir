@@ -15,8 +15,9 @@ class InsertionAssembler {
 
         string build_segment(vector<string>& cuts);
         vector<string> extract_reads(map<id_t, cut>& cuts);
-        map<id_t, cut> find_cuts(string&, bool left);
+        map<id_t, cut> find_cuts(string&, string&, bool left);
         string get_overlap(vector<string>& l, vector<string>& r, string& m);
+        map<id_t, cut> check_end(map<id_t, cut> &l, map<id_t, cut> &r);
     public:
         InsertionAssembler(Sketch* sketch, cut_ranges* read_extractor);
         pair<string, int> assemble(vector<string>& left_reads, vector<string>& right_reads, string &output);

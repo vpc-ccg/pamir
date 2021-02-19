@@ -174,7 +174,8 @@ pair<vector<read_cut_info>, classified_cuts> p3_partition::read_partition() {
             }
             else if (read_tmp.type == SINGLE_PEAK) {
                 cuts.single_peak_cuts.push_back(read_tmp);
-                cuts.cluster_type = SINGLE_PEAK;
+                if (cuts.cluster_type != BIMODAL)
+                    cuts.cluster_type = SINGLE_PEAK;
             }
             else if (read_tmp.type == PARTIAL_LEFT)
                 cuts.left_cuts.push_back(read_tmp);

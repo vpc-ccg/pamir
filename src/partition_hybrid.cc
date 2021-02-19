@@ -157,7 +157,7 @@ void genome_partition_hybrid::cluster_reads(string map_path, int len) {
         sam_record record(line);
         chr = record.rname;
 
-        if ((record.is_fully_mapped) || (record.flag & 2048) == 2048 || (record.mapq < 30))
+        if ((record.is_fully_mapped) || (record.flag & 2048) == 2048 || (record.mapq < MIN_Q))
             continue;
 
         if ((record.pos > curr - len) && (record.pos <= curr)) {

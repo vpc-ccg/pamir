@@ -431,7 +431,8 @@ void find_reads (const string &partition_file, const string &dat_path, const str
     sprintf(comment, "%10d / %-10d", cnt, total);
     progress.update(((float)cnt/(float)total) * 100, comment);
 
-    int genome_anchor_len = 550;
+    int genome_anchor_len = 600;
+//    int genome_anchor_len = 550;
     int genome_anchor_distance = 650;
 //    int genome_anchor_len = 3 * len;
 //    int genome_anchor_distance = genome_anchor_len + 2 * len;
@@ -489,10 +490,14 @@ void find_reads (const string &partition_file, const string &dat_path, const str
 //        int right_start = pt_end;
 //        int right_end = pt_end + genome_anchor_len;
         int breakpoint = pt_start +  (pt_end - pt_start)/2;
-        int left_start = breakpoint - 50 - genome_anchor_len;
-        int left_end = breakpoint - 50;
-        int right_start = breakpoint + 50;
-        int right_end = breakpoint + 50 + genome_anchor_len;
+//        int left_start = breakpoint - 50 - genome_anchor_len;
+//        int left_end = breakpoint - 50;
+//        int right_start = breakpoint + 50;
+//        int right_end = breakpoint + 50 + genome_anchor_len;
+        int left_start = breakpoint - genome_anchor_len;
+        int left_end = breakpoint;
+        int right_start = breakpoint;
+        int right_end = breakpoint + genome_anchor_len;
 
         string ref_l = reference.get_bases_at(chrName, left_start, left_end);
         string ref_r = reference.get_bases_at(chrName, right_start, right_end);
@@ -512,7 +517,7 @@ void find_reads (const string &partition_file, const string &dat_path, const str
 
         if (cut_candidates.size() == 0) {
             Logger::instance().info("-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-*-<=*=>-\n");
-            Logger::instance().info(" + Cluster ID      : %d\n", pt.get_id());
+            Logger::instance().info(" + Cluster ID            : %d\n", pt.get_id());
             Logger::instance().info(" + Short Reads Count     : %lu\n", p.size());
             Logger::instance().info("INFO: Skipped Processing - No Long reads found\n");
 

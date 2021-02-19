@@ -11,6 +11,11 @@ private:
     int CON_LEN = 10000;
     int MAX_SIDE = 15000;
 
+//    static const int MATCH_SCORE = 20;
+//    static const int MISMATCH_SCORE = -250;
+//    static const int GAP_OPENING_SCORE = -500;
+//    static const int GAP_EXTENSION_SCORE = -1;
+
     static const int MATCH_SCORE = 20;
     static const int MISMATCH_SCORE = -500;
     static const int GAP_OPENING_SCORE = -1000;

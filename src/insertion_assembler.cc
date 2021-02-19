@@ -18,7 +18,8 @@ InsertionAssembler::InsertionAssembler(Sketch* sketch, cut_ranges* read_extracto
 string InsertionAssembler::build_segment(vector<string> &cuts) {
     spoa::Graph graph{};
     graph.Clear();
-    auto alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kSW, 2, -32, -64, -1);
+//    auto alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kSW, 2, -32, -64, -1);
+    auto alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kSW, 10, -2, -15, -7);
     for (int i = 0; i < cuts.size(); i++) {
         auto alignment = alignment_engine->Align(cuts[i], graph);
         graph.AddAlignment(alignment, cuts[i]);
@@ -28,32 +29,32 @@ string InsertionAssembler::build_segment(vector<string> &cuts) {
     int th = 0.7 * (msa.size() - 1);
 
     string consensus = msa[msa.size() - 1];
-
-    int left = 0, right = 0;
-    int gap_cnt;
-    for (int idx = 0; idx < msa[0].size(); idx = idx + 50) {
-        gap_cnt = 0;
-        for (int i = 0; i < msa.size() - 1; i++) {
-            if (msa[i][idx] == '-')
-                gap_cnt++;
-        }
-        if (gap_cnt < th) {
-            left = idx;
-            break;
-        }
-    }
-
-    for (int idx = 0; idx < msa[0].size(); idx = idx+50) {
-        gap_cnt = 0;
-        for (int i = 0; i < msa.size() - 1; i++) {
-            if (msa[i][msa[i].size() - idx - 1] == '-')
-                gap_cnt++;
-        }
-        if (gap_cnt < th) {
-            right = idx;
-            break;
-        }
-    }
+//
+//    int left = 0, right = 0;
+//    int gap_cnt;
+//    for (int idx = 0; idx < msa[0].size(); idx = idx + 50) {
+//        gap_cnt = 0;
+//        for (int i = 0; i < msa.size() - 1; i++) {
+//            if (msa[i][idx] == '-')
+//                gap_cnt++;
+//        }
+//        if (gap_cnt < th) {
+//            left = idx;
+//            break;
+//        }
+//    }
+//
+//    for (int idx = 0; idx < msa[0].size(); idx = idx+50) {
+//        gap_cnt = 0;
+//        for (int i = 0; i < msa.size() - 1; i++) {
+//            if (msa[i][msa[i].size() - idx - 1] == '-')
+//                gap_cnt++;
+//        }
+//        if (gap_cnt < th) {
+//            right = idx;
+//            break;
+//        }
+//    }
 
 //    bool up = false, down = false;
 //    int step = 200;
@@ -117,6 +118,127 @@ string InsertionAssembler::build_segment(vector<string> &cuts) {
 //        }
 //    }
 
+//    pair<string, pair<int, int> > cut = cut_consensus_single(msa);
+
+    bool up = false, down = false;
+    int left = 0, right = 0;
+    int gap_cnt;
+    int step = 200, prv = 0;
+    int curr_answer = 0;
+    //cerr << "threshold: " << th << endl;
+    //cerr << " ----- Left ----- " << endl;
+    for (int idx = min(200, (int)msa[0].size()/2); idx < msa[0].size(); idx += step) {
+        gap_cnt = 0;
+        for (int i = 0; i < msa.size() - 1; i++) {
+            if (msa[i][idx] == '-')
+                gap_cnt++;
+        }
+        cerr << "......" << endl;
+        cerr << "idx: " << idx << endl;
+        cerr << "gap cnt: " << gap_cnt << endl;
+        if (gap_cnt > th) {
+            if (down) {
+                cerr << "curr answer: " << curr_answer << endl;
+                if (step != 1)
+                    step = abs(curr_answer - idx)/2;
+                if (step == 0)
+                    step = 1;
+                cerr << "down==true" << endl;
+                cerr << "new step: " << step << endl;
+            }
+            else {
+                cerr << "curr answer: " << curr_answer << endl;
+                if (curr_answer == 0)
+                    step = 100;
+                else if (step != 1)
+                    step = abs(curr_answer - idx)/2;
+                if (step == 0)
+                    step = 1;
+//                step = idx;
+                cerr << "down==false" << endl;
+                cerr << "new step: " << step << endl;
+            }
+            prv = idx;
+            up = true;
+            down = false;
+            cerr << "up true, down false" << endl;
+        }
+        else {
+            down = true;
+            cerr << "down true" << endl;
+            if (step != 0 && step != 1) {
+                cerr << "up==false" << endl;
+                step = -abs(prv - idx) / 2;
+                cerr << "new step: " << step << endl;
+                prv = idx;
+                curr_answer = idx;
+            } else {
+                cerr << "up==true" << endl;
+                cerr << "left set to " << left << endl;
+                left = idx;
+                break;
+            }
+        }
+    }
+
+    step = 200;
+    prv = 0;
+    up = false, down = false;
+    curr_answer = 0;
+    for (int idx = min(200, (int)msa[0].size()/2); idx < msa[0].size(); idx += step) {
+        gap_cnt = 0;
+        for (int i = 0; i < msa.size() - 1; i++) {
+            if (msa[i][msa[i].size() - idx - 1] == '-')
+                gap_cnt++;
+        }
+        cerr << "......" << endl;
+        cerr << "idx: " << idx << endl;
+        cerr << "gap cnt: " << gap_cnt << endl;
+        if (gap_cnt > th) {
+            if (down) {
+                cerr << "curr answer: " << curr_answer << endl;
+                if (step != 1)
+                    step = abs(curr_answer - idx)/2;
+                if (step == 0)
+                    step = 1;
+                cerr << "down==true" << endl;
+                cerr << "new step: " << step << endl;
+            }
+            else {
+                cerr << "curr answer: " << curr_answer << endl;
+                if (curr_answer == 0)
+                    step = 100;
+                else if (step != 1)
+                    step = abs(curr_answer - idx)/2;
+                if (step == 0)
+                    step = 1;
+//                step = idx;
+                cerr << "down==false" << endl;
+                cerr << "new step: " << step << endl;
+            }
+            prv = idx;
+            up = true;
+            down = false;
+            cerr << "up true, down false" << endl;
+        }
+        else {
+            down = true;
+            cerr << "down true" << endl;
+            if (step != 0 && step != 1) {
+                cerr << "up==false" << endl;
+                step = -abs(prv - idx) / 2;
+                cerr << "new step: " << step << endl;
+                prv = idx;
+                curr_answer = idx;
+            } else {
+                cerr << "up==true" << endl;
+                cerr << "left set to " << left << endl;
+                right = idx;
+                break;
+            }
+        }
+    }
+
     #ifdef DEBUG
     Logger::instance().debug("- MSA\n");
     for (int i = 0; i < msa.size(); i++) {
@@ -139,6 +261,7 @@ vector<string> InsertionAssembler::extract_reads(map<id_t, cut> &cuts) {
         extract_lock.lock();
         string r = extractor->get_cut(lr_sketch->sequences[it->first].first, it->second.range.start, it->second.range.end);
         extract_lock.unlock();
+//        Logger::instance().debug(">%s\n%s\n", lr_sketch->sequences[it->first].first.c_str(), r.c_str());
         if (it->second.orientation == REV)
             ext.push_back(reverse_complement(r));
         else
@@ -148,7 +271,12 @@ vector<string> InsertionAssembler::extract_reads(map<id_t, cut> &cuts) {
     return ext;
 }
 
-map<id_t, cut> check_end(map<id_t, cut> &l, map<id_t, cut> &r) {
+void inline get_range(int& start, int& end, int s1, int e1, int s2, int e2, int l) {
+    start = max(min(s1, e2) - 100, 0);
+    end = min(max(s1, e2), l);
+}
+
+map<id_t, cut> InsertionAssembler::check_end(map<id_t, cut> &l, map<id_t, cut> &r) {
     map<id_t, cut> mid;
     for (auto it = l.begin(); it != l.end(); it++) {
         auto f = r.find(it->first);
@@ -156,43 +284,62 @@ map<id_t, cut> check_end(map<id_t, cut> &l, map<id_t, cut> &r) {
             offset_t start, end;
             id_t id = it->first;
             if (it->second.orientation == FRW) {
-                start = f->second.range.start;
-                end = it->second.range.end;
+                start = max(min(it->second.range.start, f->second.range.end) - 100, 0);
+                end = min(max(it->second.range.start, f->second.range.end) + 100, (int)lr_sketch->sequences[it->first].second);
             }
             else {
-                start = it->second.range.start;
-                end = f->second.range.end;
+                start = max(min(it->second.range.end, f->second.range.start) - 100, 0);
+                end = min(max(it->second.range.end, f->second.range.start) + 100, (int)lr_sketch->sequences[it->first].second);
+//                start = it->second.range.start;
+//                end = f->second.range.end;
+//                start = f->second.range.start;
+//                end = it->second.range.end;
+//                start = max(it->second.range.end - 100, 0);
+//                end = min(f->second.range.start + 100, (int)lr_sketch->sequences[it->first].second);
             }
             range_s range = {start, end};
             cut merged_cut;
             merged_cut.range = range;
             merged_cut.seq_id = id;
-            merged_cut.orientation = FRW;
+            merged_cut.orientation = it->second.orientation;
             mid.insert({id, merged_cut});
+            Logger::instance().debug("%s: %d - %d\n", lr_sketch->sequences[it->first].first.c_str(), start, end);
         }
     }
     return mid;
 }
 
 //TODO: Remove map
-map<id_t, cut> InsertionAssembler::find_cuts(string& segment, bool left) {
-    vector<string> dummy;
-    dummy.push_back(segment);
-    vector<cut> cuts = lr_sketch->query(dummy, false);
+map<id_t, cut> InsertionAssembler::find_cuts(string& segment, string& anchor, bool left) {
+    vector<string> seg_vec;
+    seg_vec.push_back(segment);
+    string dummy = "";
+    vector<cut> cuts;
+    if (left)
+        cuts = lr_sketch->query(seg_vec, false, anchor, dummy);
+    else
+        cuts = lr_sketch->query(seg_vec, false, dummy, anchor);
     map<id_t, cut> ans;
     for (auto it = cuts.begin(); it != cuts.end(); it++) {
         offset_t start, end;
         if (it->orientation == FRW) {
-            start = left ? it->range.start : 1;
-            end = left ? lr_sketch->sequences[it->seq_id].second - 1: it->range.end;
-        }
-        else {
-            start = left ? 1 : it->range.start;
-            end = left ? it->range.end : lr_sketch->sequences[it->seq_id].second - 1;
+//            start = left ? it->range.start : 1;
+//            end = left ? lr_sketch->sequences[it->seq_id].second - 1 : it->range.end;
+            start = left ? it->range.start : max(0, it->range.start - 700);
+            end = left ? min(lr_sketch->sequences[it->seq_id].second - 1, it->range.end + 700) : it->range.end;
+        } else {
+            start = left ? max(0, it->range.start - 700) : it->range.start;
+            end = left ? it->range.end : min(lr_sketch->sequences[it->seq_id].second - 1, it->range.end + 700);
+//            start = left ? 1 : it->range.start;
+//            end = left ? it->range.end : lr_sketch->sequences[it->seq_id].second - 1;
         }
         it->range.start = start;
         it->range.end = end;
-        ans.insert({it->seq_id, *it});
+        if (it->orientation == FRW)
+            Logger::instance().debug("%s: %d-%d FRW\n", lr_sketch->sequences[it->seq_id].first.c_str(), start, end);
+        else
+            Logger::instance().debug("%s: %d-%d REV\n", lr_sketch->sequences[it->seq_id].first.c_str(), start, end);
+            ans.insert({it->seq_id, *it});
     }
 
     return ans;
@@ -256,7 +403,7 @@ pair<string, int> InsertionAssembler::assemble(vector<string>& left_reads, vecto
         else
             lanchor = left_seg;
         lcheck = left_seg.substr(0, left_seg.size() - cut_size);
-		lcuts = find_cuts(lanchor, true);
+		lcuts = find_cuts(lanchor, lcheck, true);
 
         right_seg = build_segment(right_reads);
         rsegs.push_back(right_seg);
@@ -266,7 +413,7 @@ pair<string, int> InsertionAssembler::assemble(vector<string>& left_reads, vecto
         else
             ranchor = right_seg;
         rcheck = right_seg.substr(cut_size, right_seg.size() - cut_size);
-        rcuts = find_cuts(ranchor, false);
+        rcuts = find_cuts(ranchor, rcheck, false);
 
         output += "\n* " + to_string(step) + ":\n";
         output += "          Left Segment :  " + left_seg + "\n";
@@ -275,7 +422,7 @@ pair<string, int> InsertionAssembler::assemble(vector<string>& left_reads, vecto
         output += "          Picked " + to_string(rcuts.size()) + " new right cuts\n";
 
         mid = check_end(lcuts, rcuts);
-        if (mid.size() != 0) {
+        if (mid.size() > 2) {
 			output += "\n===> Insertion built in "+ to_string(step) + " steps.";
 			break;
 		}
@@ -296,12 +443,12 @@ pair<string, int> InsertionAssembler::assemble(vector<string>& left_reads, vecto
     support += middle_reads.size();
 
 #ifdef DEBUG
-    Logger::instance().debug("LEFT SEGS:\n");
+    Logger::instance().debug("SEGMENTS:\n");
     for (int i = 0; i < lsegs.size(); i++)
-        Logger::instance().debug("%s\n", lsegs[i].c_str());
-     Logger::instance().debug("\nRIGHT SEGS:\n");
+        Logger::instance().debug(">l%d\n%s\n", i+1, lsegs[i].c_str());
     for (int i = 0; i < rsegs.size(); i++)
-        Logger::instance().debug("%s\n", rsegs[i].c_str());
+        Logger::instance().debug(">r%d\n%s\n", i+1, rsegs[i].c_str());
+    Logger::instance().debug(">m\n%s\n", middle.c_str());
 #endif
 
     string insertion = get_overlap(lsegs, rsegs, middle);
