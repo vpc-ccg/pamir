@@ -61,6 +61,7 @@ Sketch::Sketch(string dp, int len, int distance, int k, int w) {
     dat_path = dp;
     load();
     compute_freq_th();
+    claspChain = ClaspChain();
 }
 
 void Sketch::dump(vector<pair<uint64_t, Location> > &ref_minimizers_vec) {
@@ -866,6 +867,26 @@ void Sketch::get_genome_hits(string& ref_l, string& ref_r, vector<pair<uint64_t,
 //    Logger::instance().debug("-----\n");
 }
 
+vector<seed> Sketch::create_seeds(vector<hit> hits, id_t id, vector<pair<uint64_t, int> > genome) {
+    vector<seed> seeds;
+
+    auto it = equal_range(hits.begin(), hits.end(), id, hit());
+
+    for (auto i = it.first; i != it.second; i++) {
+        for (int j = 0; j < genome.size(); j++) {
+            if (genome[j].first == i->hash_value) {
+                seed curr_seed;
+                curr_seed.qPos = i->offset;
+                curr_seed.sPos = genome[j].second;
+                curr_seed.len = kmer_size;
+                seeds.push_back(curr_seed);
+            }
+        }
+    }
+
+    return seeds;
+}
+
 GenomeAnchorAbs Sketch::get_genome_anchor(pair<vector<hit>, vector<hit> > ref_l_hits, pair<vector<hit>, vector<hit> > ref_r_hits,
                                           id_t id, orientation_en orientation, int l_cnt, int r_cnt, vector<pair<uint64_t, int> > genome_l,
                                           vector<pair<uint64_t, int> > genome_r) {
@@ -894,6 +915,12 @@ GenomeAnchorAbs Sketch::get_genome_anchor(pair<vector<hit>, vector<hit> > ref_l_
                 }
             }
         }
+        vector<seed> lseeds = create_seeds(ref_l_hits.first, id, genome_l);
+        MaxChainInfo max_chain = claspChain.get_max_chain(lseeds);
+        Logger::instance().debug("Left Max Chain: qrange=%d-%d\tsrange=%d-%d\tlen=%d\tscore=%d\n", max_chain.qrange.first,
+                                 max_chain.qrange.second, max_chain.rrange.first, max_chain.rrange.second, max_chain.len,
+                                 max_chain.score);
+
         for (auto i = r_frw.first; i != r_frw.second; i++) {
             vector<int> g_offsets;
             for (int j = 0; j < genome_r.size(); j++) {
@@ -906,6 +933,11 @@ GenomeAnchorAbs Sketch::get_genome_anchor(pair<vector<hit>, vector<hit> > ref_l_
                 }
             }
         }
+        vector<seed> rseeds = create_seeds(ref_r_hits.first, id, genome_r);
+        max_chain = claspChain.get_max_chain(rseeds);
+        Logger::instance().debug("Right Max Chain: qrange=%d-%d\tsrange=%d-%d\tlen=%d\tscore=%d\n", max_chain.qrange.first,
+                                 max_chain.qrange.second, max_chain.rrange.first, max_chain.rrange.second, max_chain.len,
+                                 max_chain.score);
     }
     else {
         auto l_rev = equal_range(ref_r_hits.second.begin(), ref_r_hits.second.end(), id, hit());

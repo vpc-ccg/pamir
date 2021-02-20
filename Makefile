@@ -26,12 +26,16 @@ SPOA_LIB = $(EXT_PATH)/spoa/build/lib/
 CEREAL_EXT_HED_PATH = $(SPOA_EXT_SRC_PATH)/vendor/cereal/include/cereal
 CEREAL_HED_PATH = $(SRC_PATH)/include/cereal
 
+CLASP_EXT_SRC_PATH = $(EXT_PATH)/clasp
+CLASP_EXT_HED_PATH = $(EXT_PATH)/clasp
+CLASP_HED_PATH = $(SRC_PATH)/include/clasp
+CLASP_LIB = $(EXT_PATH)/clasp
+
 SCRIPT_SOURCE = scripts
 SCRIPT_PATH = $(BIN_PATH)/scripts
 SRC_EXT = cc
 
-SOURCE_FILES =  pamir.cc aligner.cc common.cc genome.cc partition.cc assembler.cc sam_parser.cc extractor.cc  smoother.cc  process_orphans.cc process_range.cc edlib.cc sam_processing.cc recalibrate.cc sketch.cc p2_partition.cc p3_partition.cc cut_ranges.cc MurmurHash3.cc insertion_assembler.cc progressbar.cc partition_hybrid.cc process_partition.cc
-
+SOURCE_FILES =  pamir.cc aligner.cc common.cc genome.cc partition.cc assembler.cc sam_parser.cc extractor.cc  smoother.cc  process_orphans.cc process_range.cc edlib.cc sam_processing.cc recalibrate.cc sketch.cc p2_partition.cc p3_partition.cc cut_ranges.cc MurmurHash3.cc insertion_assembler.cc progressbar.cc partition_hybrid.cc process_partition.cc chain.cc
 
 SCRIPT_FILES = merge_refs.py contig_graph.py  filter_by_setcover.py  filtering.py  generate_setcover_input.py  prep-ctgs.py  remove_contaminations.py  sort_vcf.py  version_check.py process_repeats.py process_unique.py new_generate_setcover.py
 
@@ -102,7 +106,9 @@ build_clean:
 	@$(RM) $(SRC_PATH)/include/logger.h
 	@$(RM) -rf $(SRC_PATH)/include/spoa
 	@$(RM) -rf $(SRC_PATH)/include/cereal
+	@$(RM) -rf $(SRC_PATH)/include/clasp
 	@$(RM) -rf $(EXT_PATH)/spoa/build
+	@$(RM) -rf $(EXT_PATH)/clasp/*.o
 .PHONY: build_clean
 
 bin_clean:
@@ -154,8 +160,17 @@ $(SPOA_LIB): $(SPOA_EXT_SRC_PATH)
 #	@cd $(SPOA_EXT_SRC_PATH)/build && cmake -Dspoa_build_executable=OFF -DCMAKE_BUILD_TYPE=Release .. >> /dev/null 2>&1 >> /dev/null && make && cd ../../../..
 	@cmake -Dspoa_build_executable=OFF -DCMAKE_BUILD_TYPE=Release -B$(SPOA_EXT_SRC_PATH)/build -H$(SPOA_EXT_SRC_PATH) -Wno-dev >> /dev/null && make -C $(SPOA_EXT_SRC_PATH)/build >> /dev/null 2>&1
 
+clasplib:
+	@$(MAKE) -C $(CLASP_EXT_SRC_PATH) -o $(BUILD_PATH)
+
+CLASPOBJ     = $(CLASP_EXT_SRC_PATH)/*.o
+
+$(CLASP_HED_PATH): $(CLASP_EXT_HED_PATH)
+	@[ -d $(CLASP_HED_PATH) ] || mkdir $(CLASP_HED_PATH)
+	@cp $(CLASP_EXT_HED_PATH)/*.h $(CLASP_HED_PATH)/
+
 .PHONY: all
-all: $(EDLIB_HED_PATH) $(EDLIB_SRC_PATH) $(LOGGER_HED_PATH) $(CEREAL_HED_PATH) $(SPOA_HED_PATH) $(SPOA_LIB) $(BIN_PATH)/$(EXE)  $(COPIED_SCRIPTS)
+all: $(EDLIB_HED_PATH) $(EDLIB_SRC_PATH) $(LOGGER_HED_PATH) $(CEREAL_HED_PATH) $(SPOA_HED_PATH) $(SPOA_LIB) clasplib $(CLASP_HED_PATH) $(BIN_PATH)/$(EXE)  $(COPIED_SCRIPTS)
 	@git rev-parse  --short HEAD > $(BIN_PATH)/version
 .PHONY: install_helper
 

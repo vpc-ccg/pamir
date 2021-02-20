@@ -10,13 +10,14 @@
 #include <fstream>
 #include <unordered_set>
 
+#include "chain.h"
 #include "aligner.h"
 #include "progressbar.h"
 
 const int BUFFSIZE = 2000000000;
 
 typedef uint64_t hash_t;
-typedef uint64_t mem_offset_t; //CHANGE
+typedef uint64_t mem_offset_t;
 typedef uint32_t id_t;
 typedef uint32_t hash_size_t;
 typedef uint16_t offset_t;
@@ -72,7 +73,6 @@ struct GenomeAnchorAbs {
     }
 };
 
-//CHECK OCCURNCES
 struct Location {
     id_t seq_id;
     offset_t offset;
@@ -82,17 +82,6 @@ struct range_s {
     offset_t start;
     offset_t end;
 };
-
-//Query: 1, 5, 7, 8
-//
-//Sketch:
-//    1 -> (R1, 10), (R1, 50)
-//    5 -> (R2, 9)
-//    7 -> (R1, 20)
-//
-//Hits:
-//(1, R1, 10), (1, R1, 50), (5, R2, 9)
-//(R1, 1, 10), (R1, 1, 50), (R1, 7, 20), (R2, 5, 9)
 
 struct hit {
     id_t seq_id;
@@ -145,7 +134,6 @@ struct minimizer {
     }
 };
 
-//TO DO
 struct seq_data {
     string name;
     offset_t size;
@@ -153,20 +141,21 @@ struct seq_data {
 
 class Sketch {
 	private:
-        int short_read_len;
-        int kmer_size = 15;
+        ClaspChain claspChain;
         gzFile gz_fin;
         char *zbuffer;
-		int window_size = 10;
-        int read_id = 0;
-        int freq_th = 0;
-        uint64_t file_size;
         string lr_path;
+        int freq_th = 0;
+        int read_id = 0;
 		string dat_path;
+        int short_read_len;
+        int kmer_size = 15;
+        uint64_t file_size;
+		int window_size = 10;
         int32_t buff_pos = 0;
         int32_t buff_size = 0;
-		static const int thread_cnt = 16;
 		int genome_anchor_distance;
+		static const int thread_cnt = 16;
 
         vector<minimizer> minimizers;
         vector<Location> ref_minimizers;
@@ -218,6 +207,8 @@ class Sketch {
 
         void get_insertion_minimizers(unordered_set<hash_t>& reads_frw, unordered_set<hash_t>& reads_rev, string& genome,
                                   unordered_set<hash_t>& insertion_minimizers_frw, unordered_set<hash_t>& insertion_minimizers_rev);
+
+        vector<seed> create_seeds(vector<hit> hits, id_t id, vector<pair<uint64_t, int> > genome);
 };
 
 #endif
