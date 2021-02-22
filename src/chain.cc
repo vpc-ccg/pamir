@@ -1,7 +1,22 @@
 #include "chain.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include "clasp/container.h"
 #include "clasp/sltypes.h"
 #include "clasp/slchain.h"
-#include "clasp/container.h"
+
+#ifdef __cplusplus
+}
+#endif
+
+#include <iostream>
+
+//#include "clasp/sltypes.h"
+//#include "clasp/slchain.h"
+//#include "clasp/container.h"
 
 ClaspChain::ClaspChain(char chainmode, double lambda, double epsilon, int maxgap) :
                     chainmode(chainmode), lambda(lambda), epsilon(epsilon), maxgap(maxgap) {}
@@ -64,6 +79,7 @@ MaxChainInfo ClaspChain::get_max_chain(vector<seed> seeds) {
                     slchain_t *chain = (slchain_t *) match->chain;
 
                     if (chain->scr > max_chain.score) {
+                        std::cerr << chain->scr << std::endl;
                         max_chain.score = chain->scr;
                         max_chain.len = chain->q;
                         max_chain.qrange = {chain->i, chain->i + chain->j - 1};

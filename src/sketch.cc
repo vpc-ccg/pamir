@@ -917,7 +917,7 @@ GenomeAnchorAbs Sketch::get_genome_anchor(pair<vector<hit>, vector<hit> > ref_l_
         }
         vector<seed> lseeds = create_seeds(ref_l_hits.first, id, genome_l);
         MaxChainInfo max_chain = claspChain.get_max_chain(lseeds);
-        Logger::instance().debug("Left Max Chain: qrange=%d-%d\tsrange=%d-%d\tlen=%d\tscore=%d\n", max_chain.qrange.first,
+        Logger::instance().debug("Left Max Chain: qrange=%d-%d\tsrange=%d-%d\tlen=%d\tscore=%f\n", max_chain.qrange.first,
                                  max_chain.qrange.second, max_chain.rrange.first, max_chain.rrange.second, max_chain.len,
                                  max_chain.score);
 
@@ -935,7 +935,7 @@ GenomeAnchorAbs Sketch::get_genome_anchor(pair<vector<hit>, vector<hit> > ref_l_
         }
         vector<seed> rseeds = create_seeds(ref_r_hits.first, id, genome_r);
         max_chain = claspChain.get_max_chain(rseeds);
-        Logger::instance().debug("Right Max Chain: qrange=%d-%d\tsrange=%d-%d\tlen=%d\tscore=%d\n", max_chain.qrange.first,
+        Logger::instance().debug("Right Max Chain: qrange=%d-%d\tsrange=%d-%d\tlen=%d\tscore=%f\n", max_chain.qrange.first,
                                  max_chain.qrange.second, max_chain.rrange.first, max_chain.rrange.second, max_chain.len,
                                  max_chain.score);
     }
