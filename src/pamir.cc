@@ -38,85 +38,6 @@
 using namespace std;
 //TODO Implement repeaet master after genome file is converted to util
 
-void fix_reverse(vector<p3_read_s> &cuts, aligner &al) {
-    Sketch sketch;
-
-    vector<int> frw_bimodal, rev_bimodal, frw_right, rev_right, frw_left, rev_left;
-    frw_bimodal.reserve(cuts.size());
-    rev_bimodal.reserve(cuts.size());
-    frw_right.reserve(cuts.size());
-    rev_right.reserve(cuts.size());
-    frw_left.reserve(cuts.size());
-    rev_left.reserve(cuts.size());
-
-    for (int i = 0; i < cuts.size(); i++) {
-        if (cuts[i].orientation == FRW) {
-            if (cuts[i].type == BIMODAL)
-                frw_bimodal.push_back(i);
-            else if (cuts[i].type == PARTIAL_LEFT)
-                frw_left.push_back(i);
-            else if (cuts[i].type == PARTIAL_RIGHT)
-                frw_right.push_back(i);
-        }
-        else {
-            if (cuts[i].type == BIMODAL)
-                rev_bimodal.push_back(i);
-            else if (cuts[i].type == PARTIAL_LEFT)
-                rev_left.push_back(i);
-            else if (cuts[i].type == PARTIAL_RIGHT)
-                rev_right.push_back(i);
-        }
-    }
-
-    if ((rev_bimodal.empty() && rev_left.empty() && rev_left.empty()) || (frw_bimodal.empty() && frw_left.empty() && frw_right.empty()))
-        return;
-
-    bool swap = false;
-
-    if (frw_right.empty() && rev_right.empty())
-        return;
-    else if (!frw_bimodal.empty() && !rev_bimodal.empty()) {
-        for (int i = 0; i < rev_left.size(); i++)
-            cuts[rev_left[i]].type = PARTIAL_RIGHT;
-        for (int i = 0; i < rev_right.size(); i++)
-            cuts[rev_right[i]].type = PARTIAL_LEFT;
-        return;
-    }
-    else {
-        float similarity;
-
-        if (!(frw_left.empty() && frw_right.empty() || rev_left.empty() && rev_right.empty())) {
-            string frw = frw_left.empty() ? cuts[frw_right[0]].sequence : cuts[frw_left[0]].sequence;
-            type_en frw_type = frw_left.empty() ? PARTIAL_RIGHT : PARTIAL_LEFT;
-
-            string rev = rev_left.empty() ? cuts[rev_right[0]].sequence : cuts[rev_left[0]].sequence;
-            type_en rev_type = rev_left.empty() ? PARTIAL_RIGHT : PARTIAL_LEFT;
-
-            similarity = sketch.compare_sequences(frw, rev);
-
-            if ((similarity >= 0.5 && frw_type == rev_type) || (similarity < 0.5 && frw_type != rev_type))
-                return;
-            else {
-                swap = true;
-                for (int i = 0; i < rev_left.size(); i++)
-                    cuts[rev_left[i]].type = PARTIAL_RIGHT;
-                for (int i = 0; i < rev_right.size(); i++)
-                    cuts[rev_right[i]].type = PARTIAL_LEFT;
-            }
-        }
-    }
-
-    if (!rev_bimodal.empty() && !swap) {
-        for (int i = 0; i < frw_left.size(); i++)
-            cuts[frw_left[i]].type = PARTIAL_RIGHT;
-        for (int i = 0; i < frw_right.size(); i++)
-            cuts[frw_right[i]].type = PARTIAL_LEFT;
-        for (int i = 0; i < rev_left.size(); i++)
-            cuts[rev_left[i]].type = PARTIAL_RIGHT;
-        for (int i = 0; i < rev_right.size(); i++)
-            cuts[rev_right[i]].type = PARTIAL_LEFT;
-    }
-}
 /****************************************************************/
 // For outputing specific log
 void log_idx (const string &log_file )
@@ -460,6 +381,7 @@ void find_reads (const string &partition_file, const string &dat_path, const str
         sprintf(comment, "%10d / %-10d", cnt, total);
         progress.update(((float)cnt/(float)total) * 100, comment);
 
+        pair<vector<cut>, int> cut_results;
         vector<cut> cut_candidates;
 
         string chrName  = pt.get_reference();
@@ -481,19 +403,12 @@ void find_reads (const string &partition_file, const string &dat_path, const str
         }
 
         vector<string> reads;
-        reads.resize(p.size());
-        for (int i = 0; i < p.size(); i++)
+        reads.reserve(p.size());
+        for (int i = 0; i < p.size(); i++) {
             reads.push_back(p[i].first.second);
+        }
 
-//        int left_start = pt_start - genome_anchor_len;
-//        int left_end = pt_start;
-//        int right_start = pt_end;
-//        int right_end = pt_end + genome_anchor_len;
         int breakpoint = pt_start +  (pt_end - pt_start)/2;
-//        int left_start = breakpoint - 50 - genome_anchor_len;
-//        int left_end = breakpoint - 50;
-//        int right_start = breakpoint + 50;
-//        int right_end = breakpoint + 50 + genome_anchor_len;
         int left_start = breakpoint - genome_anchor_len;
         int left_end = breakpoint;
         int right_start = breakpoint;
@@ -502,17 +417,14 @@ void find_reads (const string &partition_file, const string &dat_path, const str
         string ref_l = reference.get_bases_at(chrName, left_start, left_end);
         string ref_r = reference.get_bases_at(chrName, right_start, right_end);
 
-        Logger::instance().debug("%s\n", ref_l.c_str());
+        cut_results = lr_sketch.query(reads, false, ref_l, ref_r);
+        cut_candidates = cut_results.first;
 
-        Logger::instance().debug("Left size: %d\tRight Size: %d\n", ref_l.size(), ref_r.size());
-
-        cut_candidates = lr_sketch.query(reads, true, ref_l, ref_r);
-
-        int estimated_insertion = INT_MAX;
+        int estimated_insertion = cut_results.second;
         for (int i = 0; i < cut_candidates.size(); i++) {
             ranges.push_back({cut_candidates[i].seq_id, cut_candidates[i].range});
-            if (cut_candidates[i].estimated_insertion != -1 && cut_candidates[i].estimated_insertion < estimated_insertion)
-                estimated_insertion = cut_candidates[i].estimated_insertion;
+//            if (cut_candidates[i].estimated_insertion != -1 && cut_candidates[i].estimated_insertion < estimated_insertion)
+//                estimated_insertion = cut_candidates[i].estimated_insertion;
         }
 
         if (cut_candidates.size() == 0) {
@@ -524,9 +436,6 @@ void find_reads (const string &partition_file, const string &dat_path, const str
             pt_2.add_cuts(p, cut_candidates, pt_start, pt_end, chrName, -1);
             continue;
         }
-
-        if (estimated_insertion == INT_MAX)
-            estimated_insertion = -1;
 
         pt_2.add_cuts(p, cut_candidates, pt_start, pt_end, chrName, estimated_insertion);
     }
@@ -560,6 +469,16 @@ void find_reads (const string &partition_file, const string &dat_path, const str
     fout.write((char*)&size, sizeof(uint32_t));
     fout.write((char*)&ranges[0], size * sizeof(pair<id_t, range_s>));
     fout.close();
+
+    cerr << "Hits Time: " << lr_sketch.hits_time << endl;
+    cerr << "Find Time: " << lr_sketch.finding_time << endl;
+    cerr << "Merging Time: " << lr_sketch.merging_time << endl;
+    cerr << "Chaining Time: " << lr_sketch.chaining_time << endl;
+    cerr << "Chain Sorting Time: " << lr_sketch.claspChain.sort_time << endl;
+    cerr << "Clasp Time: " << lr_sketch.clasp_time << endl;
+    cerr << "Seed Time: " << lr_sketch.seed_time << endl;
+    cerr << "Building Chain: " << lr_sketch.claspChain.chain_time << endl;
+    cerr << "Cnt: " << lr_sketch.tmp_cnt << endl;
 }
 /*********************************************************************************************/
 void extract_reads(const string &partition_file, const string &longread, const string &range, const string &p3_name,
@@ -632,8 +551,6 @@ void extract_reads(const string &partition_file, const string &longread, const s
             cuts.push_back((p3_read_s) {.name = tmp.first, .sequence = cut, .range = p.second[i].range,
                     .type = p.second[i].type, .orientation = p.second[i].orientation});
         }
-
-//        fix_reverse(cuts, al);
 
         pt_3.add_reads(p.first, cuts, pt_start, pt_end, chrName, pt_2.get_estimated_insertion());
     }

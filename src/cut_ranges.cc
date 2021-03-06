@@ -128,262 +128,347 @@ string cut_ranges::get_cut(string name, offset_t start, offset_t end) {
 //    }
 //}
 
-//TODO: Check for possible unhandled cases
+int cut_consensus(vector<string>& msa, int begin, int step_size, int step_num, int threshold) {
+    int i = begin;
+    int step = 0;
+    while (step < step_num) {
+        int gap_cnt = 0;
+        for (int j = 0; j < msa.size(); j++) {
+            if (msa[j][i] == '-')
+                gap_cnt++;
+        }
+        if (gap_cnt < threshold) {
+            return i;
+        }
+        i += step_size;
+        step++;
+    }
+    return begin + step_num * step_size;
+}
+
 std::pair<std::string, std::pair<int, int>> cut_consensus_bimodal(vector<string> alignments, int left_reads,
                                                                   int right_reads, int bimodal_reads) {
+    int left, right;
+    int step_size = 5;
     int th_left = alignments.size() - 1 - 0.5 * (bimodal_reads + left_reads);
     int th_right = alignments.size() - 1 - 0.5 * (bimodal_reads + right_reads);
     string consensus = alignments[alignments.size() - 1];
 
-    bool up = false, down = false;
-    int step = 200;
-    int prv = 0;
-    int left = 0, right = 0;
-    int gap_cnt;
-    int curr_answer = 0;
-    cerr << "left threshold: " << th_left << " | right threshold: " << th_right << endl << endl;
-    cerr << " ----- Left ----- " << endl;
-    for (int idx = min(200, (int)alignments[0].size()/2); idx < alignments[0].size(); idx += step) {
-        gap_cnt = 0;
-        for (int i = 0; i < alignments.size() - 1; i++) {
-            if (alignments[i][idx] == '-')
-                gap_cnt++;
-        }
-        cerr << "......" << endl;
-        cerr << "idx: " << idx << endl;
-        cerr << "gap cnt: " << gap_cnt << endl;
-        if (gap_cnt > th_left) {
-            if (down) {
-                cerr << "curr answer: " << curr_answer << endl;
-                if (step != 1)
-                    step = abs(curr_answer - idx)/2;
-                if (step == 0)
-                    step = 1;
-                cerr << "down==true" << endl;
-                cerr << "new step: " << step << endl;
-            }
-            else {
-                cerr << "curr answer: " << curr_answer << endl;
-                if (step != 1)
-                    step = abs(curr_answer - idx)/2;
-                if (step == 0)
-                    step = 1;
-//                step = idx;
-                cerr << "down==false" << endl;
-                cerr << "new step: " << step << endl;
-            }
-            prv = idx;
-            up = true;
-            down = false;
-            cerr << "up true, down false" << endl;
-        }
-        else {
-            down = true;
-            cerr << "down true" << endl;
-            if (step != 0 && step != 1) {
-                cerr << "up==false" << endl;
-                step = -abs(prv - idx) / 2;
-                cerr << "new step: " << step << endl;
-                prv = idx;
-                curr_answer = idx;
-            } else {
-                cerr << "up==true" << endl;
-                cerr << "left set to " << left << endl;
-                left = idx;
-                break;
-            }
-        }
-    }
+    left = cut_consensus(alignments, 0, step_size, min(200, (int)consensus.size()/2)/step_size, th_left);
+    right = cut_consensus(alignments, consensus.size() - 1, -step_size, min(200, (int)consensus.size()/2)/step_size, th_right);
 
-    down = false;
-    up = false;
-    step = 200;
-    prv = 0;
-    curr_answer = 0;
-    cerr << endl << " ----- Right ----- " << endl;
-    for (int idx = min(200, (int)alignments[0].size()/2); idx < alignments[0].size(); idx += step) {
-        gap_cnt = 0;
-        for (int i = 0; i < alignments.size() - 1; i++) {
-            if (alignments[i][alignments[i].size() - idx - 1] == '-')
-                gap_cnt++;
-        }
-        cerr << "......" << endl;
-        cerr << "idx: " << idx << endl;
-        cerr << "gap cnt: " << gap_cnt << endl;
-        if (gap_cnt > th_right) {
-            if (down) {
-                cerr << "curr answer: " << curr_answer << endl;
-                if (step != 1)
-                    step = abs(curr_answer - idx)/2;
-                if (step == 0)
-                    step = 1;
-                cerr << "down==true" << endl;
-                cerr << "new step: " << step << endl;
-            }
-            else {
-                cerr << "curr answer: " << curr_answer << endl;
-                if (step != 1)
-                    step = abs(curr_answer - idx)/2;
-                if (step == 0)
-                    step = 1;
-//                step = idx;
-                cerr << "down==false" << endl;
-                cerr << "new step: " << step << endl;
-            }
-            prv = idx;
-            up = true;
-            down = false;
-            cerr << "up false, down true" << endl;
-        }
-        else {
-            down = true;
-            cerr << "down true" << endl;
-            if (step != 0 && step != 1) {
-                cerr << "up==false" << endl;
-                step = -abs(prv - idx) / 2;
-                cerr << "new step: " << step << endl;
-                prv = idx;
-                curr_answer = idx;
-            } else {
-                cerr << "up==true" << endl;
-                right = idx;
-                cerr << "right set to " << left << endl;
-                break;
-            }
-        }
-    }
-
-    cerr << "Final answer: " << left << ", " << right << endl;
     pair<int, int> ans = {left, right};
-    string cut = consensus.substr(left, consensus.size() - right - left);
+    string cut = consensus.substr(left, right - left);
     cut.erase(std::remove(cut.begin(), cut.end(), '-'), cut.end());
     return {cut, ans};
 }
 
-std::pair<std::string, std::pair<int, int>> cut_consensus_single(vector<string> alignments) {
-    int th = alignments.size() - 1 - 0.5 * (alignments.size() - 1);
+std::pair<std::string, std::pair<int, int>> cut_consensus_single(vector<string> alignments, float threshold) {
+    int left, right;
+    int step_size = 5;
+    int th = threshold * alignments.size();
     string consensus = alignments[alignments.size() - 1];
 
-    bool up = false, down = false;
-    int left = 0, right = 0;
-    int gap_cnt;
-    int step = 200, prv = 0;
-    int curr_answer = 0;
-    //cerr << "threshold: " << th << endl;
-    //cerr << " ----- Left ----- " << endl;
-    for (int idx = min(200, (int)alignments[0].size()/2); idx < alignments[0].size(); idx += step) {
-        gap_cnt = 0;
-        for (int i = 0; i < alignments.size() - 1; i++) {
-            if (alignments[i][idx] == '-')
-                gap_cnt++;
-        }
-        cerr << "......" << endl;
-        cerr << "idx: " << idx << endl;
-        cerr << "gap cnt: " << gap_cnt << endl;
-        if (gap_cnt > th) {
-            if (down) {
-                cerr << "curr answer: " << curr_answer << endl;
-                if (step != 1)
-                    step = abs(curr_answer - idx)/2;
-                if (step == 0)
-                    step = 1;
-                cerr << "down==true" << endl;
-                cerr << "new step: " << step << endl;
-            }
-            else {
-                cerr << "curr answer: " << curr_answer << endl;
-                if (step != 1)
-                    step = abs(curr_answer - idx)/2;
-                if (step == 0)
-                    step = 1;
-//                step = idx;
-                cerr << "down==false" << endl;
-                cerr << "new step: " << step << endl;
-            }
-            prv = idx;
-            up = true;
-            down = false;
-            cerr << "up true, down false" << endl;
-        }
-        else {
-            down = true;
-            cerr << "down true" << endl;
-            if (step != 0 && step != 1) {
-                cerr << "up==false" << endl;
-                step = -abs(prv - idx) / 2;
-                cerr << "new step: " << step << endl;
-                prv = idx;
-                curr_answer = idx;
-            } else {
-                cerr << "up==true" << endl;
-                cerr << "left set to " << left << endl;
-                left = idx;
-                break;
-            }
-        }
-    }
-
-    step = 200;
-    prv = 0;
-    up = false, down = false;
-    curr_answer = 0;
-    for (int idx = min(200, (int)alignments[0].size()/2); idx < alignments[0].size(); idx += step) {
-        gap_cnt = 0;
-        for (int i = 0; i < alignments.size() - 1; i++) {
-            if (alignments[i][alignments[i].size() - idx - 1] == '-')
-                gap_cnt++;
-        }
-        cerr << "......" << endl;
-        cerr << "idx: " << idx << endl;
-        cerr << "gap cnt: " << gap_cnt << endl;
-        if (gap_cnt > th) {
-            if (down) {
-                cerr << "curr answer: " << curr_answer << endl;
-                if (step != 1)
-                    step = abs(curr_answer - idx)/2;
-                if (step == 0)
-                    step = 1;
-                cerr << "down==true" << endl;
-                cerr << "new step: " << step << endl;
-            }
-            else {
-                cerr << "curr answer: " << curr_answer << endl;
-                if (step != 1)
-                    step = abs(curr_answer - idx)/2;
-                if (step == 0)
-                    step = 1;
-//                step = idx;
-                cerr << "down==false" << endl;
-                cerr << "new step: " << step << endl;
-            }
-            prv = idx;
-            up = true;
-            down = false;
-            cerr << "up true, down false" << endl;
-        }
-        else {
-            down = true;
-            cerr << "down true" << endl;
-            if (step != 0 && step != 1) {
-                cerr << "up==false" << endl;
-                step = -abs(prv - idx) / 2;
-                cerr << "new step: " << step << endl;
-                prv = idx;
-                curr_answer = idx;
-            } else {
-                cerr << "up==true" << endl;
-                cerr << "left set to " << left << endl;
-                right = idx;
-                break;
-            }
-        }
-    }
+    left = cut_consensus(alignments, 0, step_size, min(200, (int)consensus.size()/2)/5, th);
+    right = cut_consensus(alignments, consensus.size() - 1, -step_size, min(200, (int)consensus.size()/2)/5, th);
 
     pair<int, int> ans = {left, right};
-    string cut = consensus.substr(left, consensus.size() - right - left);
+//    cerr << left << ", " << right << " | " << consensus.size() << endl;
+    string cut = consensus.substr(left, right - left);
     cut.erase(std::remove(cut.begin(), cut.end(), '-'), cut.end());
     return {cut, ans};
 }
+
+//TODO: Check for possible unhandled cases
+//std::pair<std::string, std::pair<int, int>> cut_consensus_bimodal(vector<string> alignments, int left_reads,
+//                                                                  int right_reads, int bimodal_reads) {
+//    int th_left = alignments.size() - 1 - 0.5 * (bimodal_reads + left_reads);
+//    int th_right = alignments.size() - 1 - 0.5 * (bimodal_reads + right_reads);
+//    string consensus = alignments[alignments.size() - 1];
+//
+//    int i = consensus.size();
+//    while (i > 0) {
+//        int gap_cnt = 0;
+//        for (int j = 0; j < alignments.size())
+//    }
+//
+//    //
+////    bool up = false, down = false;
+////    int step = 200;
+////    int prv = 0;
+////    int left = 0, right = 0;
+////    int gap_cnt;
+////    int curr_answer = 0;
+////    cerr << "left threshold: " << th_left << " | right threshold: " << th_right << endl << endl;
+////    cerr << " ----- Left ----- " << endl;
+////    for (int idx = min(200, (int)alignments[0].size()/2); idx < alignments[0].size(); idx += step) {
+////        gap_cnt = 0;
+////        for (int i = 0; i < alignments.size() - 1; i++) {
+////            if (alignments[i][idx] == '-')
+////                gap_cnt++;
+////        }
+////        cerr << "......" << endl;
+////        cerr << "idx: " << idx << endl;
+////        cerr << "gap cnt: " << gap_cnt << endl;
+////        if (gap_cnt > th_left) {
+////            if (down) {
+////                cerr << "curr answer: " << curr_answer << endl;
+////                if (step != 1)
+////                    step = abs(curr_answer - idx)/2;
+////                if (step == 0)
+////                    step = 1;
+////                cerr << "down==true" << endl;
+////                cerr << "new step: " << step << endl;
+////            }
+////            else {
+////                cerr << "curr answer: " << curr_answer << endl;
+////                if (step != 1)
+////                    step = abs(curr_answer - idx)/2;
+////                if (step == 0)
+////                    step = 1;
+//////                step = idx;
+////                cerr << "down==false" << endl;
+////                cerr << "new step: " << step << endl;
+////            }
+////            prv = idx;
+////            up = true;
+////            down = false;
+////            cerr << "up true, down false" << endl;
+////        }
+////        else {
+////            down = true;
+////            cerr << "down true" << endl;
+////            if (step != 0 && step != 1) {
+////                cerr << "up==false" << endl;
+////                step = -abs(prv - idx) / 2;
+////                cerr << "new step: " << step << endl;
+////                prv = idx;
+////                curr_answer = idx;
+////            } else {
+////                cerr << "up==true" << endl;
+////                cerr << "left set to " << left << endl;
+////                left = idx;
+////                break;
+////            }
+////        }
+////    }
+////
+////    down = false;
+////    up = false;
+////    step = 200;
+////    prv = 0;
+////    curr_answer = 0;
+////    cerr << endl << " ----- Right ----- " << endl;
+////    for (int idx = min(200, (int)alignments[0].size()/2); idx < alignments[0].size(); idx += step) {
+////        gap_cnt = 0;
+////        for (int i = 0; i < alignments.size() - 1; i++) {
+////            if (alignments[i][alignments[i].size() - idx - 1] == '-')
+////                gap_cnt++;
+////        }
+////        cerr << "......" << endl;
+////        cerr << "idx: " << idx << endl;
+////        cerr << "gap cnt: " << gap_cnt << endl;
+////        if (gap_cnt > th_right) {
+////            if (down) {
+////                cerr << "curr answer: " << curr_answer << endl;
+////                if (step != 1)
+////                    step = abs(curr_answer - idx)/2;
+////                if (step == 0)
+////                    step = 1;
+////                cerr << "down==true" << endl;
+////                cerr << "new step: " << step << endl;
+////            }
+////            else {
+////                cerr << "curr answer: " << curr_answer << endl;
+////                if (step != 1)
+////                    step = abs(curr_answer - idx)/2;
+////                if (step == 0)
+////                    step = 1;
+//////                step = idx;
+////                cerr << "down==false" << endl;
+////                cerr << "new step: " << step << endl;
+////            }
+////            prv = idx;
+////            up = true;
+////            down = false;
+////            cerr << "up false, down true" << endl;
+////        }
+////        else {
+////            down = true;
+////            cerr << "down true" << endl;
+////            if (step != 0 && step != 1) {
+////                cerr << "up==false" << endl;
+////                step = -abs(prv - idx) / 2;
+////                cerr << "new step: " << step << endl;
+////                prv = idx;
+////                curr_answer = idx;
+////            } else {
+////                cerr << "up==true" << endl;
+////                right = idx;
+////                cerr << "right set to " << left << endl;
+////                break;
+////            }
+////        }
+////    }
+////
+////    cerr << "Final answer: " << left << ", " << right << endl;
+//
+//    int left = 0, right = 0;
+//    int gap_cnt;
+//    for (int idx = 0; idx < msa[0].size(); idx = idx + 50) {
+//        gap_cnt = 0;
+//        for (int i = 0; i < msa.size() - 1; i++) {
+//            if (msa[i][idx] == '-')
+//                gap_cnt++;
+//        }
+//        if (gap_cnt < th) {
+//            left = idx;
+//            break;
+//        }
+//    }
+//
+//    for (int idx = 0; idx < msa[0].size(); idx = idx+50) {
+//        gap_cnt = 0;
+//        for (int i = 0; i < msa.size() - 1; i++) {
+//            if (msa[i][msa[i].size() - idx - 1] == '-')
+//                gap_cnt++;
+//        }
+//        if (gap_cnt < th) {
+//            right = idx;
+//            break;
+//        }
+//    }
+//
+//    pair<int, int> ans = {left, right};
+//    string cut = consensus.substr(left, consensus.size() - right - left);
+//    cut.erase(std::remove(cut.begin(), cut.end(), '-'), cut.end());
+//    return {cut, ans};
+//}
+
+//std::pair<std::string, std::pair<int, int>> cut_consensus_single(vector<string> alignments) {
+//    int th = alignments.size() - 1 - 0.5 * (alignments.size() - 1);
+//    string consensus = alignments[alignments.size() - 1];
+//
+//    bool up = false, down = false;
+//    int left = 0, right = 0;
+//    int gap_cnt;
+//    int step = 200, prv = 0;
+//    int curr_answer = 0;
+//    //cerr << "threshold: " << th << endl;
+//    //cerr << " ----- Left ----- " << endl;
+//    for (int idx = min(200, (int)alignments[0].size()/2); idx < alignments[0].size(); idx += step) {
+//        gap_cnt = 0;
+//        for (int i = 0; i < alignments.size() - 1; i++) {
+//            if (alignments[i][idx] == '-')
+//                gap_cnt++;
+//        }
+//        cerr << "......" << endl;
+//        cerr << "idx: " << idx << endl;
+//        cerr << "gap cnt: " << gap_cnt << endl;
+//        if (gap_cnt > th) {
+//            if (down) {
+//                cerr << "curr answer: " << curr_answer << endl;
+//                if (step != 1)
+//                    step = abs(curr_answer - idx)/2;
+//                if (step == 0)
+//                    step = 1;
+//                cerr << "down==true" << endl;
+//                cerr << "new step: " << step << endl;
+//            }
+//            else {
+//                cerr << "curr answer: " << curr_answer << endl;
+//                if (step != 1)
+//                    step = abs(curr_answer - idx)/2;
+//                if (step == 0)
+//                    step = 1;
+////                step = idx;
+//                cerr << "down==false" << endl;
+//                cerr << "new step: " << step << endl;
+//            }
+//            prv = idx;
+//            up = true;
+//            down = false;
+//            cerr << "up true, down false" << endl;
+//        }
+//        else {
+//            down = true;
+//            cerr << "down true" << endl;
+//            if (step != 0 && step != 1) {
+//                cerr << "up==false" << endl;
+//                step = -abs(prv - idx) / 2;
+//                cerr << "new step: " << step << endl;
+//                prv = idx;
+//                curr_answer = idx;
+//            } else {
+//                cerr << "up==true" << endl;
+//                cerr << "left set to " << left << endl;
+//                left = idx;
+//                break;
+//            }
+//        }
+//    }
+//
+//    step = 200;
+//    prv = 0;
+//    up = false, down = false;
+//    curr_answer = 0;
+//    for (int idx = min(200, (int)alignments[0].size()/2); idx < alignments[0].size(); idx += step) {
+//        gap_cnt = 0;
+//        for (int i = 0; i < alignments.size() - 1; i++) {
+//            if (alignments[i][alignments[i].size() - idx - 1] == '-')
+//                gap_cnt++;
+//        }
+//        cerr << "......" << endl;
+//        cerr << "idx: " << idx << endl;
+//        cerr << "gap cnt: " << gap_cnt << endl;
+//        if (gap_cnt > th) {
+//            if (down) {
+//                cerr << "curr answer: " << curr_answer << endl;
+//                if (step != 1)
+//                    step = abs(curr_answer - idx)/2;
+//                if (step == 0)
+//                    step = 1;
+//                cerr << "down==true" << endl;
+//                cerr << "new step: " << step << endl;
+//            }
+//            else {
+//                cerr << "curr answer: " << curr_answer << endl;
+//                if (step != 1)
+//                    step = abs(curr_answer - idx)/2;
+//                if (step == 0)
+//                    step = 1;
+////                step = idx;
+//                cerr << "down==false" << endl;
+//                cerr << "new step: " << step << endl;
+//            }
+//            prv = idx;
+//            up = true;
+//            down = false;
+//            cerr << "up true, down false" << endl;
+//        }
+//        else {
+//            down = true;
+//            cerr << "down true" << endl;
+//            if (step != 0 && step != 1) {
+//                cerr << "up==false" << endl;
+//                step = -abs(prv - idx) / 2;
+//                cerr << "new step: " << step << endl;
+//                prv = idx;
+//                curr_answer = idx;
+//            } else {
+//                cerr << "up==true" << endl;
+//                cerr << "left set to " << left << endl;
+//                right = idx;
+//                break;
+//            }
+//        }
+//    }
+//
+//    pair<int, int> ans = {left, right};
+//    string cut = consensus.substr(left, consensus.size() - right - left);
+//    cut.erase(std::remove(cut.begin(), cut.end(), '-'), cut.end());
+//    return {cut, ans};
+//}
 
 void insertionSort(int arr[], int n) {
     int key, j;

@@ -1,6 +1,5 @@
 #include <iostream>
 #include <string>
-#include <map>
 #include <vector>
 #include <cstdio>
 #include <cstring>
@@ -10,13 +9,9 @@
 #include "common.h"
 #include "partition_hybrid.h"
 #include "sam_processing.h"
-#include "sam_parser.h"
 #define MAXB  809600
 
 using namespace std;
-
-const int BUCKET_SIZE = 100;
-const int MAXN = 1000000;
 
 genome_partition_hybrid::genome_partition_hybrid (const string & out_prefix, bool write_to_files): partition_out_file(NULL), partition_out_index_file(NULL), partition_out_count_file(NULL) {
     if (write_to_files) {
@@ -71,136 +66,255 @@ genome_partition_hybrid::genome_partition_hybrid (const string &partition_file_p
     fseek(partition_file, offsets[start-1], SEEK_SET);
 }
 
+//void genome_partition_hybrid::cluster_reads(string map_path, int len) {
+//    map_file = map_path;
+//    int MIN_Q = 30;
+//    int MIN_FREQ = 10;
+//
+//    map<int, float> cnt_new;
+//    vector<int> locs;
+//
+//    ifstream fin;
+//    fin.open(map_path);
+//    int j = 0;
+//    for (string line; getline(fin, line);) {
+//        sam_record record(line);
+//        if (record.rname == "chr3")
+//            break;
+////        cerr << record.rname << endl;
+//
+//        if ((!record.is_fully_mapped) && ((record.flag & 2048) != 2048) && (record.mapq > MIN_Q)) {
+//            int insertion_pos = record.insertion_pos;
+//
+//            if (record.head_clip_range != 0)
+//                locs.push_back(record.pos);
+//
+//            if (record.tail_clip_range != 0)
+//                locs.push_back(record.end_pos);
+//
+//            if (record.insertion_pos != record.pos)
+//                locs.push_back(record.insertion_pos);
+//        }
+//    }
+//
+//    sort(locs.begin(), locs.end());
+//
+//    vector<pair<int, int> > frequencies;
+//    vector<int> breakpoints;
+//
+//    int s = 1;
+//
+//    int prv_s = locs[0];
+//    for (int i = 1; i < locs.size(); i++) {
+//        if (locs[i] == prv_s)
+//            s++;
+//
+//        else {
+//            if (s > MIN_FREQ) {
+//                frequencies.push_back({prv_s, s});
+//            }
+//            s = 1;
+//            prv_s = locs[i];
+//        }
+//    }
+//
+//    prv_s = frequencies[0].first;
+//    int s_sum = 0;
+//    int s_cnt = 0;
+//    int curr_s = frequencies[0].first;
+//    int curr_max = frequencies[0].second;
+//    for (int i = 1; i < frequencies.size(); i++) {
+//        if (frequencies[i].first - prv_s < 5 && frequencies[i].second > 2) {
+//            if (frequencies[i].second > curr_max) {
+//                curr_max = frequencies[i].second;
+//                curr_s = frequencies[i].first;
+//            }
+//            prv_s = frequencies[i].first;
+//        } else {
+//            breakpoints.push_back(curr_s);
+//            curr_s = frequencies[i].first;
+//            curr_max = frequencies[i].second;
+//            prv_s = frequencies[i].first;
+//        }
+//    }
+//
+//    fin.close();
+//    fin.open(map_path);
+//    partition_id = 1;
+//
+//    int i = 0;
+//    if (!breakpoints.size())
+//        return;
+//
+//    int curr = breakpoints[i++];
+//
+//    string chr;
+//
+//    vector<pair<string, string> > reads;
+//    for (string line; getline(fin, line);) {
+//        sam_record record(line);
+//        chr = record.rname;
+////        if (record.rname == "chr1")
+////            continue;
+////        cerr << chr << endl;
+//
+//        if ((record.is_fully_mapped) || (record.flag & 2048) == 2048 || (record.mapq < MIN_Q))
+//            continue;
+//
+//        if ((record.pos > curr - len) && (record.pos <= curr)) {
+//            reads.push_back({record.qname, record.seq});
+//        }
+//        else if (record.pos > curr) {
+//            if (reads.size() > 0) {
+//                size_t pos = ftell(partition_out_file);
+//                fwrite(&pos, 1, sizeof(size_t), partition_out_index_file);
+//                fprintf(partition_out_file, "%d %lu %d %d %s\n", partition_id, reads.size(), curr - len,
+//                        curr + len, chr.c_str());
+//
+//                for (auto &it: reads) {
+//                    fprintf(partition_out_file, "%s %s %d %d\n", it.first.c_str(), it.second.c_str(), 1, 1);
+//                }
+//
+//                partition_count++;
+//                partition_id++;
+//
+//                reads.clear();
+//            }
+//
+//            if (i >= breakpoints.size())
+//                break;
+//
+//            curr = breakpoints[i++];
+//        }
+//    }
+//    if (reads.size() > 0) {
+//        size_t pos = ftell(partition_out_file);
+//        fwrite(&pos, 1, sizeof(size_t), partition_out_index_file);
+//        fprintf(partition_out_file, "%d %lu %d %d %s\n", partition_id, reads.size(), curr - len,
+//                curr + len, chr.c_str());
+//
+//        for (auto &i: reads) {
+//            fprintf(partition_out_file, "%s %s %d %d\n", i.first.c_str(), i.second.c_str(), 1, 1);
+//        }
+//
+//        partition_count++;
+//        partition_id++;
+//
+//        reads.clear();
+//    }
+//}
+
+void genome_partition_hybrid::dump_cluster(vector<BreakpointCandidate>& candidates, int begin, int end_loc,
+                                           int breakpoint, string chr) {
+//    cerr << "Dumping\t" << begin << "-" << end_loc << endl;
+    string cluster_content = "";
+    int reads_size = 0;
+    for (int i = begin; i <= end_loc; i++) {
+//        cerr << i << " | " << candidates[i].support << " | " << candidates[i].reads.size() << endl;
+        for (int j = 0; j < candidates[i].reads.size(); j++) {
+            reads_size++;
+            cluster_content += candidates[i].reads[j].first + " " + candidates[i].reads[j].second + " 1 1\n";
+        }
+    }
+//    cerr << "Reads: " << reads_size << endl;
+    if (reads_size == 0)
+        return;
+    size_t pos = ftell(partition_out_file);
+    fwrite(&pos, 1, sizeof(size_t), partition_out_index_file);
+    fprintf(partition_out_file, "%d %d %d %d %s\n", partition_id, reads_size, breakpoint - 150,
+            breakpoint + 150, chr.c_str());
+    fprintf(partition_out_file, "%s", cluster_content.c_str());
+    partition_count++;
+    partition_id++;
+}
+
+void genome_partition_hybrid::clean_up(vector<BreakpointCandidate>& locs, int offset) {
+    int curr_candidate = -1;
+    int curr_support = -1;
+    int prv_breakpoint = -1;
+    for (int i = 0; i < window; i++) {
+//        cerr << offset + i << ": " << locs[i].support << endl;
+        if (curr_candidate == -1 || locs[i].chr == locs[curr_candidate].chr) {
+            if (locs[i].support > MIN_FREQ && locs[i].support > curr_support) {
+                curr_candidate = i;
+                curr_support = locs[i].support;
+            }
+        }
+        else {
+            if (curr_candidate != -1 && locs[i].in_window && curr_candidate - prv_breakpoint > 10) {
+                dump_cluster(locs, max(0, curr_candidate - 150), curr_candidate,
+                             offset + curr_candidate, locs[curr_candidate].chr);
+                prv_breakpoint = curr_candidate;
+            }
+            curr_candidate = -1;
+            curr_support = -1;
+        }
+    }
+    for (int i = 0; i < margin; i++) {
+        locs[i] = locs[locs.size() - margin + i];
+        locs[i].in_window = false;
+    }
+    for (int i = margin; i < locs.size(); i++) {
+        BreakpointCandidate tmp;
+        locs[i] = tmp;
+    }
+}
+
 void genome_partition_hybrid::cluster_reads(string map_path, int len) {
     map_file = map_path;
-    int MIN_Q = 30;
-    int MIN_FREQ = 10;
-
-    map<int, float> cnt_new;
-    vector<int> locs;
 
     ifstream fin;
     fin.open(map_path);
-    int j = 0;
+
+    int offset = 0;
+
+    vector<BreakpointCandidate> locs;
+    for (int i = 0; i < window + margin; i++) {
+        BreakpointCandidate tmp;
+        locs.push_back(tmp);
+    }
+
+    string curr_chr = "";
     for (string line; getline(fin, line);) {
         sam_record record(line);
 
         if ((!record.is_fully_mapped) && ((record.flag & 2048) != 2048) && (record.mapq > MIN_Q)) {
-            int insertion_pos = record.insertion_pos;
-
-            if (record.head_clip_range != 0)
-                locs.push_back(record.pos);
-
-            if (record.tail_clip_range != 0)
-                locs.push_back(record.end_pos);
-
-            if (record.insertion_pos != record.pos)
-                locs.push_back(record.insertion_pos);
-        }
-    }
-
-    sort(locs.begin(), locs.end());
-
-    vector<pair<int, int> > frequencies;
-    vector<int> breakpoints;
-
-    int s = 1;
-
-    int prv_s = locs[0];
-    for (int i = 1; i < locs.size(); i++) {
-        if (locs[i] == prv_s)
-            s++;
-
-        else {
-            if (s > MIN_FREQ) {
-                frequencies.push_back({prv_s, s});
-            }
-            s = 1;
-            prv_s = locs[i];
-        }
-    }
-
-    prv_s = frequencies[0].first;
-    int s_sum = 0;
-    int s_cnt = 0;
-    int curr_s = frequencies[0].first;
-    int curr_max = frequencies[0].second;
-    for (int i = 1; i < frequencies.size(); i++) {
-        if (frequencies[i].first - prv_s < 5 && frequencies[i].second > 2) {
-            if (frequencies[i].second > curr_max) {
-                curr_max = frequencies[i].second;
-                curr_s = frequencies[i].first;
-            }
-            prv_s = frequencies[i].first;
-        } else {
-            breakpoints.push_back(curr_s);
-            curr_s = frequencies[i].first;
-            curr_max = frequencies[i].second;
-            prv_s = frequencies[i].first;
-        }
-    }
-
-    fin.close();
-    fin.open(map_path);
-    partition_id = 1;
-
-    int i = 0;
-    if (!breakpoints.size())
-        return;
-
-    int curr = breakpoints[i++];
-
-    string chr;
-
-    vector<pair<string, string> > reads;
-    for (string line; getline(fin, line);) {
-        sam_record record(line);
-        chr = record.rname;
-
-        if ((record.is_fully_mapped) || (record.flag & 2048) == 2048 || (record.mapq < MIN_Q))
-            continue;
-
-        if ((record.pos > curr - len) && (record.pos <= curr)) {
-            reads.push_back({record.qname, record.seq});
-        }
-        else if (record.pos > curr) {
-            if (reads.size() > 0) {
-                size_t pos = ftell(partition_out_file);
-                fwrite(&pos, 1, sizeof(size_t), partition_out_index_file);
-                fprintf(partition_out_file, "%d %lu %d %d %s\n", partition_id, reads.size(), curr - len,
-                        curr + len, chr.c_str());
-
-                for (auto &it: reads) {
-                    fprintf(partition_out_file, "%s %s %d %d\n", it.first.c_str(), it.second.c_str(), 1, 1);
+            if (record.rname != curr_chr) {
+                curr_chr = record.rname;
+                clean_up(locs, offset);
+                for (int i = 0; i < margin; i++) {
+                    BreakpointCandidate tmp;
+                    locs[i] = tmp;
                 }
-
-                partition_count++;
-                partition_id++;
-
-                reads.clear();
+                offset = record.pos - margin;
             }
 
-            if (i >= breakpoints.size())
-                break;
+            if (record.pos >= offset + window) {
+                clean_up(locs, offset);
+                offset = record.pos - margin;
+//                cerr << "offset: " << offset << endl;
+            }
 
-            curr = breakpoints[i++];
+            if (record.head_clip_range != 0) {
+                locs[record.pos - offset].support++;
+                locs[record.pos - offset].reads.push_back({record.rname, record.seq});
+                locs[record.pos - offset].chr = record.rname;
+            }
+
+            if (record.tail_clip_range != 0) {
+                locs[record.end_pos - offset].support++;
+                locs[record.end_pos - offset].reads.push_back({record.rname, record.seq});
+                locs[record.end_pos - offset].chr = record.rname;
+            }
+
+            if (record.insertion_pos != record.pos) {
+                locs[record.insertion_pos - offset].support++;
+                locs[record.insertion_pos - offset].reads.push_back({record.rname, record.seq});
+                locs[record.insertion_pos - offset].chr = record.rname;
+            }
         }
     }
-    if (reads.size() > 0) {
-        size_t pos = ftell(partition_out_file);
-        fwrite(&pos, 1, sizeof(size_t), partition_out_index_file);
-        fprintf(partition_out_file, "%d %lu %d %d %s\n", partition_id, reads.size(), curr - len,
-                curr + len, chr.c_str());
-
-        for (auto &i: reads) {
-            fprintf(partition_out_file, "%s %s %d %d\n", i.first.c_str(), i.second.c_str(), 1, 1);
-        }
-
-        partition_count++;
-        partition_id++;
-
-        reads.clear();
-    }
+    clean_up(locs, offset);
 }
 
 genome_partition_hybrid::~genome_partition_hybrid () {

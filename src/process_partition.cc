@@ -64,7 +64,8 @@ cluster ProcessPartition::get_cluster() {
     ans.cluster_type = ans.reads.second.cluster_type;
     if (ans.reads.first.size() != 0) {
         processed_cnt += 1;
-        cerr << processed_cnt << endl;
+        cerr << "cluster: " << processed_cnt << endl;
+        Logger::instance().debug("+ Cluster ID            : %d\n", processed_cnt);
         sprintf(comment, "%10d / %-10d", processed_cnt, total);
         progress->update(((float)processed_cnt/(float)total) * 100, comment);
     }
@@ -143,7 +144,7 @@ void ProcessPartition::thread_process(int tid) {
         vector<pair<string, int> > consensus;
 
         //BIMODAL
-        if (p.cluster_type == BIMODAL) {
+        if (p.cluster_type == BIMODAL && p.reads.second.bimodal_cuts.size() > 2) {
             cluster_type = "bimodal";
             logger_out += " + Type                  : bimodal(left: " + to_string(p.reads.second.left_cuts.size()) +
                     ", right: " + to_string(p.reads.second.right_cuts.size()) +
@@ -152,32 +153,29 @@ void ProcessPartition::thread_process(int tid) {
             int b_size = 0, l_size = 0, r_size = 0;
 
             graph.Clear();
-            sort(p.reads.second.bimodal_cuts.begin(), p.reads.second.bimodal_cuts.end(), [](const auto &a, const auto &b) {
-                return a.range.end - a.range.start > b.range.end - b.range.start;
-            });
-            sort(p.reads.second.left_cuts.begin(), p.reads.second.left_cuts.end(), [](const auto &a, const auto &b) {
-                return a.range.end - a.range.start > b.range.end - b.range.start;
-            });
-            sort(p.reads.second.right_cuts.begin(), p.reads.second.right_cuts.end(), [](const auto &a, const auto &b) {
-                return a.range.end - a.range.start > b.range.end - b.range.start;
-            });
+
+            int l = 0, r = 0;
             for (int i = 0; i < min(7, (int)p.reads.second.bimodal_cuts.size()); i++) {
                 auto alignment = alignment_engine->Align(p.reads.second.bimodal_cuts[i].sequence, graph);
                 graph.AddAlignment(alignment, p.reads.second.bimodal_cuts[i].sequence);
             }
-            for (int i = 0; i < min(7, (int)p.reads.second.left_cuts.size()); i++) {
-                auto alignment = alignment_engine->Align(p.reads.second.left_cuts[i].sequence, graph);
-                graph.AddAlignment(alignment, p.reads.second.left_cuts[i].sequence);
-            }
-            for (int i = 0; i < min(7, (int)p.reads.second.right_cuts.size()); i++) {
-                auto alignment = alignment_engine->Align(p.reads.second.right_cuts[i].sequence, graph);
-                graph.AddAlignment(alignment, p.reads.second.right_cuts[i].sequence);
+            if (p.estimated_insertion > 0) {
+                for (int i = 0; i < min(7, (int)p.reads.second.left_cuts.size()); i++) {
+                    auto alignment = alignment_engine->Align(p.reads.second.left_cuts[i].sequence, graph);
+                    graph.AddAlignment(alignment, p.reads.second.left_cuts[i].sequence);
+                }
+                for (int i = 0; i < min(7, (int)p.reads.second.right_cuts.size()); i++) {
+                    auto alignment = alignment_engine->Align(p.reads.second.right_cuts[i].sequence, graph);
+                    graph.AddAlignment(alignment, p.reads.second.right_cuts[i].sequence);
+                }
+                l = min(7, (int)p.reads.second.left_cuts.size());
+                r = min(7, (int)p.reads.second.left_cuts.size());
             }
 
             auto msa = graph.GenerateMultipleSequenceAlignment(true);
 
-            pair<string, pair<int, int>> ans = cut_consensus_bimodal(msa, min(7, (int)p.reads.second.left_cuts.size()), min(7, (int)p.reads.second.left_cuts.size()),
-                                                                     min(7, (int)p.reads.second.right_cuts.size()));
+            pair<string, pair<int, int>> ans = cut_consensus_bimodal(msa, l, r,
+                                                                     min(7, (int)p.reads.second.bimodal_cuts.size()));
 
             consensus.push_back({ans.first, p.reads.second.left_cuts.size() + p.reads.second.bimodal_cuts.size() + p.reads.second.right_cuts.size()});
 
@@ -185,74 +183,32 @@ void ProcessPartition::thread_process(int tid) {
             logger_out += "\nMSA:\n";
             for (int i = 0; i < msa.size(); i++) {
                 string tmp = msa[i].insert(ans.second.first, "|");
-                string tmp2 = tmp.insert(tmp.size() - ans.second.second, "|");
+                string tmp2 = tmp.insert(ans.second.second + 1, "|");
                 logger_out += tmp2 + "\n";
             }
             #endif
 
             bimodal_no++;
         }
-        else {
-            //SINGLE PEAK
-            if (p.cluster_type == SINGLE_PEAK) {
-                cluster_type = "single-peak";
-                logger_out += " + Type              : single peak\n\n";
+        //LONG INSERTION
+        else if (!p.reads.second.left_cuts.empty() && !p.reads.second.right_cuts.empty()) {
+            cluster_type = "long";
+            logger_out += " + Type              : long insertion\n\n";
 
-                sort(p.reads.second.single_peak_cuts.begin(), p.reads.second.single_peak_cuts.end(), [](const auto &a, const auto &b) {
-                    return a.range.end - a.range.start > b.range.end - b.range.start;
-                });
+            vector<string> left_reads, right_reads;
 
-                graph.Clear();
-                for (int i = 0; i < min(7, (int)p.reads.second.single_peak_cuts.size()); i++) {
-                    auto alignment = alignment_engine->Align(p.reads.second.single_peak_cuts[i].sequence, graph);
-                    graph.AddAlignment(alignment, p.reads.second.single_peak_cuts[i].sequence);
-                }
-
-                auto msa = graph.GenerateMultipleSequenceAlignment(true);
-
-                pair<string, pair<int, int>> ans = cut_consensus_single(msa);
-
-                #ifdef DEBUG
-                logger_out += "\nMSA:\n";
-                for (int i = 0; i < msa.size(); i++) {
-                    string tmp = msa[i].insert(ans.second.first, "|");
-                    string tmp2 = tmp.insert(tmp.size() - ans.second.second, "|");
-                    logger_out += tmp2 + "\n";
-                }
-                #endif
-
-                consensus.push_back({ans.first, min(7, (int)p.reads.second.single_peak_cuts.size())});
-
-                single_no++;
+            for (int i = 0; i < min((int)p.reads.second.left_cuts.size(), 7); i++) {
+                left_reads.push_back(p.reads.second.left_cuts[i].sequence);
             }
-            //LONG INSERTION
-            else if (!p.reads.second.left_cuts.empty() && !p.reads.second.right_cuts.empty()) {
-                cluster_type = "long";
-                logger_out += " + Type              : long insertion\n\n";
-
-                vector<string> left_reads, right_reads;
-
-                for (int i = 0; i < p.reads.second.left_cuts.size(); i++) {
-                    left_reads.push_back(p.reads.second.left_cuts[i].sequence);
-                }
-                for (int i = 0; i < p.reads.second.right_cuts.size(); i++) {
-                    right_reads.push_back(p.reads.second.right_cuts[i].sequence);
-                }
-
-                sort(left_reads.begin(), left_reads.end(), [](const auto &a, const auto &b) {
-                    return a.size() > b.size();
-                });
-
-                sort(right_reads.begin(), right_reads.end(), [](const auto &a, const auto &b) {
-                    return a.size() > b.size();
-                });
-
-                pair<string, int> ans = ia->assemble(left_reads, right_reads, logger_out);
-
-                consensus.push_back(ans);
-
-                long_no++;
+            for (int i = 0; i < min((int)p.reads.second.right_cuts.size(), 7); i++) {
+                right_reads.push_back(p.reads.second.right_cuts[i].sequence);
             }
+
+            pair<string, int> ans = ia->assemble(left_reads, right_reads, logger_out);
+
+            consensus.push_back(ans);
+
+            long_no++;
         }
 
         for (int i = 0; i < consensus.size(); i++) {
@@ -269,12 +225,7 @@ void ProcessPartition::thread_process(int tid) {
             //Align consensus
             al.align(ref_part, consensus[i].first);
             string ex_msg = "";
-            if (al.extract_calls(cluster_id, reports_lq, reports, contig_support, ref_start, ">>>", ex_msg) == 0) {
-//                string rc_contig = reverse_complement(consensus[i].first);
-//                al.align(ref_part, rc_contig);
-//                al.extract_calls(cluster_id, reports_lq, reports, contig_support, ref_start, "<<<", ex_msg);
-            }
-
+            al.extract_calls(cluster_id, reports_lq, reports, contig_support, ref_start, ">>>", ex_msg);
             logger_out += ex_msg;
         }
 

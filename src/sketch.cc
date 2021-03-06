@@ -4,7 +4,6 @@
 #include <thread>
 #include <string>
 #include <iostream>
-#include <assert.h>
 #include <algorithm>
 #include "logger.h"
 #include "common.h"
@@ -14,12 +13,11 @@
 
 #include <cstring>
 
-using namespace std;
+#include <chrono>
+#include <ratio>
+#include <ctime>
 
-//TODO FIX
-const int MAXN = 30000;
-const int BUCKET_SIZE = 100;
-int REF_MIN = 10;
+using namespace std;
 
 ProgressBar sketch_progress(80);
 ProgressBar sort_progress(80);
@@ -54,11 +52,9 @@ Sketch::Sketch(string lp, string dp, int k, int w) {
 }
 
 Sketch::Sketch(string dp, int len, int distance, int k, int w) {
-    short_read_len = len;
-    genome_anchor_distance = distance;
     kmer_size = k;
-    window_size = w;
     dat_path = dp;
+    window_size = w;
     load();
     compute_freq_th();
     claspChain = ClaspChain();
@@ -172,24 +168,9 @@ void Sketch::load() {
     seqin.close();
 }
 
-vector<cut> Sketch::query(vector<string> &reads, bool classify) {
-    unordered_set<hash_t> frw_minimizers;
-    unordered_set<hash_t> rev_minimizers;
-    vector<pair<uint64_t, int> > minimizers_vec;
-
-    build_query_sketch(reads, minimizers_vec, frw_minimizers, rev_minimizers);
-
-    return find_cuts(classify, frw_minimizers, rev_minimizers);
-}
-
-vector<cut> Sketch::query(vector<string> &reads, bool classify, string& ref_l, string& ref_r) {
-    unordered_set<hash_t> frw_minimizers;
-    unordered_set<hash_t> rev_minimizers;
-    vector<pair<uint64_t, int> > minimizers_vec;
-
-    build_query_sketch(reads, minimizers_vec, frw_minimizers, rev_minimizers);
-
-    return find_cuts(classify, frw_minimizers, rev_minimizers, ref_l, ref_r);
+pair<vector<cut>, int> Sketch::query(vector<string> &reads, bool long_insertion, string& ref_l, string& ref_r) {
+    pair<vector<cut>, int> cut_results = find_cuts_all(ref_l, ref_r, long_insertion, reads);
+    return cut_results;
 }
 
 void Sketch::read_buffer() {
@@ -313,25 +294,6 @@ void Sketch::merge(vector<pair<hash_t, Location> > &a, vector<pair<hash_t, Locat
                   [](auto &a, auto &b) {return a.first < b.first;});
 }
 
-void Sketch::build_query_sketch(vector<string> &reads, vector<pair<uint64_t, int> > &minimizers_vec,
-                                unordered_set<hash_t> &frw_minimizers, unordered_set<hash_t> &rev_minimizers) {
-    for (int i = 0; i < reads.size(); i++) {
-        transform(reads[i].begin(), reads[i].end(), reads[i].begin(), ::toupper);
-        get_query_minimizers(&reads[i][0], i, reads[i].size(), minimizers_vec);
-    }
-    for (int i = 0; i < minimizers_vec.size(); i++)
-        frw_minimizers.insert(minimizers_vec[i].first);
-    minimizers_vec.clear();
-
-    for (int i = 0; i < reads.size(); i++) {
-        string q = reverse_complement(reads[i]);
-        get_query_minimizers(&q[0], i, q.size(), minimizers_vec);
-    }
-    for (int i = 0; i < minimizers_vec.size(); i++)
-        rev_minimizers.insert(minimizers_vec[i].first);
-    minimizers_vec.clear();
-}
-
 void Sketch::get_ref_minimizers(char* read, id_t id, int len, vector<pair<hash_t, Location> > &ref_minimizers_vec) {
     deque<pair<uint64_t, Location> > window;
 
@@ -406,311 +368,6 @@ void Sketch::compute_freq_th() {
     freq_th = frequencies[top];
 }
 
-int get_avg(vector<hash_size_t> v) {
-    hash_size_t sum = 0;
-    for (int i = 0; i < v.size(); i++) {
-        sum += v[i];
-    }
-    int res = sum / v.size();
-    return res;
-}
-
-int get_avg_new(vector<float> v) {
-    float sum = 0;
-    for (int i = 0; i < v.size(); i++) {
-        sum += v[i];
-    }
-    int res = sum / v.size();
-    return res;
-}
-
-cut Sketch::find_range(vector<hit>& hits, mem_offset_t start, hash_size_t size) {
-    sort(hits.begin() + start, hits.begin() + start + size, hit());
-
-    //TODO: Optimize
-
-    offset_t min_offset = hits[start].offset;
-    offset_t max_offset = hits[start + size - 1].offset + kmer_size;
-    int n = ceil(((max_offset - min_offset)/100) + 2) * 100;
-
-    //Create buckets
-    vector<pair<offset_t, offset_t> > buckets;
-    buckets.reserve(BUCKET_SIZE);
-    map<int, float> cnt_new;
-    for (int s = max(min_offset - 200, 0); s < min_offset + n; s += BUCKET_SIZE) {
-        buckets.push_back(make_pair(s, s + BUCKET_SIZE));
-    }
-
-    vector<pair<offset_t, offset_t> > locs;
-    for (int i = 0; i < buckets.size(); i++) {
-        locs.push_back({buckets[i].second, buckets[i].first});
-    }
-
-     //Populate buckets by hit locations
-    cnt_new[0] = 0;
-    cnt_new[buckets.size() - 1] = 0;
-    int j = 1;
-    float weight = 0;
-    for (auto i = start; i < start + size; i++) {
-        offset_t curr_hit_start = hits[i].offset;
-        offset_t curr_hit_end = hits[i].offset + kmer_size;
-        float l_weight, r_weight;
-        while (curr_hit_start >= buckets[j].second) {
-            j++;
-        }
-        if (curr_hit_end >= buckets[j].second) {
-            l_weight = (buckets[j].second - curr_hit_start)/(float)kmer_size;
-            r_weight = 1 - l_weight;
-            locs[j].second = buckets[j].second;
-            locs[j+1].second = max((int)locs[j+1].second, (int)curr_hit_end);
-            locs[j+1].first = buckets[j+1].first;
-        }
-        else {
-            l_weight = 1.0;
-            r_weight = 0;
-            locs[j].second = max((int)locs[j].second, (int)curr_hit_end);
-        }
-        cnt_new[j] += l_weight;
-        cnt_new[j + 1] += r_weight;
-        locs[j].first = min((int)locs[j].first, (int)curr_hit_start);
-    }
-
-    //Find bucket weights
-    vector<float> freq_new;
-    freq_new.reserve(BUCKET_SIZE);
-    for (int i = 0; i < buckets.size(); i++) {
-#ifdef DEBUG
-        Logger::instance().debug("%d-%d: %f\n", buckets[i].first, buckets[i].second, cnt_new[i]);
-#endif
-        freq_new.push_back(cnt_new[i]);
-    }
-    //find cut around highest peak
-    int mx_idx = max_element(freq_new.begin(), freq_new.end()) - freq_new.begin();
-
-    int avg = get_avg_new(freq_new);
-
-    offset_t l = mx_idx;
-    while (l > 0) {
-        if (freq_new[l - 1] > 1) {
-            l--;
-        } else {
-            break;
-        }
-    }
-    offset_t r = mx_idx;
-    while (r < (int)freq_new.size() && freq_new[r] > 1) {
-        r++;
-    }
-    range_s range_1 = {l, r};
-
-    //find cut around second highest peak
-    range_s range_2;
-    //find if peak is on the left side or the right side of maximum peak
-
-    float r_w, l_w;
-
-    //TODO: check sum of weights. not just the one bucket
-    int mx_idx_l = max_element(freq_new.begin(), freq_new.begin() + max(l - 1, 0)) - freq_new.begin();
-    int mx_idx_r = max_element(freq_new.begin() + min(r + 1, (int) freq_new.size() - 1), freq_new.end()) - freq_new.begin();
-
-    l_w = freq_new[mx_idx_l];
-    r_w = freq_new[mx_idx_r];
-
-    if (l - 1 <= 0) {
-        l_w = -1;
-    }
-    if (r + 1 >= freq_new.size()) {
-        r_w = -1;
-    }
-
-    if (l_w == r_w) {
-        range_2 = {0, 0};
-    }
-    else {
-        //    float prv_peak = freq_new[mx_idx] + freq_new[mx_idx - 1] + freq_new[mx_idx + 1];
-        float prv_peak = freq_new[mx_idx];
-        mx_idx = l_w > r_w ? mx_idx_l : mx_idx_r;
-//    float new_peak = freq_new[mx_idx] + freq_new[mx_idx - 1] + freq_new[mx_idx + 1];
-        float new_peak = freq_new[mx_idx];
-
-        if (mx_idx <= r && mx_idx_l >= l)
-            range_2 = {0, 0};
-            //Discard if new peak is too low comparing to the maximum peak (probably doesn't belong to this insertion)
-        else if (new_peak < prv_peak/2) {
-            range_2 = {0, 0};
-        }
-        else {
-            l = mx_idx;
-            while (l > 0) {
-                if (freq_new[l - 1] > 1) {
-                    l--;
-                } else {
-                    break;
-                }
-            }
-            r = mx_idx;
-            while (r < (int)freq_new.size() && freq_new[r] > 1) {
-                r++;
-            }
-            range_2 = {l, r};
-        }
-    }
-
-    range_s final_range;
-    uint8_t type;
-    cut ans;
-
-    if (range_2.start == range_2.end) {
-        final_range.start = locs[range_1.start].first;
-        final_range.end = locs[range_1.end - 1].second;
-        ans.type = SINGLE_PEAK;
-        ans.peak1 = final_range;
-        ans.peak2 = {0, 0};
-    }
-        //Case 2: Two peaks found/Bimodal read
-    else {
-        ans.type = BIMODAL;
-        //If second peak is on the right side of the first peak
-        if (range_1.start < range_2.start) {
-            final_range.start = locs[range_1.start].first;
-            final_range.end = locs[range_2.end - 1].second;
-            ans.peak1 = {locs[range_1.start].first, locs[range_1.end - 1].second};
-            ans.peak2 = {locs[range_2.start].first, locs[range_2.end - 1].second};
-        }
-        //If second peak is on the left side of the first peak
-        else {
-            final_range.start = locs[range_2.start].first;
-            final_range.end = locs[range_1.end - 1].second;
-            ans.peak2 = {locs[range_1.start].first, locs[range_1.end - 1].second};
-            ans.peak1 = {locs[range_2.start].first, locs[range_2.end - 1].second};
-        }
-        ans.estimated_insertion = abs(ans.peak1.start - ans.peak2.start);
-    }
-    ans.range = final_range;
-
-    return ans;
-}
-
-pair<float, float> Sketch::minimizer_similarity(unordered_set<hash_t>& ref, vector<hit>& q, int start, int size) {
-    int cnt = 0;
-    for (auto i = start; i < start + size; i++) {
-        if (find(ref.begin(), ref.end(), q[i].hash_value) != ref.end())
-            cnt++;
-    }
-    return {float(cnt)/float(size), float(cnt)/float(ref.size())};
-}
-
-float Sketch::minimizer_similarity_single(unordered_set<hash_t>& ref, unordered_set<hash_t>& q) {
-    int cnt = 0;
-    for (auto i = q.begin(); i != q.end(); i++) {
-        if (find(ref.begin(), ref.end(), *i) != ref.end())
-            cnt++;
-    }
-    return float(cnt)/float(q.size());
-}
-
-float Sketch::compare_sequences(string& seq_a, string& seq_b) {
-    unordered_set<hash_t> minimizers_a;
-    unordered_set<hash_t> minimizers_b;
-    vector<pair<uint64_t, int> > minimizers_vec;
-
-    //TODO: move upper to extraction
-    transform(seq_a.begin(), seq_a.end(), seq_a.begin(), ::toupper);
-    get_query_minimizers(&seq_a[0], 0, seq_a.size(), minimizers_vec);
-
-    for (int i = 0; i < minimizers_vec.size(); i++)
-        minimizers_a.insert(minimizers_vec[i].first);
-    minimizers_vec.clear();
-
-    transform(seq_b.begin(), seq_b.end(), seq_b.begin(), ::toupper);
-    get_query_minimizers(&seq_b[0], 0, seq_b.size(), minimizers_vec);
-
-    for (int i = 0; i < minimizers_vec.size(); i++)
-        minimizers_b.insert(minimizers_vec[i].first);
-    minimizers_vec.clear();
-
-    return minimizer_similarity_single(minimizers_a, minimizers_b);
-}
-
-void Sketch::classify_reads(vector<hit> &hits, vector<cut> &cuts) {
-    if (cuts.empty())
-        return;
-    //Bimodal reads first, then ordered by number of minimizers used to pick the reads
-    sort(cuts.begin(), cuts.end());
-
-    unordered_set<hash_t> left_minimizers, right_minimizers;
-
-    int i = 0;
-    //Separate left and right minimizers
-    while (i < cuts.size() && cuts[i].type == BIMODAL) {
-        id_t curr_read = cuts[i].seq_id;
-
-        auto h = equal_range(hits.begin(), hits.end(), curr_read, hit());
-        for (auto it = h.first; it != h.second; it++) {
-            //Left minimizers
-            if (it->offset < cuts[i].peak1.end)
-                left_minimizers.insert(it->hash_value);
-                //Right minimizers
-            else if (it->offset > cuts[i].peak2.start)
-                right_minimizers.insert(it->hash_value);
-        }
-        i++;
-    }
-
-    for (i; i < cuts.size(); i++) {
-        id_t curr_read = cuts[i].seq_id;
-
-        auto h = equal_range(hits.begin(), hits.end(), curr_read, hit());
-
-        int start = h.first - hits.begin();
-        int size = h.second - h.first;
-        //Case 1: We have seen a bimodal read or we have already populated the left and right sets
-        // -> just compare similarity to left and right sets
-        if (!left_minimizers.empty() && !right_minimizers.empty()) {
-            pair<float, float> left_similarity = minimizer_similarity(left_minimizers, hits, start, size);
-            pair<float, float> right_similarity = minimizer_similarity(right_minimizers, hits, start, size);
-
-            if (abs(left_similarity.first - left_similarity.second) > 0.3 ||
-                abs(right_similarity.first - right_similarity.second) > 0.3)
-                cuts[i].type = MISC;
-            else if (left_similarity > right_similarity) {
-                cuts[i].type = PARTIAL_LEFT;
-            }
-            else if (right_similarity > left_similarity) {
-                cuts[i].type = PARTIAL_RIGHT;
-            }
-            else {
-                cuts[i].type = MISC;
-            }
-        }
-            //Case 2: No bimodal reads, must classify reads on the go -> first set of seen minimizers are assigned to left
-        else if (left_minimizers.empty()) {
-            for (auto j = h.first; j != h.second; j++) {
-                left_minimizers.insert(j->hash_value);
-            }
-            cuts[i].type = PARTIAL_LEFT;
-        }
-            //Case 3: all seen reads have been classified as left and right is still empty -> if this new read doesn't have
-            //        enough similarity with the left set, assign it to right
-        else if (right_minimizers.empty()) {
-            pair<float, float> left_similarity = minimizer_similarity(left_minimizers, hits, start, size);
-            if (abs(left_similarity.first - left_similarity.second) > 0.1) {
-                cuts[i].type = MISC;
-                continue;
-            }
-            if (left_similarity.first > 0.5) {
-                cuts[i].type = PARTIAL_LEFT;
-                continue;
-            }
-            for (auto j = h.first; j != h.second; j++) {
-                right_minimizers.insert(j->hash_value);
-            }
-            cuts[i].type = PARTIAL_RIGHT;
-        }
-    }
-    return;
-}
-
 pair<mem_offset_t, hash_size_t> Sketch::find_hit(const hash_t &hv) {
     vector<minimizer>::iterator it = lower_bound(minimizers.begin(), minimizers.end(), hv, minimizer());
 
@@ -733,70 +390,28 @@ pair<mem_offset_t, hash_size_t> Sketch::find_hit(const hash_t &hv) {
     }
 };
 
-pair<vector<hit>, vector<hit> > Sketch::get_hits(unordered_set<hash_t>& query_frw, unordered_set<hash_t>& query_rev) {
-    vector<hit> hits_frw;
-    vector<hash_t> frequent_hashes;
-    for (auto it = query_frw.begin(); it != query_frw.end(); it++) {
-        auto idx = find_hit(*it);
-
-        if (idx.second == 0 || idx.second >= freq_th) {
-            frequent_hashes.push_back(*it);
-            continue;
-        }
-
-        for (auto i = idx.first; i < idx.first + idx.second; i++) {
-            hits_frw.push_back((hit) {.seq_id = ref_minimizers[i].seq_id, .offset = ref_minimizers[i].offset, .hash_value = *it});
-        }
-    }
-    sort(hits_frw.begin(), hits_frw.end());
-    for (int i = 0; i < frequent_hashes.size(); i++)
-        query_frw.erase(frequent_hashes[i]);
-    frequent_hashes.clear();
-
-
-    vector<hit> hits_rev;
-    for (auto it = query_rev.begin(); it != query_rev.end(); it++) {
-        auto idx = find_hit(*it);
-
-        if (idx.second == 0 || idx.second >= freq_th) {
-            frequent_hashes.push_back(*it);
-            continue;
-        }
-
-        for (auto i = idx.first; i < idx.first + idx.second; i++) {
-            hits_rev.push_back((hit) {.seq_id = ref_minimizers[i].seq_id, .offset = ref_minimizers[i].offset, .hash_value = *it});
-        }
-    }
-    sort(hits_rev.begin(), hits_rev.end());
-    for (int i = 0; i < frequent_hashes.size(); i++)
-        query_rev.erase(frequent_hashes[i]);
-    frequent_hashes.clear();
-
-    return {hits_frw, hits_rev};
-}
-
-pair<vector<hit>, vector<hit> > Sketch::get_hits(vector<pair<uint64_t, int> >& query_frw, vector<pair<uint64_t, int> >& query_rev) {
+//TODO: Only use unique ones on the genome
+vector<hit> Sketch::get_hits_new(vector<pair<uint64_t, int> >& query_frw) {
     vector<hit> hits_frw;
     vector<pair<hash_t, int> > hashes;
 
     hash_t prv_hash = UINT64_MAX;
-
     for (auto it = query_frw.begin(); it != query_frw.end(); it++) {
         auto idx = find_hit(it->first);
 
         if (idx.second == 0 || idx.second >= freq_th) {
+//            if (idx.second == 0) {
             continue;
         }
 
         hashes.push_back(*it);
 
-        if (it->first != prv_hash) {
+//        if (it->first != prv_hash) {
             for (auto i = idx.first; i < idx.first + idx.second; i++) {
-//                if (sequences[ref_minimizers[i].seq_id].first == "S1_112901")
-//                    Logger::instance().debug("%lld - %d\n", it->first, ref_minimizers[i].offset);
-                hits_frw.push_back((hit) {.seq_id = ref_minimizers[i].seq_id, .offset = ref_minimizers[i].offset, .hash_value = it->first});
+                hits_frw.push_back((hit) {.seq_id = ref_minimizers[i].seq_id, .hash_value = it->first,
+                                          .offset = ref_minimizers[i].offset, .genome_offset = (offset_t)it->second});
             }
-        }
+//        }
         prv_hash = it->first;
     }
     sort(hits_frw.begin(), hits_frw.end());
@@ -804,690 +419,652 @@ pair<vector<hit>, vector<hit> > Sketch::get_hits(vector<pair<uint64_t, int> >& q
     query_frw = hashes;
     hashes.clear();
 
-//    Logger::instance().debug("------\n");
-
-    vector<hit> hits_rev;
-    for (auto it = query_rev.begin(); it != query_rev.end(); it++) {
-        auto idx = find_hit(it->first);
-
-        if (idx.second == 0 || idx.second >= freq_th) {
-            continue;
-        }
-
-        hashes.push_back(*it);
-
-        if (it->first != prv_hash) {
-            for (auto i = idx.first; i < idx.first + idx.second; i++) {
-//                if (sequences[ref_minimizers[i].seq_id].first == "S1_112901")
-//                    Logger::instance().debug("%lld - %d\n", it->first, ref_minimizers[i].offset);
-                hits_rev.push_back((hit) {.seq_id = ref_minimizers[i].seq_id, .offset = ref_minimizers[i].offset, .hash_value = it->first});
-            }
-        }
-        prv_hash = it->first;
-    }
-    sort(hits_rev.begin(), hits_rev.end());
-    query_rev = hashes;
-    hashes.clear();
-
-    return {hits_frw, hits_rev};
+    return hits_frw;
 }
 
-void Sketch::get_genome_hits(string& ref_l, string& ref_r, vector<pair<uint64_t, int> >& l_frw,
-                     vector<pair<uint64_t, int> >& l_rev, vector<pair<uint64_t, int> >& r_frw, vector<pair<uint64_t, int> >& r_rev,
-                     pair<vector<hit>, vector<hit> >& l_hits, pair<vector<hit>, vector<hit> >& r_hits) {
-    if (!ref_l.empty()) {
-        transform(ref_l.begin(), ref_l.end(), ref_l.begin(), ::toupper);
-        get_query_minimizers(&ref_l[0], 0, ref_l.size(), l_frw);
-        sort(l_frw.begin(), l_frw.end());
+void Sketch::get_genome_hits_new(string& ref, vector<minimizer_t>& minimizers, vector<hit>& candidates) {
+    transform(ref.begin(), ref.end(), ref.begin(), ::toupper);
+    get_query_minimizers(&ref[0], 0, ref.size(), minimizers);
 
-        string q = reverse_complement(ref_l);
-        get_query_minimizers(&q[0], 0, q.size(), l_rev);
-        sort(l_rev.begin(), l_rev.end());
-    }
+    sort(minimizers.begin(), minimizers.end());
 
-    if (!ref_r.empty()) {
-        transform(ref_r.begin(), ref_r.end(), ref_r.begin(), ::toupper);
-        get_query_minimizers(&ref_r[0], 0, ref_r.size(), r_frw);
-        sort(r_frw.begin(), r_frw.end());
-
-        string q = reverse_complement(ref_r);
-        get_query_minimizers(&q[0], 0, q.size(), r_rev);
-        sort(r_rev.begin(), r_rev.end());
-    }
-
-//    Logger::instance().debug("Genomic Hits:\n");
-    l_hits = get_hits(l_frw, l_rev);
-    r_hits = get_hits(r_frw, r_rev);
-
-//    Logger::instance().debug("Frw Left:\n");
-//#ifdef DEBUG
-//    for (auto i = l_frw.begin(); i != l_frw.end(); i++)
-//        Logger::instance().debug("%lld - %d:\n", i->first, i->second);
-//#endif
-//    Logger::instance().debug("-----\n");
+    candidates = get_hits_new(minimizers);
 }
 
-vector<seed> Sketch::create_seeds(vector<hit> hits, id_t id, vector<pair<uint64_t, int> > genome) {
+vector<seed> Sketch::create_seeds_new(vector<hit>& hits, int start, int size) {
     vector<seed> seeds;
 
-    auto it = equal_range(hits.begin(), hits.end(), id, hit());
+//    ofstream fout;
+//    fout.open("fragments.blast", std::ios_base::app);
 
-    for (auto i = it.first; i != it.second; i++) {
-        for (int j = 0; j < genome.size(); j++) {
-            if (genome[j].first == i->hash_value) {
-                seed curr_seed;
-                curr_seed.qPos = i->offset;
-                curr_seed.sPos = genome[j].second;
-                curr_seed.len = kmer_size;
-                seeds.push_back(curr_seed);
-            }
-        }
+    for (auto i = start; i < start + size; i++) {
+        seed curr_seed;
+        curr_seed.qPos = hits[i].offset;
+        curr_seed.sPos = hits[i].genome_offset;
+        curr_seed.len = kmer_size;
+        seeds.push_back(curr_seed);
+//        string ort;
+//        string frg = sequences[hits[i].seq_id].first + ort + "\t" + "chrt" + "\t" + "100.0" + "\t" + to_string(kmer_size) + "\t" + "0" + "\t" + "0" +
+//                     "\t" + to_string(hits[i].offset) + "\t" + to_string(hits[i].offset + kmer_size - 1) + "\t" + to_string(hits[i].genome_offset) + "\t"
+//                     + to_string(hits[i].genome_offset + kmer_size - 1)
+//                     + "\t" + "15.0" + "\t" + "32.0" + "\n";
+//        fout << frg;
     }
+
+//    Logger::instance().debug("SD: %d | ", seeds.size());
+
+//    fout.close();
 
     return seeds;
 }
 
-GenomeAnchorAbs Sketch::get_genome_anchor(pair<vector<hit>, vector<hit> > ref_l_hits, pair<vector<hit>, vector<hit> > ref_r_hits,
-                                          id_t id, orientation_en orientation, int l_cnt, int r_cnt, vector<pair<uint64_t, int> > genome_l,
-                                          vector<pair<uint64_t, int> > genome_r) {
-    GenomeAnchorAbs anchor;
+MaxChainInfo Sketch::get_genome_anchor_new_new(vector<hit>& left_anchor_hits, int start, int size) {
+//    ofstream fout;
+//    fout.open("fragments.blast", std::ios_base::app);
 
-    ofstream fout;
-    fout.open("fragments.blast", std::ios_base::app);
-
-    if (orientation == FRW) {
-        auto l_frw = equal_range(ref_l_hits.first.begin(), ref_l_hits.first.end(), id, hit());
-        auto r_frw = equal_range(ref_r_hits.first.begin(), ref_r_hits.first.end(), id, hit());
-        anchor.left_cnt = l_frw.second - l_frw.first;
-        anchor.right_cnt = r_frw.second - r_frw.first;
-        anchor.left_genome_cnt = l_cnt;
-        anchor.right_genome_cnt = r_cnt;
-
-        for (auto i = l_frw.first; i != l_frw.second; i++) {
-            vector<int> g_offsets;
-            for (int j = 0; j < genome_l.size(); j++) {
-                if (genome_l[j].first == i->hash_value) {
-                    string frg = sequences[id].first + "-frw-l\t" + "chrt" + "\t" + "100.0" + "\t" + "15" + "\t" + "0" + "\t" + "0" +
-                                 "\t" + to_string(i->offset) + "\t" + to_string(i->offset + 14) + "\t" + to_string(genome_l[j].second) + "\t"
-                                 + to_string(genome_l[j].second + 14)
-                                 + "\t" + "15.0" + "\t" + "32.0" + "\n";
-                    fout << frg;
-                }
-            }
-        }
-        vector<seed> lseeds = create_seeds(ref_l_hits.first, id, genome_l);
-        MaxChainInfo max_chain = claspChain.get_max_chain(lseeds);
-        Logger::instance().debug("Left Max Chain: qrange=%d-%d\tsrange=%d-%d\tlen=%d\tscore=%f\n", max_chain.qrange.first,
-                                 max_chain.qrange.second, max_chain.rrange.first, max_chain.rrange.second, max_chain.len,
-                                 max_chain.score);
-
-        for (auto i = r_frw.first; i != r_frw.second; i++) {
-            vector<int> g_offsets;
-            for (int j = 0; j < genome_r.size(); j++) {
-                if (genome_r[j].first == i->hash_value) {
-                    string frg = sequences[id].first + "-frw-r\t" + "chrt" + "\t" + "100.0" + "\t" + "15" + "\t" + "0" + "\t" + "0" +
-                                 "\t" + to_string(i->offset) + "\t" + to_string(i->offset + 14) + "\t" + to_string(genome_r[j].second) + "\t"
-                                 + to_string(genome_r[j].second + 14)
-                                 + "\t" + "15.0" + "\t" + "32.0" + "\n";
-                    fout << frg;
-                }
-            }
-        }
-        vector<seed> rseeds = create_seeds(ref_r_hits.first, id, genome_r);
-        max_chain = claspChain.get_max_chain(rseeds);
-        Logger::instance().debug("Right Max Chain: qrange=%d-%d\tsrange=%d-%d\tlen=%d\tscore=%f\n", max_chain.qrange.first,
-                                 max_chain.qrange.second, max_chain.rrange.first, max_chain.rrange.second, max_chain.len,
-                                 max_chain.score);
-    }
-    else {
-        auto l_rev = equal_range(ref_r_hits.second.begin(), ref_r_hits.second.end(), id, hit());
-        auto r_rev = equal_range(ref_l_hits.second.begin(), ref_l_hits.second.end(), id, hit());
-        anchor.left_cnt = l_rev.second - l_rev.first;
-        anchor.right_cnt = r_rev.second - r_rev.first;
-        anchor.left_genome_cnt = r_cnt;
-        anchor.right_genome_cnt = l_cnt;
-        for (auto i = l_rev.first; i != l_rev.second; i++) {
-            vector<int> g_offsets;
-            for (int j = 0; j < genome_l.size(); j++) {
-                if (genome_l[j].first == i->hash_value) {
-                    string frg = sequences[id].first + "-rev-l\t" + "chrt" + "\t" + "100.0" + "\t" + "15" + "\t" + "0" + "\t" + "0" +
-                                 "\t" + to_string(i->offset) + "\t" + to_string(i->offset + 14) + "\t" + to_string(genome_l[j].second) + "\t"
-                                 + to_string(genome_l[j].second + 14)
-                                 + "\t" + "15.0" + "\t" + "32.0" + "\n";
-                    fout << frg;
-                }
-            }
-        }
-        for (auto i = r_rev.first; i != r_rev.second; i++) {
-            vector<int> g_offsets;
-            for (int j = 0; j < genome_r.size(); j++) {
-                if (genome_r[j].first == i->hash_value) {
-                    string frg = sequences[id].first + "-rev-r\t" + "chrt" + "\t" + "100.0" + "\t" + "15" + "\t" + "0" + "\t" + "0" +
-                                 "\t" + to_string(i->offset) + "\t" + to_string(i->offset + 14) + "\t" + to_string(genome_r[j].second) + "\t"
-                                 + to_string(genome_r[j].second + 14)
-                                 + "\t" + "15.0" + "\t" + "32.0" + "\n";
-                    fout << frg;
-                }
-            }
-        }
-    }
-
-    fout.close();
-
-    return anchor;
-}
-
-vector<cut> Sketch::find_cuts(bool classify, unordered_set<hash_t> &frw_minimizers, unordered_set<hash_t> &rev_minimizers) {
-    vector<hit> rev_hits;
-    vector<hit> frw_hits;
-    rev_hits.reserve(1024);
-    frw_hits.reserve(1024);
-
-    vector<cut> cuts;
-
-    //Find all forward hits
-    for (auto it = frw_minimizers.begin(); it != frw_minimizers.end(); it++) {
-        auto idx = find_hit(*it);
-
-        if (idx.second == 0 || idx.second >= freq_th)
-            continue;
-
-        for (auto i = idx.first; i < idx.first + idx.second; i++) {
-            frw_hits.push_back((hit) {.seq_id = ref_minimizers[i].seq_id, .offset = ref_minimizers[i].offset, .hash_value = *it});
-        }
-    }
-    sort(frw_hits.begin(), frw_hits.end());
-
-    for (auto it = rev_minimizers.begin(); it != rev_minimizers.end(); it++) {
-        auto idx = find_hit(*it);
-
-        if (idx.second == 0 || idx.second >= freq_th)
-            continue;
-
-        for (auto i = idx.first; i < idx.first + idx.second; i++) {
-            rev_hits.push_back((hit) {.seq_id = ref_minimizers[i].seq_id, .offset = ref_minimizers[i].offset, .hash_value = *it});
-        }
-    }
-    sort(rev_hits.begin(), rev_hits.end());
-
-    //Find cuts on each picked long read
-    int MIN_HITS = 0.25 * frw_minimizers.size();
-    vector<cut> frw_cuts;
-    for (auto it = 0; it < frw_hits.size(); it++) {
-        id_t curr_id = frw_hits[it].seq_id;
-
-        auto curr_idx = it;
-
-        auto r = lower_bound(rev_hits.begin(), rev_hits.end(), curr_id, hit());
-
-        if (r != rev_hits.end() && r->seq_id == curr_id)
-            continue;
-
-        auto upper = upper_bound(frw_hits.begin(), frw_hits.end(), curr_id, hit());
-
-        hash_size_t size = upper - frw_hits.begin() - it;
-        if (upper == frw_hits.end())
-            size = frw_hits.size() - it;
-
-        it += size;
-
-        if (size < MIN_HITS)
-            continue;
-
-        cut ans = find_range(frw_hits, curr_idx, size);
-
-        if (ans.range.start == 0 && ans.range.end == 0)
-            continue;
-        ans.orientation = FRW;
-        ans.size = size;
-        ans.seq_id = curr_id;
-        //CHANGED
-        if (ans.range.end >= sequences[curr_id].second)
-            ans.range.end = sequences[curr_id].second - 1;
-
-        frw_cuts.push_back(ans);
-    }
-//	if (frw_cuts.size() > 200)
-//                return cuts;
-
-    MIN_HITS = 0.25 * rev_minimizers.size();
-    vector<cut> rev_cuts;
-    for (auto it = 0; it < rev_hits.size(); it++) {
-        id_t curr_id = rev_hits[it].seq_id;
-
-        auto curr_idx = it;
-
-        auto f = lower_bound(frw_hits.begin(), frw_hits.end(), curr_id, hit());
-        if (f != frw_hits.end() && f->seq_id == curr_id)
-            continue;
-
-        auto upper = upper_bound(rev_hits.begin(), rev_hits.end(), curr_id, hit());
-        hash_size_t size = upper - rev_hits.begin() - it;
-
-        if (upper == rev_hits.end())
-            size = rev_hits.size() - it;
-
-        it += size;
-
-        if (size < MIN_HITS)
-            continue;
-
-        cut ans = find_range(rev_hits, curr_idx, size);
-        if (ans.range.start == 0 && ans.range.end == 0)
-            continue;
-        ans.orientation = REV;
-        ans.size = size;
-        ans.seq_id = curr_id;
-        //CHANGED
-        if (ans.range.end >= sequences[curr_id].second)
-            ans.range.end = sequences[curr_id].second - 1;
-
-        rev_cuts.push_back(ans);
-    }
-//	if (frw_cuts.size() + rev_cuts.size() > 200)
-//                return cuts;
-
-    if (frw_cuts.empty() && rev_cuts.empty())
-        cuts =  vector<cut>();
-    else if (classify) {
-        classify_reads(frw_hits, frw_cuts);
-        classify_reads(rev_hits, rev_cuts);
-
-        for (int i = 0; i < frw_cuts.size(); i++) {
-            cuts.push_back(frw_cuts[i]);
-        }
-        for (int i = 0; i < rev_cuts.size(); i++) {
-            cuts.push_back(rev_cuts[i]);
-        }
-    }
-    else {
-        for (int i = 0; i < frw_cuts.size(); i++) {
-            cut curr = frw_cuts[i];
-            cuts.push_back(curr);
-        }
-    }
-    return cuts;
-}
-
-float Sketch::estimate_insertion(vector<hit> hits_l, vector<hit> hits_r, vector<pair<uint64_t, int> > l_minimizers,
-                                 vector<pair<uint64_t, int> > r_minimizers, id_t id, GenomeAnchorAbs anchor) {
-    if (anchor.type() != FULLY_ANCHORED)
-        return -1;
-
-    auto l = equal_range(hits_l.begin(), hits_l.end(), id, hit());
-    auto r = equal_range(hits_r.begin(), hits_r.end(), id, hit());
-
-    vector<int> read_right_locs, ref_right_locs, read_left_locs, ref_left_locs;
-
-    int cnt = 0;
-    hash_t prv_hash = INT64_MAX;
-
-    for (auto it = l.first; it != l.second - 1 && cnt < 2; it++) {
-        if (it->hash_value != (it+1)->hash_value && it->hash_value != prv_hash) {
-            auto left = lower_bound(l_minimizers.begin(), l_minimizers.end(), make_pair(it->hash_value, 0));
-            auto right = lower_bound(r_minimizers.begin(), r_minimizers.end(), make_pair(it->hash_value, 0));
-            if (right == r_minimizers.end() || right->first != it->hash_value) {
-                read_left_locs.push_back(it->offset);
-                ref_left_locs.push_back(left->second);
-                cnt++;
-            }
-        }
-        prv_hash = it->hash_value;
-    }
-
-    cnt = 0;
-    for (auto it = r.first; it != r.second - 1 && cnt < 2; it++) {
-        if (it->hash_value != (it+1)->hash_value && it->hash_value != prv_hash) {
-            auto right = lower_bound(r_minimizers.begin(), r_minimizers.end(), make_pair(it->hash_value, 0));
-            auto left = lower_bound(l_minimizers.begin(), l_minimizers.end(), make_pair(it->hash_value, 0));
-            if (left == r_minimizers.end() || left->first != it->hash_value) {
-                read_right_locs.push_back(it->offset);
-                ref_right_locs.push_back(right->second);
-                cnt++;
-            }
-        }
-        prv_hash = it->hash_value;
-    }
-
-    if (read_left_locs.empty() || read_right_locs.empty()) {
-        Logger::instance().debug("<No unique minimizers found>\n");
-        return -1;
-    }
-
-    int ins_sum = 0;
-    for (int i = 0; i < read_left_locs.size(); i++) {
-        for (int j = 0; j < read_right_locs.size(); j++) {
-            int tmp = abs(abs(read_right_locs[j] - read_left_locs[i]) - (genome_anchor_distance + ref_right_locs[j] - ref_left_locs[i]));
-            ins_sum += tmp;
-        }
-    }
-
-    int ins_avg = ins_sum/(read_left_locs.size() * read_right_locs.size());
-
-    return ins_avg;
-}
-
-//bool genome_anchor_validation() {
-//    GenomeAnchor anchor = get_genome_anchor(ref_l_hits, ref_r_hits, curr_id);
-//
-//    if (anchor.left_frw < REF_MIN_FRW_L && anchor.right_frw < REF_MIN_FRW_R) {
-//             anchor.right_frw << "-" << anchor.left_rev << "-" << anchor.right_rev << endl;
-//        continue;
+//    for (auto i = left.first; i != left.second; i++) {
+//        vector<int> g_offsets;
+//        for (int j = 0; j < left_anchor_minimizers.size(); j++) {
+//            if (left_anchor_minimizers[j].first == i->hash_value) {
+//                string frg = sequences[id].first + "-frw-l\t" + "chrt" + "\t" + "100.0" + "\t" + "15" + "\t" + "0" + "\t" + "0" +
+//                             "\t" + to_string(i->offset) + "\t" + to_string(i->offset + 14) + "\t" + to_string(left_anchor_minimizers[j].second) + "\t"
+//                             + to_string(left_anchor_minimizers[j].second + 14)
+//                             + "\t" + "15.0" + "\t" + "32.0" + "\n";
+//                fout << frg;
+//            }
+//        }
 //    }
-//}
 
-void Sketch::get_insertion_minimizers(unordered_set<hash_t>& reads_frw, unordered_set<hash_t>& reads_rev, string& genome,
-                              unordered_set<hash_t>& insertion_minimizers_frw, unordered_set<hash_t>& insertion_minimizers_rev) {
-    unordered_set<hash_t> genome_frw, genome_rev;
-    vector<pair<hash_t, int> > minimizer_vec;
-    transform(genome.begin(), genome.end(), genome.begin(), ::toupper);
-    get_query_minimizers(&genome[0], 0, genome.size(), minimizer_vec);
-    for (int i = 0; i < minimizer_vec.size(); i++) {
-        genome_frw.insert(minimizer_vec[i].first);
-    }
-    minimizer_vec.clear();
+    auto t1 = chrono::high_resolution_clock::now();
+    vector<seed> lseeds = create_seeds_new(left_anchor_hits, start, size);
+    auto t21 = chrono::high_resolution_clock::now();
+    seed_time += std::chrono::duration<double, std::milli>(t21-t1).count();
+    auto t11 = chrono::high_resolution_clock::now();
+    MaxChainInfo max_chain_l = claspChain.get_max_chain(lseeds);
+    auto t2 = chrono::high_resolution_clock::now();
+    chaining_time += std::chrono::duration<double, std::milli>(t2-t1).count();
+    clasp_time += std::chrono::duration<double, std::milli>(t2-t11).count();
+    int number_of_minimizers = (max_chain_l.gaps_size + max_chain_l.score)/kmer_size;
+    Logger::instance().debug("C: (Q: %d-%d, G: %d-%d, L: %d, S: %f, K: %d) | ", max_chain_l.qrange.first,
+                             max_chain_l.qrange.second, max_chain_l.rrange.first, max_chain_l.rrange.second, max_chain_l.len,
+                             max_chain_l.score, number_of_minimizers);
 
-    string q = reverse_complement(genome);
-    get_query_minimizers(&q[0], 0, q.size(), minimizer_vec);
-    for (int i = 0; i < minimizer_vec.size(); i++) {
-        genome_rev.insert(minimizer_vec[i].first);
+//    for (auto i = right.first; i != right.second; i++) {
+//        vector<int> g_offsets;
+//        for (int j = 0; j < right_anchor_minimizers.size(); j++) {
+//            if (right_anchor_minimizers[j].first == i->hash_value) {
+//                string frg = sequences[id].first + "-frw-r\t" + "chrt" + "\t" + "100.0" + "\t" + "15" + "\t" + "0" + "\t" + "0" +
+//                             "\t" + to_string(i->offset) + "\t" + to_string(i->offset + 14) + "\t" + to_string(right_anchor_minimizers[j].second) + "\t"
+//                             + to_string(right_anchor_minimizers[j].second + 14)
+//                             + "\t" + "15.0" + "\t" + "32.0" + "\n";
+//                fout << frg;
+//            }
+//        }
+//    }
+
+//    fout.close();
+
+    return max_chain_l;
+}
+
+inline int Sketch::max_kmer_count(MaxChainInfo chain, int anchor_length, int read_length, int genome_minimizer_count) {
+    int qdistance = chain.qrange.second - chain.qrange.first;
+    int gdistance = chain.rrange.second - chain.rrange.first;
+    float read_distance_coefficient = (float)qdistance/(float)gdistance;
+    int p_left = 1;
+    if (chain.qrange.first < chain.rrange.first * read_distance_coefficient) {
+        p_left = (int)((chain.rrange.first - chain.qrange.first) / read_distance_coefficient);
     }
 
-    for (auto it = reads_frw.begin(); it != reads_frw.end(); it++) {
-        if (find(genome_frw.begin(), genome_frw.end(), *it) == genome_frw.end())
-            insertion_minimizers_frw.insert(*it);
+    int p_right = anchor_length;
+    if (read_length - chain.qrange.second < (anchor_length - chain.rrange.second) * read_distance_coefficient) {
+        p_right = chain.rrange.second + (int)((read_length - chain.qrange.second)/read_distance_coefficient);
     }
-    for (auto it = reads_rev.begin(); it != reads_rev.end(); it++) {
-        if (find(genome_rev.begin(), genome_rev.end(), *it) == genome_rev.end())
-            insertion_minimizers_rev.insert(*it);
+
+    Logger::instance().debug("PL: %d | PR: %d | RL: %d | ", p_left, p_right, read_length);
+
+    return ((p_right - p_left)/anchor_length) * genome_minimizer_count;
+}
+
+void Sketch::find_left_cuts(vector<hit>& read_candidates, vector<cut>& candidates_cut_info, int anchor_length, orientation_en orientation,
+                            int genome_minimizers_cnt, unordered_set<id_t>& insertion_candidates) {
+    Logger::instance().debug("&&Minimizers: %d\n", genome_minimizers_cnt);
+    vector<int> left_reads_remaining_size, right_reads_remaining_size;
+
+    for (auto it = 0; it < read_candidates.size(); it++) {
+        id_t curr_id = read_candidates[it].seq_id;
+        auto curr_idx = it;
+
+        auto upper = upper_bound(read_candidates.begin(), read_candidates.end(), curr_id, hit());
+        hash_size_t size = upper - read_candidates.begin() - curr_idx;
+        if (upper == read_candidates.end())
+            size = read_candidates.size() - curr_idx;
+
+        it += size;
+
+        if (insertion_candidates.size() != 0) {
+            if (insertion_candidates.find(curr_id) == insertion_candidates.end()) {
+//                Logger::instance().debug("%-30s DROPPED(IM)\n", sequences[curr_id].first.c_str());
+                continue;
+            }
+        }
+
+        int minimizer_cutoff = (int)((1.0 * GENOME_ANCHOR_CUTOFF/anchor_length) * genome_minimizers_cnt);
+//        if (size < max(3, minimizer_cutoff)) {
+        if (size < 3) {
+//            tmp_cnt++;
+            continue;
+        }
+
+        Logger::instance().debug("%-30s", sequences[curr_id].first.c_str());
+        //move curr_id to first argument and drop orientation
+        MaxChainInfo max_chain = get_genome_anchor_new_new(read_candidates, curr_idx, size);
+        Logger::instance().debug(" S: %d | ", size);
+        tmp_cnt++;
+
+//        S2_228529                     C: (Q: 16-116, G: 487-587, L: 101, S: 90.000000, K: 6) | DROPPED(LM)
+
+        int number_of_minimizers = (max_chain.gaps_size + max_chain.score)/kmer_size;
+        if (number_of_minimizers < 0.25 * max_kmer_count(max_chain, anchor_length, (int)sequences[curr_id].second, genome_minimizers_cnt)) {
+            Logger::instance().debug("DROPPED(LM)\n");
+            continue;
+        }
+
+//        if (anchor_length - max_chain.rrange.second > BOUNDARY_DISTANCE_CUTOFF) {
+//            Logger::instance().debug("DROPPED(BR)\n");
+//            continue;
+//        }
+        if (max_chain.qrange.first > BOUNDARY_DISTANCE_CUTOFF && max_chain.rrange.first > BOUNDARY_DISTANCE_CUTOFF) {
+            Logger::instance().debug("DROPPED(QS)\n");
+            continue;
+        }
+        if (max_chain.qrange.second - max_chain.qrange.first < GENOME_ANCHOR_CUTOFF) {
+            Logger::instance().debug("DROPPED(QL)\n");
+            continue;
+        }
+        int qdistance = max_chain.qrange.second - max_chain.qrange.first;
+        int gdistance = max_chain.rrange.second - max_chain.rrange.first;
+        float read_distance_coefficient = (float)qdistance/(float)gdistance;
+        if (qdistance - gdistance > 0.15 * gdistance) {
+            Logger::instance().debug("DROPPED(TH)\n");
+            continue;
+        }
+
+        int pivot = max(anchor_length - GENOME_ANCHOR_LEN, max_chain.rrange.first);
+        int skip = (pivot - max_chain.rrange.second) * read_distance_coefficient;
+
+        if (max_chain.qrange.second + skip > (int)sequences[curr_id].second - 10) {
+            Logger::instance().debug("DROPPED(NER)\n");
+            continue;
+        }
+
+        cut read_cut_info;
+        read_cut_info.seq_id = curr_id;
+        read_cut_info.orientation = orientation;
+        read_cut_info.range.start = max(0, max_chain.qrange.second + skip);
+        read_cut_info.range.end = sequences[curr_id].second - 1;
+        read_cut_info.genome_range.start = max_chain.rrange.first;
+        read_cut_info.genome_range.end = pivot;
+        read_cut_info.breakpoint_distance = abs(pivot - anchor_length);
+
+        Logger::instance().debug("Q: [%4d - %4d, %4d] | G: [%4d - %4d] | P: %d | ++\n", read_cut_info.range.start, read_cut_info.range.end,
+                                 read_cut_info.range.end - read_cut_info.range.start, read_cut_info.genome_range.start,
+                                 read_cut_info.genome_range.end, read_cut_info.breakpoint_distance);
+
+        candidates_cut_info.push_back(read_cut_info);
     }
 }
 
-int check_insertion_hits(unordered_set<hash_t> insertion_minimizers, vector<hit> hits, int begin, int size) {
+void Sketch::find_right_cuts(vector<hit>& read_candidates, vector<cut>& candidates_cut_info, int anchor_length, orientation_en orientation,
+                             int genome_minimizers_cnt, unordered_set<id_t>& insertion_candidates) {
+    Logger::instance().debug("&&Minimizers: %d\n", genome_minimizers_cnt);
+    vector<int> left_reads_remaining_size, right_reads_remaining_size;
+    int sum = 0;
     int cnt = 0;
-    for (int i = begin; i < begin + size; i++) {
-        if (find(insertion_minimizers.begin(), insertion_minimizers.end(), hits[i].hash_value) != insertion_minimizers.end())
-            cnt++;
+
+    for (auto it = 0; it < read_candidates.size(); it++) {
+        int begin = 0, end = 0;
+        id_t curr_id = read_candidates[it].seq_id;
+        auto curr_idx = it;
+
+        auto upper = upper_bound(read_candidates.begin(), read_candidates.end(), curr_id, hit());
+        hash_size_t size = upper - read_candidates.begin() - curr_idx;
+        if (upper == read_candidates.end())
+            size = read_candidates.size() - curr_idx;
+
+        it += size;
+
+        if (insertion_candidates.size() != 0) {
+            if (insertion_candidates.find(curr_id) == insertion_candidates.end()) {
+//                Logger::instance().debug("%-30s DROPPED(IM)\n", sequences[curr_id].first.c_str());
+                continue;
+            }
+        }
+
+        int minimizer_cutoff = (int)((1.0 * GENOME_ANCHOR_CUTOFF/anchor_length) * genome_minimizers_cnt);
+//        if (size < max(3, minimizer_cutoff)) {
+        if (size < 3) {
+//            tmp_cnt++;
+            continue;
+        }
+
+        Logger::instance().debug("%-30s", sequences[curr_id].first.c_str());
+        //move curr_id to first argument and drop orientation
+        MaxChainInfo max_chain = get_genome_anchor_new_new(read_candidates, curr_idx, size);
+        Logger::instance().debug(" S: %d | ", size);
+        int qdistance = max_chain.qrange.second - max_chain.qrange.first;
+        int gdistance = max_chain.rrange.second - max_chain.rrange.first;
+        tmp_cnt++;
+
+        //TODO: add to paper
+        int number_of_minimizers = (max_chain.gaps_size + max_chain.score)/kmer_size;
+        if (number_of_minimizers < 0.25 * max_kmer_count(max_chain, anchor_length, (int)sequences[curr_id].second, genome_minimizers_cnt)) {
+            Logger::instance().debug("DROPPED(LM)\n");
+            continue;
+        }
+
+//        if (max_chain.rrange.first > BOUNDARY_DISTANCE_CUTOFF) {
+//            Logger::instance().debug("DROPPED(BR)\n ");
+//            continue;
+//        }
+        if (sequences[curr_id].second - max_chain.qrange.second > BOUNDARY_DISTANCE_CUTOFF &&
+            anchor_length - max_chain.rrange.second > BOUNDARY_DISTANCE_CUTOFF) {
+            Logger::instance().debug("DROPPED(QE)\n");
+            continue;
+        }
+        if (max_chain.qrange.second - max_chain.qrange.first < GENOME_ANCHOR_CUTOFF) {
+            Logger::instance().debug("DROPPED(QL)\n");
+            continue;
+        }
+
+        if (qdistance - gdistance > 0.15 * gdistance) {
+            Logger::instance().debug("DROPPED(TH)\n");
+            continue;
+        }
+
+        int pivot = min(GENOME_ANCHOR_LEN, max_chain.rrange.second);
+        int skip = (pivot - max_chain.rrange.first) * (float)qdistance/(float)gdistance;
+
+        if (max_chain.qrange.first + skip < 10) {
+            Logger::instance().debug("DROPPED(NEL)\n");
+            continue;
+        }
+
+        cut read_cut_info;
+        read_cut_info.seq_id = curr_id;
+        read_cut_info.orientation = orientation;
+        read_cut_info.range.end = min(sequences[curr_id].second - 1, max(max_chain.qrange.first + skip, 0));
+        read_cut_info.range.start = 0;
+        read_cut_info.genome_range.start = pivot;
+        read_cut_info.genome_range.end = max_chain.rrange.second;
+        read_cut_info.breakpoint_distance = pivot;
+
+        Logger::instance().debug("Q: [%4d - %4d, %4d] | G: [%4d - %4d] | P: %d | **\n", read_cut_info.range.start, read_cut_info.range.end,
+                                 read_cut_info.range.end - read_cut_info.range.start, read_cut_info.genome_range.start,
+                                 read_cut_info.genome_range.end, read_cut_info.breakpoint_distance);
+
+        candidates_cut_info.push_back(read_cut_info);
     }
-    return cnt;
 }
 
-vector<cut> Sketch::find_cuts(bool classify, unordered_set<hash_t> &frw_minimizers, unordered_set<hash_t> &rev_minimizers, string ref_ll, string ref_rr) {
-    vector<hit> rev_hits;
-    vector<hit> frw_hits;
-    rev_hits.reserve(1024);
-    frw_hits.reserve(1024);
+void Sketch::merge_candidates(vector<cut>& left_candidates, vector<cut>& right_candidates, vector<cut>& merged_candidates,
+                              cut_stats& stats, bool long_insertion) {
+    int i = 0, j = 0;
+    cut dummy;
+    dummy.seq_id = UINT32_MAX;
+    left_candidates.push_back(dummy);
+    right_candidates.push_back(dummy);
 
-    vector<cut> cuts;
-
-    pair<vector<hit>, vector<hit> > hits = get_hits(frw_minimizers, rev_minimizers);
-    frw_hits = hits.first;
-    rev_hits = hits.second;
-
-    unordered_set<hash_t> insertion_minimizers_frw, insertion_minimizers_rev;
-
-    int INS_MIN_FRW, INS_MIN_REV;
-
-    string ref_l, ref_r;
-    if (!classify) {
-        ref_l = ref_ll;
-        ref_r = ref_rr;
-        if (!ref_l.empty())
-            get_insertion_minimizers(frw_minimizers, rev_minimizers, ref_l, insertion_minimizers_frw, insertion_minimizers_rev);
-        if (!ref_r.empty())
-            get_insertion_minimizers(frw_minimizers, rev_minimizers, ref_r, insertion_minimizers_frw, insertion_minimizers_rev);
-        INS_MIN_FRW = 0.6 * insertion_minimizers_frw.size();
-        INS_MIN_REV = 0.6 * insertion_minimizers_rev.size();
-    }
-    else {
-        ref_l = ref_ll.substr(0, ref_ll.size() - 50);
-        ref_r = ref_rr.substr(50, ref_ll.size() - 50);
-        //TODO: check size
-        string mid = ref_ll.substr(ref_ll.size() - 150, 150) + ref_rr.substr(0, 150);
-        get_insertion_minimizers(frw_minimizers, rev_minimizers, mid, insertion_minimizers_frw, insertion_minimizers_rev);
-        INS_MIN_FRW = 0.2 * insertion_minimizers_frw.size();
-        INS_MIN_REV = 0.2 * insertion_minimizers_rev.size();
-    }
-
-    Logger::instance().debug("Insertion Minimizer Size: %d | %d\n", insertion_minimizers_frw.size(), insertion_minimizers_rev.size());
-
-    int MIN_HITS_FRW = 0.25 * frw_minimizers.size();
-    int MIN_HITS_REV = 0.25 * rev_minimizers.size();
-
-    vector<pair<uint64_t, int> > l_frw, l_rev, r_frw, r_rev;
-    pair<vector<hit>, vector<hit> > ref_l_hits, ref_r_hits;
-
-    get_genome_hits(ref_l, ref_r, l_frw, l_rev, r_frw, r_rev, ref_l_hits, ref_r_hits);
-//    Logger::instance().debug("Left frw: %d\tLeft rev: %d\tright frw: %d\tright rev: %d\n", l_frw.size(), l_rev.size(), r_frw.size(), r_rev.size());
-
-    int REF_MIN_FRW_L = 0.25 * l_frw.size();
-    int REF_MIN_FRW_R = 0.25 * r_frw.size();
-
-    int REF_MIN_REV_L = 0.25 * l_rev.size();
-    int REF_MIN_REV_R = 0.25 * r_rev.size();
-
-    bool bimodal = false;
-    bool single_peak = false;
-
-    vector<pair<int, id_t> > estimations;
-
-    //Find cuts on each picked long read
-    float est = -1;
-    float est_sum = 0;
-    int est_cnt = 0;
-
-    vector<cut> frw_cuts;
-    for (auto it = 0; it < frw_hits.size(); it++) {
-        id_t curr_id = frw_hits[it].seq_id;
-        auto curr_idx = it;
-
-        auto upper = upper_bound(frw_hits.begin(), frw_hits.end(), curr_id, hit());
-        hash_size_t size = upper - frw_hits.begin() - curr_idx;
-        if (upper == frw_hits.end())
-            size = frw_hits.size() - curr_idx;
-
-        auto rev = equal_range(rev_hits.begin(), rev_hits.end(), curr_id, hit());
-        hash_size_t r_size = rev.second - rev.first;
-
-        it += size;
-
-        if (size < MIN_HITS_FRW || r_size >= MIN_HITS_REV) {
-            continue;
+    while (i < left_candidates.size() || j < right_candidates.size()) {
+         if (left_candidates[i].seq_id < right_candidates[j].seq_id) {
+            left_candidates[i].type = PARTIAL_LEFT;
+            merged_candidates.push_back(left_candidates[i]);
+            stats.left_cuts_size.push_back(left_candidates[i].range.end - left_candidates[i].range.start);
+            i++;
         }
-
-        if (sequences[curr_id].first == "S4_29365") {
-            Logger::instance().debug("%d, %d", curr_idx, size);
-            for (int i = curr_idx; i < curr_idx + size + 1; i++)
-                Logger::instance().debug("%d, ", frw_hits[i].offset);
-            Logger::instance().debug("\n");
-        }
-
-        Logger::instance().debug("* %s\n", sequences[curr_id].first.c_str());
-        GenomeAnchorAbs anchor = get_genome_anchor(ref_l_hits, ref_r_hits, curr_id, FRW, l_frw.size(), r_frw.size(), l_frw, r_frw);
-        Logger::instance().debug("Min left anchor: %d\tMin right anchor: %d\n", anchor.left_genome_cnt, anchor.right_genome_cnt);
-        Logger::instance().debug("left anchor: %d\tright anchor: %d\n", anchor.left_cnt, anchor.right_cnt);
-
-        if (!anchor.is_anchored()) {
-            continue;
-        }
-
-//        if (classify) {
-            int insertion_hits = check_insertion_hits(insertion_minimizers_frw, frw_hits, curr_idx, size);
-            Logger::instance().debug("Insertion hits: %d\n", insertion_hits);
-            if (insertion_hits < INS_MIN_FRW) {
-                Logger::instance().debug("Dropped\n");
-                continue;
-            }
-//        }
-
-        cut ans = find_range(frw_hits, curr_idx, size);
-
-//        if (ans.type == BIMODAL && anchor.type() == FULLY_ANCHORED)
-//            bimodal = true;
-//        else {
-//            if (anchor.type() == LEFT_ANCHORED)
-//                ans.type = PARTIAL_LEFT;
-//            else if (anchor.type() == RIGHT_ANCHORED)
-//                ans.type = PARTIAL_RIGHT;
-//        }
-
-        float new_est = estimate_insertion(ref_l_hits.first, ref_r_hits.first, l_frw, r_frw, curr_id, anchor);
-        estimations.push_back({new_est, curr_id});
-
-        Logger::instance().debug("Insertion Estimate = %f\n", new_est);
-
-        if (new_est > 10) {
-            est_cnt++;
-            est_sum += new_est;
-            ans.range.start = max(0, ans.range.start - 100);
-            ans.range.end += 100;
-        }
-        else if (new_est == -1) {
-//            if (ans.type != BIMODAL) {
-                if (anchor.type() == LEFT_ANCHORED) {
-                    ans.type = PARTIAL_LEFT;
-                    ans.range.end += 100;
-                }
-                else if (anchor.type() == RIGHT_ANCHORED) {
-                    ans.type = PARTIAL_RIGHT;
-                    ans.range.start = max(0, ans.range.start - 100);
-                }
-//            }
+        else if (right_candidates[j].seq_id < left_candidates[i].seq_id) {
+            right_candidates[j].type = PARTIAL_RIGHT;
+            merged_candidates.push_back(right_candidates[j]);
+            stats.right_cuts_size.push_back(right_candidates[j].range.end - right_candidates[j].range.start);
+            j++;
         }
         else {
-//            Logger::instance().debug("Dropped\n", new_est);
-            continue;
+            if (left_candidates[i].seq_id == UINT32_MAX)
+                break;
+            if (left_candidates[i].range.start > right_candidates[j].range.end) {
+//                int read_start_distance = left_candidates[i].range.start - right_candidates[j].range.end;
+//                int genome_left_remaining = abs(left_candidates[i].genome_range.start - right_candidates[j].genome_range.end);
+//                int genome_right_remaining = abs(right_candidates[j].genome_range.start - left_candidates[i].genome_range.end);
+//                if (read_start_distance <= genome_left_remaining && read_start_distance <= genome_right_remaining) {
+                    cut merged_cut = left_candidates[i];
+                    merged_cut.range.start = right_candidates[j].range.end;
+                    merged_cut.range.end = left_candidates[i].range.start;
+
+                    if (merged_cut.range.end - merged_cut.range.start < left_candidates[i].breakpoint_distance +
+                        right_candidates[j].breakpoint_distance) {
+                        int extension = ((left_candidates[i].breakpoint_distance + right_candidates[j].breakpoint_distance)
+                                - (merged_cut.range.end - merged_cut.range.start)) / 2;
+                        merged_cut.range.start = max(0, merged_cut.range.start - extension);
+                        merged_cut.range.end = min((int)sequences[merged_cut.seq_id].second, merged_cut.range.end + extension);
+                    }
+
+                    merged_cut.type = OVERLAPPING_READ;
+                    Logger::instance().debug("Setting Overlap\n");
+                    merged_cut.estimated_insertion = -1;
+                    merged_candidates.push_back(merged_cut);
+                    stats.overlapping_cnt++;
+//                }
+//                else {
+//                    Logger::instance().debug("%-30s LS > RS | No decision\n", sequences[left_candidates[i].seq_id].first.c_str());
+//                }
+                i++;
+                j++;
+            }
+            else {
+                cut merged_cut = left_candidates[i];
+                merged_cut.range.end = right_candidates[j].range.end;
+                merged_cut.estimated_insertion = abs(merged_cut.range.end - merged_cut.range.start -
+                        (left_candidates[i].breakpoint_distance + right_candidates[j].breakpoint_distance));
+//                merged_cut.estimated_insertion = abs(merged_cut.range.end - merged_cut.range.start -
+//                                                     (left_candidates[i].genome_range.start - right_candidates[j].genome_range.end));
+                if (merged_cut.range.end - merged_cut.range.start < left_candidates[i].breakpoint_distance +
+                                                                    right_candidates[j].breakpoint_distance) {
+                    int extension = ((left_candidates[i].breakpoint_distance + right_candidates[j].breakpoint_distance)
+                                     - (merged_cut.range.end - merged_cut.range.start)) / 2;
+                    //TODO: Fix extensions
+//                    int left_extension = left_candidates[i].breakpoint_distance - (merged_cut.range.end - merged_cut.range.start);
+//                    int right_extension = right_candidates[j].breakpoint_distance - (merged_cut.range.end - merged_cut.range.start);
+                    merged_cut.range.start = max(0, merged_cut.range.start - extension);
+                    merged_cut.range.end = min((int)sequences[merged_cut.seq_id].second, merged_cut.range.end + extension);
+                }
+                merged_cut.type = BIMODAL;
+                i++;
+                j++;
+                if (!long_insertion && merged_cut.estimated_insertion < 10) {
+                    Logger::instance().debug("DROPPED(%s, I=%d, R=%d-%d)\n", sequences[merged_cut.seq_id].first.c_str(),
+                                             merged_cut.estimated_insertion, merged_cut.range.start, merged_cut.range.end);
+                    continue;
+                }
+                stats.bimodal_sum += merged_cut.estimated_insertion;
+                stats.bimodal_cnt++;
+                merged_candidates.push_back(merged_cut);
+            }
         }
+    }
+    sort(stats.left_cuts_size.begin(), stats.left_cuts_size.end());
+    sort(stats.right_cuts_size.begin(), stats.right_cuts_size.end());
+    Logger::instance().debug("%d\n", merged_candidates.size());
+}
 
-        if (ans.range.start == 0 && ans.range.end == 0)
-            continue;
+void Sketch::get_unique_minimizers(vector<string> &reads, unordered_set<hash_t>& insertion_minimizers) {
+    vector<minimizer_t> minimizers_vec;
+    for (int i = 0; i < reads.size(); i++) {
+        transform(reads[i].begin(), reads[i].end(), reads[i].begin(), ::toupper);
+        get_query_minimizers(&reads[i][0], i, reads[i].size(), minimizers_vec);
+    }
+    for (int i = 0; i < minimizers_vec.size(); i++) {
+        insertion_minimizers.insert(minimizers_vec[i].first);
+//        Logger::instance().debug("%lld\n", minimizers_vec[i].first);
+    }
+}
 
-        ans.orientation = FRW;
-        ans.size = size;
-        ans.seq_id = curr_id;
+void Sketch::get_insertion_minimizers_new(vector<string>& short_reads, string& genome_left, string& genome_right, unordered_set<id_t>& candidates) {
+    unordered_set<hash_t> reads_minimizers;
+//    Logger::instance().debug("Reads: \n");
+    get_unique_minimizers(short_reads, reads_minimizers);
+//    for (auto it = reads_minimizers.begin(); it != reads_minimizers.end(); it++) {
+//        Logger::instance().debug("%llu\n", *it);
+//    }
 
-        if (ans.range.end >= sequences[curr_id].second)
-            ans.range.end = sequences[curr_id].second - 1;
+    unordered_set<hash_t> genome_minimizers;
 
-        ans.estimated_insertion = est;
+    transform(genome_left.begin(), genome_left.end(), genome_left.begin(), ::toupper);
+    vector<string> genome_segments;
+    genome_segments.push_back(genome_left);
+    genome_segments.push_back(genome_right);
+//    Logger::instance().debug("Genome: \n");
+    get_unique_minimizers(genome_segments, genome_minimizers);
+//    for (auto it = genome_minimizers.begin(); it != genome_minimizers.end(); it++) {
+//        Logger::instance().debug("%llu\n", *it);
+//    }
 
-        frw_cuts.push_back(ans);
+    vector<hit> candidates_vec;
+
+    int insertion_minimizers_size = 0;
+
+    Logger::instance().debug("Insertion Minimizers:\n");
+    for (auto it = reads_minimizers.begin(); it != reads_minimizers.end(); it++) {
+        if (genome_minimizers.find(*it) == genome_minimizers.end()) {
+//            Logger::instance().debug("%llu\n", *it);
+            insertion_minimizers_size++;
+            auto idx = find_hit(*it);
+            for (auto i = idx.first; i < idx.first + idx.second; i++) {
+                hit tmp_hit;
+                tmp_hit.seq_id = ref_minimizers[i].seq_id;
+                tmp_hit.hash_value = *it;
+                candidates_vec.push_back(tmp_hit);
+            }
+        }
     }
 
-//	if (frw_cuts.size() > 200)
-//                return cuts;
+    Logger::instance().debug("Insertion Minimizer Size: %d\n", insertion_minimizers_size);
 
-//========================= REV ===========================
+    sort(candidates_vec.begin(), candidates_vec.end());
 
-    vector<cut> rev_cuts;
-    for (auto it = 0; it < rev_hits.size(); it++) {
-        id_t curr_id = rev_hits[it].seq_id;
-
-        auto curr_idx = it;
-
-        auto upper = upper_bound(rev_hits.begin(), rev_hits.end(), curr_id, hit());
-        hash_size_t size = upper - rev_hits.begin() - it;
-
-        if (upper == rev_hits.end())
-            size = rev_hits.size() - it;
-
-        auto frw = equal_range(frw_hits.begin(), frw_hits.end(), curr_id, hit());
-        hash_size_t f_size = frw.second - frw.first;
-
-        it += size;
-
-        if (size < MIN_HITS_REV || f_size >= MIN_HITS_FRW) {
-            continue;
-        }
-
-        Logger::instance().debug("* %s\n", sequences[curr_id].first.c_str());
-
-        GenomeAnchorAbs anchor = get_genome_anchor(ref_l_hits, ref_r_hits, curr_id, REV, l_rev.size(), r_rev.size(), r_rev, l_rev);
-        Logger::instance().debug("Min left anchor: %d\tMin right anchor: %d\n", anchor.left_genome_cnt, anchor.right_genome_cnt);
-        Logger::instance().debug("left anchor: %d\tright anchor: %d\n", anchor.left_cnt, anchor.right_cnt);
-
-        if (!anchor.is_anchored()) {
-            continue;
-        }
-
-//        if (classify) {
-            int insertion_hits = check_insertion_hits(insertion_minimizers_rev, rev_hits, curr_idx, size);
-            Logger::instance().debug("Insertion hits: %d\n", insertion_hits);
-            if (insertion_hits < INS_MIN_REV) {
-                Logger::instance().debug("Dropped\n");
-                continue;
+    id_t prv_id = UINT32_MAX;
+    hash_t prv_hash = UINT64_MAX;
+    int cnt = 0;
+    int cutoff = INSERTION_MINIMIZERS_CUTOFF * insertion_minimizers_size;
+    for (int i = 0; i < candidates_vec.size(); i++) {
+        if (candidates_vec[i].seq_id == prv_id) {
+            if (candidates_vec[i].hash_value != candidates_vec[i-1].hash_value) {
+                cnt++;
             }
-//        }
-
-        Logger::instance().debug("* %s\n", sequences[curr_id].first.c_str());
-
-        cut ans = find_range(rev_hits, curr_idx, size);
-
-        if (ans.type == BIMODAL)
-            bimodal = true;
-
-        float new_est = estimate_insertion(ref_r_hits.second, ref_l_hits.second, r_rev, l_rev, curr_id, anchor);
-        estimations.push_back({new_est, curr_id});
-
-        Logger::instance().debug("Insertion Estimate  = %f\n", new_est);
-
-        if (new_est > 10) {
-            est_cnt++;
-            est_sum += new_est;
-            ans.range.start = max(0, ans.range.start - 100);
-            ans.range.end += 100;
-        }
-        else if (new_est == -1) {
-//            if (ans.type != BIMODAL) {
-                if (anchor.type() == LEFT_ANCHORED) {
-                    ans.type = PARTIAL_RIGHT;
-                    ans.range.start = max(0, ans.range.start - 100);
-                }
-                else if (anchor.type() == RIGHT_ANCHORED) {
-                    ans.type = PARTIAL_LEFT;
-                    ans.range.end += 100;
-                }
-//            }
         }
         else {
-//            Logger::instance().debug("Dropped\n", new_est);
-            continue;
+            if (cnt >= cutoff) {
+                candidates.insert(prv_id);
+            }
+            if (prv_id != UINT32_MAX)
+                Logger::instance().debug("%s(%d) ", sequences[prv_id].first.c_str(), cnt);
+            prv_id = candidates_vec[i].seq_id;
+            cnt = 1;
+        }
+    }
+    Logger::instance().debug("\n");
+}
+
+vector<cut> Sketch::find_cuts_with_chain(string ref_l, string ref_r, cut_stats& stats, orientation_en orientation,
+                                         unordered_set<id_t>& insertion_candidates, bool long_insertion) {
+    vector<minimizer_t> left_frw_minimizers, left_rc_minimizers, right_frw_minimizers, right_rc_minimizers;
+    vector<hit> left_frw_candidates, left_rc_candidates, right_frw_candidates, right_rc_candidates;
+
+    auto t1 = chrono::high_resolution_clock::now();
+    get_genome_hits_new(ref_l, left_frw_minimizers, left_frw_candidates);
+    get_genome_hits_new(ref_r, right_frw_minimizers, right_frw_candidates);
+    auto t2 = chrono::high_resolution_clock::now();
+    hits_time += std::chrono::duration<double, std::milli>(t2-t1).count();
+
+    Logger::instance().debug("Minimizers Size: %d\n", left_frw_minimizers.size());
+    Logger::instance().debug("Hits Size: %d\n", left_frw_candidates.size());
+
+    vector<cut> left_frw_cuts, right_frw_cuts;
+
+    t1 = chrono::high_resolution_clock::now();
+    Logger::instance().debug("--- LEFT ---\n");
+    find_left_cuts(left_frw_candidates, left_frw_cuts, ref_l.size(), orientation, left_frw_minimizers.size(), insertion_candidates);
+    Logger::instance().debug("--- RIGHT ---\n");
+    find_right_cuts(right_frw_candidates, right_frw_cuts, ref_r.size(), orientation, right_frw_minimizers.size(), insertion_candidates);
+    t2 = chrono::high_resolution_clock::now();
+    finding_time += std::chrono::duration<double, std::milli>(t2-t1).count();
+
+    vector<cut> final_cuts;
+    t1 = chrono::high_resolution_clock::now();
+    merge_candidates(left_frw_cuts, right_frw_cuts, final_cuts, stats, long_insertion);
+    t2 = chrono::high_resolution_clock::now();
+    merging_time += std::chrono::duration<double, std::milli>(t2-t1).count();
+    Logger::instance().debug("%d\n", final_cuts.size());
+
+    #ifdef DEBUG
+    sort(final_cuts.begin(), final_cuts.end());
+    for (int  i = 0; i < final_cuts.size(); i++) {
+        Logger::instance().debug("%-30s: %4d-%4d (%4d) | ", sequences[final_cuts[i].seq_id].first.c_str(), final_cuts[i].range.start,
+                                 final_cuts[i].range.end, final_cuts[i].range.end - final_cuts[i].range.start);
+        Logger::instance().debug("I: %d | ", final_cuts[i].estimated_insertion);
+
+        if (final_cuts[i].type == BIMODAL)
+            Logger::instance().debug("T: B\n");
+        else if (final_cuts[i].type == PARTIAL_LEFT)
+            Logger::instance().debug("T: L\n");
+        else if (final_cuts[i].type == PARTIAL_RIGHT)
+            Logger::instance().debug("T: R\n");
+        else if (final_cuts[i].type == OVERLAPPING_READ)
+            Logger::instance().debug("T: O\n");
+        else
+            Logger::instance().debug("T: M\n");
+    }
+#endif
+
+    return final_cuts;
+}
+
+void inline readjust(cut& read_cut_info, int left_extension, int right_extension, bool reorient) {
+    if (read_cut_info.type == PARTIAL_LEFT && left_extension != -1) {
+        read_cut_info.range.end = min((int)read_cut_info.range.end, read_cut_info.range.start + left_extension);
+    }
+    else if (read_cut_info.type == PARTIAL_RIGHT && right_extension != -1) {
+        read_cut_info.range.start = max((int)read_cut_info.range.start, read_cut_info.range.end - right_extension);
+    }
+    if (reorient) {
+        if (read_cut_info.type == PARTIAL_LEFT)
+            read_cut_info.type = PARTIAL_RIGHT;
+        else if (read_cut_info.type == PARTIAL_RIGHT)
+            read_cut_info.type = PARTIAL_LEFT;
+    }
+}
+
+pair<vector<cut>, int> Sketch::find_cuts_all(string& ref_l, string& ref_r, bool long_insertion, vector<string>& short_reads) {
+    vector<cut> cuts, cuts_2;
+
+    unordered_set<id_t> insertion_candidates_frw, insertion_candidates_rc;
+    if (!short_reads.empty()) {
+        int read_len = short_reads[0].size();
+        int left_cut_size = min(read_len, (int)ref_l.size());
+        int right_cut_size = min(read_len, (int)ref_r.size());
+
+        string genome_left = ref_l.substr(ref_l.size() - left_cut_size, left_cut_size);
+        string genome_left_rc = reverse_complement(genome_left);
+
+        string genome_right = ref_r.substr(0, right_cut_size);
+        string genome_right_rc = reverse_complement(genome_right);
+
+        vector<string> short_reads_rc(short_reads.size());
+        for (int i = 0; i < short_reads.size(); i++) {
+            short_reads_rc.push_back(reverse_complement(short_reads[i]));
         }
 
-        if (ans.range.start == 0 && ans.range.end == 0)
-            continue;
+        get_insertion_minimizers_new(short_reads, genome_left, genome_right, insertion_candidates_frw);
+        get_insertion_minimizers_new(short_reads_rc, genome_left_rc, genome_right_rc, insertion_candidates_rc);
 
-        ans.orientation = REV;
-        ans.size = size;
-        ans.seq_id = curr_id;
-
-        if (ans.range.end >= sequences[curr_id].second)
-            ans.range.end = sequences[curr_id].second - 1;
-
-        ans.estimated_insertion = est;
-
-        rev_cuts.push_back(ans);
+//        Logger::instance().debug("Insertion Minimizers: F(%d), R(%d)\n", insertion_candidates_frw.size(), insertion_candidates_rc.size());
     }
-//	if (frw_cuts.size() + rev_cuts.size() > 200)
-//                return cuts;
 
-    if (frw_cuts.empty() && rev_cuts.empty())
-        cuts =  vector<cut>();
+    auto t1 = chrono::high_resolution_clock::now();
+    cut_stats frw_stats, rc_stats;
+    Logger::instance().debug("--- FRW ---\n");
+    cuts = find_cuts_with_chain(ref_l, ref_r, frw_stats, FRW, insertion_candidates_frw, long_insertion);
+    Logger::instance().debug("--- REV ---\n");
+    cuts_2 = find_cuts_with_chain(reverse_complement(ref_r), reverse_complement(ref_l), rc_stats, REV, insertion_candidates_rc, long_insertion);
+    auto t2 = chrono::high_resolution_clock::now();
+
+    int insertion_estimation = -1;
+    t1 = chrono::high_resolution_clock::now();
+    int left_extension = -1, right_extension = -1;
+    if (frw_stats.bimodal_cnt + rc_stats.bimodal_cnt > 2) {
+        insertion_estimation = (frw_stats.bimodal_sum + rc_stats.bimodal_sum) / (frw_stats.bimodal_cnt + rc_stats.bimodal_cnt);
+        left_extension = insertion_estimation + GENOME_ANCHOR_LEN;
+        right_extension = insertion_estimation + GENOME_ANCHOR_LEN;
+        Logger::instance().debug("IE: %d | LE: %d | RE: %d\n", insertion_estimation, left_extension, right_extension);
+    }
     else {
-        for (int i = 0; i < frw_cuts.size(); i++) {
-            cuts.push_back(frw_cuts[i]);
+        vector<int> left_sizes(frw_stats.left_cuts_size.size() + rc_stats.right_cuts_size.size());
+        vector<int> right_sizes(frw_stats.right_cuts_size.size() + rc_stats.left_cuts_size.size());
+
+        std::merge(frw_stats.left_cuts_size.begin(), frw_stats.left_cuts_size.end(), rc_stats.right_cuts_size.begin(),
+              rc_stats.right_cuts_size.end(), left_sizes.begin());
+        Logger::instance().debug("Left: \n");
+        for (int i = 0; i < left_sizes.size(); i++) {
+            Logger::instance().debug("%d, ", left_sizes[i]);
         }
-        for (int i = 0; i < rev_cuts.size(); i++) {
-            cuts.push_back(rev_cuts[i]);
+        Logger::instance().debug("LF: \n");
+        for (int i = 0; i < frw_stats.left_cuts_size.size(); i++) {
+            Logger::instance().debug("%d, ", frw_stats.left_cuts_size[i]);
         }
+        Logger::instance().debug("RR: \n");
+        for (int i = 0; i < rc_stats.right_cuts_size.size(); i++) {
+            Logger::instance().debug("%d, ", rc_stats.right_cuts_size[i]);
+        }
+        Logger::instance().debug("\n");
+        std::merge(frw_stats.right_cuts_size.begin(), frw_stats.right_cuts_size.end(), rc_stats.left_cuts_size.begin(),
+              rc_stats.left_cuts_size.end(), right_sizes.begin());
+        Logger::instance().debug("Right: \n");
+        for (int i = 0; i < right_sizes.size(); i++) {
+            Logger::instance().debug("%d, ", right_sizes[i]);
+        }
+        Logger::instance().debug("\n");
+
+        if (left_sizes.size() > 7) {
+            left_extension = left_sizes[left_sizes.size() - 4];
+        }
+        else if (left_sizes.size() > 2) {
+            left_extension = left_sizes[left_sizes.size()/2];
+        }
+        if (right_sizes.size() > 7) {
+            right_extension = right_sizes[right_sizes.size() - 4];
+        }
+        else if (right_sizes.size() > 2) {
+            right_extension = right_sizes[right_sizes.size()/2];
+        }
+        Logger::instance().debug("LE: %d | RE: %d\n", left_extension, right_extension);
     }
+    for (int i = 0; i < cuts.size(); i++) {
+        readjust(cuts[i], left_extension, right_extension, false);
+    }
+    for (int i = 0; i < cuts_2.size(); i++) {
+        readjust(cuts_2[i], right_extension, left_extension, true);
+    }
+    t2 = chrono::high_resolution_clock::now();
 
-    float est_avg;
-    if (est_cnt == 0)
-        est_avg = -1;
-    else
-        est_avg = (float)est_sum/(float)est_cnt;
-    Logger::instance().debug("Average Insertion Length            : %f\n", est_avg);
+    cuts.insert(cuts.end(), cuts_2.begin(), cuts_2.end());
 
-    return cuts;
+    t1 = chrono::high_resolution_clock::now();
+#ifdef DEBUG
+    sort(cuts.begin(), cuts.end());
+    for (int  i = 0; i < cuts.size(); i++) {
+        Logger::instance().debug("%-30s: %4d-%4d (%4d) | ", sequences[cuts[i].seq_id].first.c_str(), cuts[i].range.start,
+                                 cuts[i].range.end, cuts[i].range.end - cuts[i].range.start);
+        Logger::instance().debug("I: %d | ", cuts[i].estimated_insertion);
+
+        if (cuts[i].type == BIMODAL)
+            Logger::instance().debug("T: B\n");
+        else if (cuts[i].type == PARTIAL_LEFT)
+            Logger::instance().debug("T: L\n");
+        else if (cuts[i].type == PARTIAL_RIGHT)
+            Logger::instance().debug("T: R\n");
+        else if (cuts[i].type == OVERLAPPING_READ)
+            Logger::instance().debug("T: O\n");
+        else
+            Logger::instance().debug("T: M\n");
+    }
+#endif
+    t2 = chrono::high_resolution_clock::now();
+//    cerr << "printing: " << std::chrono::duration<double, std::milli>(t2-t1).count() << endl;
+
+    if (frw_stats.overlapping_cnt + rc_stats.overlapping_cnt > 2) {
+        return {cuts, -1};
+    }
+    if (insertion_estimation < 300 && insertion_estimation > 0) {
+        return {cuts, -(frw_stats.bimodal_cnt + rc_stats.bimodal_cnt)};
+    }
+    return {cuts, frw_stats.bimodal_cnt + rc_stats.bimodal_cnt};
 }

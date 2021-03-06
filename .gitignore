@@ -6,7 +6,10 @@ src/include/logger.h
 src/include/edlib.h
 src/include/spoa/
 src/include/cereal/
+src/include/clasp/
 src/edlib.cc
+ext/edlib
+ext/spoa
 # Prerequisites
 *.d
 

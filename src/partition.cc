@@ -367,9 +367,10 @@ vector <pair<pair < string, string>, pair<int, int>>> genome_partition::read_par
 		fgets(pref, MAXB, partition_file);
 		int loc, support;
 		sscanf(pref, "%s %s %d %d", name, read, &support, &loc);
-		if (loc != -1)
-		    current_cluster.push_back({{string(name), string(read)},
-			    					   {support, loc}});
+		if (loc != -1) {
+            current_cluster.push_back({{string(name), string(read)},
+                                       {support, loc}});
+		}
 	}
 //	if (current_cluster.size() == 0)
 //		goto reset;
