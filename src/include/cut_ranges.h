@@ -30,7 +30,7 @@ class cut_ranges {
 
 std::pair<std::string, std::pair<int, int>> cut_consensus_bimodal(std::vector<std::string> alignments,
                                                                   int left_reads, int right_reads, int bimodal_reads);
-std::pair<std::string, std::pair<int, int>> cut_consensus_single(std::vector<std::string> alignments);
+std::pair<std::string, std::pair<int, int>> cut_consensus_single(std::vector<std::string> alignments, float);
 std::vector<std::vector<std::string> > cluster_reads(std::vector<std::string> msa, int l, int r);
 
 #endif

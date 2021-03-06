@@ -21,7 +21,8 @@ struct MaxChainInfo {
     pair<int, int> qrange;
     pair<int, int> rrange;
     float score;
-    int len;
+    int len = 0;
+    int gaps_size;
 };
 
 struct seed {
@@ -38,8 +39,10 @@ class ClaspChain {
         int maxgap;
 
     public:
-        ClaspChain(char chainmode = SOP, double lambda = 0.5, double epsilon = 0, int maxgap = -1);
-        MaxChainInfo get_max_chain(vector<seed> seeds);
+        ClaspChain(char chainmode = SOP, double lambda = 1.0, double epsilon = 0, int maxgap = -1);
+        MaxChainInfo get_max_chain(vector<seed>& seeds);
+        double sort_time = 0;
+        double chain_time = 0;
 };
 
 #endif
