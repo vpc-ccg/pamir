@@ -2,6 +2,7 @@
 #define SKETCH_H
 
 #include <map>
+#include <unordered_map>
 #include <zlib.h>
 #include <string>
 #include <vector>
@@ -168,6 +169,16 @@ class Sketch {
         void get_insertion_minimizers_new(vector<string>& short_reads, string& genome_left, string& genome_right, unordered_set<id_t>& candidates);
         void get_unique_minimizers(vector<string> &reads, unordered_set<hash_t>& insertion_minimizers);
         inline int max_kmer_count(MaxChainInfo chain, int anchor_length, int read_length, int);
+
+        double get_minimizers_time = 0;
+        double find_cuts_with_chain_time = 0;
+        double insertion_estimation_time = 0;
+        double readjustment_time = 0;
+        double get_minimizers_time_p1 = 0;
+        double get_minimizers_time_p2 = 0;
+        double get_minimizers_time_p3 = 0;
+        double get_minimizers_time_p4 = 0;
+        double get_minimizers_time_p0 = 0;
 
         double hits_time = 0;
         double finding_time = 0;

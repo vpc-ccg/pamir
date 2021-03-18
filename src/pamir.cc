@@ -42,6 +42,8 @@ using namespace std;
 // For outputing specific log
 void log_idx (const string &log_file )
 {
+	map<int, size_t> offsets;
+
     FILE *fin = fopen(log_file.c_str(), "rb");
     FILE *fidx = fopen((log_file + ".idx").c_str(), "wb");
     char *readline = (char*)malloc(MAX_CHAR);
@@ -49,33 +51,36 @@ void log_idx (const string &log_file )
     size_t idx_pos = ftell(fin);
     int l_id, offset;
     int num_inserted = 0; // to resolve skipping partition issue
+	size_t begin = ftell(fin), end = ftell(fin);
 
-    fwrite( &idx_pos, 1, sizeof(size_t), fidx); // initialize an log for partition id ZERO
     while( NULL != fgets( readline, MAX_CHAR, fin ) )
     {
-        if ( 0 == strncmp("-<=*=>-*-<", readline, 10) )
+        if ( 0 == strncmp("-<=*=>-*-<", readline, 10))
         {
+			if (begin != end) {
+				offsets.insert({l_id, begin});
+				begin = end;
+			}
+
             fgets( readline, MAX_CHAR, fin);
             sscanf(readline, "%s %s %s %s %d\n", token, token, token, token, &l_id);
-            while( l_id > num_inserted +1)
-            {
-                //fprintf( stdout, "size\t%d\t%lu->%s\n", num_inserted, idx_pos, readline);
-                fwrite( &idx_pos, 1, sizeof(size_t), fidx);
-                num_inserted++;
-            }
-            //fprintf( stdout, "size\t%d\t%lu->%s\n", num_inserted, idx_pos, readline);
-            fwrite( &idx_pos, 1, sizeof(size_t), fidx);
-            num_inserted++;
         }
+		end = ftell(fin);
         idx_pos = ftell(fin);
     }
+	offsets.insert({l_id, begin});
+
+	for (auto it = offsets.begin(); it != offsets.end(); it++) {
+		fwrite(&(it->second), 1, sizeof(size_t), fidx);
+	}
+
     fclose(fin);
     fclose(fidx);
     free(readline);
 }
 /****************************************************************/
 // Output Log from x to y-1. To output t, specify t-t+1
-int output_log (const string &log_file, const string &range)
+void output_log (const string &log_file, const string &range)
 {
     static unsigned int start = -1, end = -1;
     static vector<size_t> offsets;
@@ -85,59 +90,53 @@ int output_log (const string &log_file, const string &range)
         if (!tok) start = 0;
         else {
             start = atol(tok), tok = strtok(0, "-");
-            end = tok ? atol(tok) : start+1;
+            end = tok ? atol(tok) : start;
         }
         free(dup);
         //free(tok);
-        fprintf(stdout, "extraction [%u, %u]\n", start, end-1);
+        fprintf(stdout, "extraction [%u, %u]\n", start, end);
 
         FILE *fidx = fopen((log_file + ".idx").c_str(), "rb");
-        size_t offset;
-        while (fread(&offset, 1, sizeof(size_t), fidx) == sizeof(size_t))
-            offsets.push_back(offset);
+        size_t start_offset, end_offset;
+        while (fread(&start_offset, 1, sizeof(size_t), fidx) == sizeof(size_t)) {
+			offsets.push_back(start_offset);
+		}
         fclose(fidx);
     }
 
     FILE *fi, *fo, *foidx;
     int sz, i;
     int cluster_id;
-    int num_cluster = 0, num_read = 0;
     const int MAXB = 8096;
     char *pref = (char*)malloc(MAX_CHAR);
-//	char name[MAXB], read[MAXB];
     string c_file = range + ".log";
     fo = fopen(c_file.c_str(), "w");
     fclose(fo);
-    reset:
-//	assert(start < offsets.size());
-    if (start >= offsets.size() || start >= end)
-        return 0;
-    //fprintf(stderr,"Seeking to %d--%d (%lu)\n", start, end, offsets[start]);
+	start -= 1;
 
-    fi = fopen(log_file.c_str(), "rb");
-    fo = fopen(c_file.c_str(), "a");
-    fseek(fi, offsets[start++], SEEK_SET);
-    fgets(pref, MAXB, fi);
-    if ( 0 != strncmp("-<=*=>-*-<", pref, 10) )
-    {	exit(1); fprintf(stderr, "Incorrect Start at %s", pref);
-    }
-    fprintf( fo, "%s", pref);
+	end = min((int)end, (int)offsets.size());
+	fi = fopen(log_file.c_str(), "rb");
+    fo = fopen(c_file.c_str(), "w");
+	for (int i = start; i < end; i++) {
+		// fprintf(stderr,"Seeking to %d--%d (%lu)\n", start, end, offsets[start]);
+		fseek(fi, offsets[start++], SEEK_SET);
+		fgets(pref, MAXB, fi);
+		if ( 0 != strncmp("-<=*=>-*-<", pref, 10) )
+		{	exit(1); fprintf(stderr, "Incorrect Start at %s", pref);
+		}
+		fprintf( fo, "%s", pref);
 
-    fgets(pref, MAXB, fi);
-    while ( 0 != strncmp("-<=*=>-*-<", pref, 10) )
-    {
-        fprintf( fo, "%s", pref);
-        fgets(pref, MAXB, fi);
-    }
-
-    num_read = 0;
-
-    fclose(fi);
+		fgets(pref, MAXB, fi);
+		while ( 0 != strncmp("-<=*=>-*-<", pref, 10) && !feof(fi))
+		{
+			fprintf( fo, "%s", pref);
+			fgets(pref, MAXB, fi);
+		}
+	}
+	fclose(fi);
     fclose(fo);
-    delete pref;
-    if ( num_read == 0)
-        goto reset;
-    return num_cluster;
+	
+	delete pref;
 }
 /*******************************************************************/
 void print_header(const string &header_file, const string &reference)
@@ -358,7 +357,10 @@ void find_reads (const string &partition_file, const string &dat_path, const str
 //    int genome_anchor_len = 3 * len;
 //    int genome_anchor_distance = genome_anchor_len + 2 * len;
 
+    auto t1 = chrono::high_resolution_clock::now();
     Sketch lr_sketch = Sketch(dat_path, len, genome_anchor_distance);
+    auto t2 = chrono::high_resolution_clock::now();
+    cerr << "loading sketch: " << std::chrono::duration<double, std::milli>(t2-t1).count()/1000.0 << endl;
 
     //TODO FIX NAME - Get ouput as an argument
     string p2 = "partition-p2-" + range;
@@ -408,7 +410,7 @@ void find_reads (const string &partition_file, const string &dat_path, const str
             reads.push_back(p[i].first.second);
         }
 
-        int breakpoint = pt_start +  (pt_end - pt_start)/2;
+        int breakpoint = (pt_end + pt_start)/2;
         int left_start = breakpoint - genome_anchor_len;
         int left_end = breakpoint;
         int right_start = breakpoint;
@@ -465,40 +467,55 @@ void find_reads (const string &partition_file, const string &dat_path, const str
 
     size -= negs;
 
-    ofstream fout("extract_ranges.dat", ios::out | ios::binary);
+    ofstream fout("extract_ranges-" + range + ".dat", ios::out | ios::binary);
     fout.write((char*)&size, sizeof(uint32_t));
     fout.write((char*)&ranges[0], size * sizeof(pair<id_t, range_s>));
     fout.close();
 
-    cerr << "Hits Time: " << lr_sketch.hits_time << endl;
-    cerr << "Find Time: " << lr_sketch.finding_time << endl;
-    cerr << "Merging Time: " << lr_sketch.merging_time << endl;
-    cerr << "Chaining Time: " << lr_sketch.chaining_time << endl;
-    cerr << "Chain Sorting Time: " << lr_sketch.claspChain.sort_time << endl;
-    cerr << "Clasp Time: " << lr_sketch.clasp_time << endl;
-    cerr << "Seed Time: " << lr_sketch.seed_time << endl;
-    cerr << "Building Chain: " << lr_sketch.claspChain.chain_time << endl;
+//    cerr << "Hits Time: " << lr_sketch.hits_time/1000.0 << endl;
+//    cerr << "Find Time: " << lr_sketch.finding_time/1000.0 << endl;
+//    cerr << "Merging Time: " << lr_sketch.merging_time/1000.0 << endl;
+//    cerr << "Chaining Time: " << lr_sketch.chaining_time/1000.0 << endl;
+//    cerr << "Chain Sorting Time: " << lr_sketch.claspChain.sort_time/1000.0 << endl;
+//    cerr << "Clasp Time: " << lr_sketch.clasp_time/1000.0 << endl;
+//    cerr << "Seed Time: " << lr_sketch.seed_time/1000.0 << endl;
+//    cerr << "Building Chain: " << lr_sketch.claspChain.chain_time/1000.0 << endl;
+
+    cerr << "get_minimizers: " << lr_sketch.get_minimizers_time/1000.0 << endl;
+    cerr << "get_minimizers_0: " << lr_sketch.get_minimizers_time_p0/1000.0 << endl;
+    cerr << "get_minimizers_1: " << lr_sketch.get_minimizers_time_p1/1000.0 << endl;
+    cerr << "get_minimizers_2: " << lr_sketch.get_minimizers_time_p2/1000.0 << endl;
+    cerr << "get_minimizers_3: " << lr_sketch.get_minimizers_time_p3/1000.0 << endl;
+    cerr << "get_minimizers_4: " << lr_sketch.get_minimizers_time_p4/1000.0 << endl;
+    cerr << "find_cuts_with_chain: " << lr_sketch.find_cuts_with_chain_time/1000.0 << endl;
+    cerr << "insertion_estimation: " << lr_sketch.insertion_estimation_time/1000.0 << endl;
+    cerr << "readjustment: " << lr_sketch.readjustment_time/1000.0 << endl;
     cerr << "Cnt: " << lr_sketch.tmp_cnt << endl;
 }
 /*********************************************************************************************/
 void extract_reads(const string &partition_file, const string &longread, const string &range, const string &p3_name,
                    const string& dat_path, const string& ranges_file)
 {
+	// cerr <<  partition_file << endl;
     p2_partition pt_2(partition_file, range);
-
+// cerr << "Read" << endl;
     ProgressBar progress(80);
     char comment[20];
     int cnt = 0;
     int total = pt_2.get_total();
     sprintf(comment, "%10d / %-10d", cnt, total);
     progress.update(((float)cnt/(float)total) * 100, comment);
+	// cerr << "1" << endl;
     cut_ranges ranges = cut_ranges(longread, dat_path, ranges_file);
-
+// cerr << "2" << endl;
     ranges.extract();
 
     //TODO FIX NAME + get output name as argument
+	// cerr << "new" << endl;
     string p3 = "partition-p3-" + p3_name;
+	// cerr << p3 << endl;
     p3_partition pt_3(p3, true);
+	// cerr << "Read" << endl;
 
     aligner al(30000);
 
@@ -559,7 +576,7 @@ void extract_reads(const string &partition_file, const string &longread, const s
 void consensus (const string &partition_file, const string &reference, const string lr_path, const string dat_path,
                 const string &range, const string &name, int max_len, const string &prefix)
 {
-    ProcessPartition processor = ProcessPartition(8, lr_path, dat_path, partition_file, range, max_len, reference,
+    ProcessPartition processor = ProcessPartition(16, lr_path, dat_path, partition_file, range, max_len, reference,
                                                   prefix, name);
     processor.process();
 }
@@ -644,6 +661,7 @@ int main(int argc, char **argv)
         }
         else if (mode == "partition-hybrid") {
             if (argc != 4) throw "Usage:2 parameters needed\tpamir partition-hybrid [short-read-mapping] [short-read-len]";
+			Logger::instance().info.set_buffer_size(0);
             genome_partition_hybrid pt("partition", true);
             pt.cluster_reads(argv[2], stoi(argv[3]));
         }

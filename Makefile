@@ -29,10 +29,8 @@ SRC_EXT = cc
 SOURCE_FILES =  pamir.cc aligner.cc common.cc genome.cc partition.cc assembler.cc sam_parser.cc extractor.cc  smoother.cc  process_orphans.cc process_range.cc edlib.cc sam_processing.cc recalibrate.cc sketch.cc p2_partition.cc p3_partition.cc cut_ranges.cc MurmurHash3.cc insertion_assembler.cc progressbar.cc partition_hybrid.cc process_partition.cc chain.cc
 SCRIPT_FILES = merge_refs.py contig_graph.py  filter_by_setcover.py  filtering.py  generate_setcover_input.py  prep-ctgs.py  remove_contaminations.py  sort_vcf.py  version_check.py process_repeats.py process_unique.py new_generate_setcover.py
 CLASP_SOURCES = $(wildcard $(CLASP_EXT_SRC_PATH)/*.c)
-$(info CLASP $(CLASP_SOURCES))
 SOURCES = $(patsubst %, $(SRC_PATH)/%, $(SOURCE_FILES))
 	OBJECTS = $(SOURCES:$(SRC_PATH)/%.$(SRC_EXT)=$(BUILD_PATH)/%.o) $(patsubst $(CLASP_EXT_SRC_PATH)/%.c, $(BUILD_PATH)/clasp/%.o, $(CLASP_SOURCES))
-$(info OBJECTS $(OBJECTS))
 .SECONDARY: $(UTIL_OBJ)
 SCRIPTS = $(patsubst %, $(SCRIPT_SOURCE)/%, $(SCRIPT_FILES))
 COPIED_SCRIPTS = $(patsubst %, $(SCRIPT_PATH)/%, $(SCRIPT_FILES))
@@ -75,7 +73,7 @@ clean: build_clean bin_clean
 build_clean:
 	@$(RM)  $(OBJECTS)
 	@$(RM)  $(DEPS)
-	@$(RM) -d $(BUILD_PATH)
+	@$(RM) -rf $(BUILD_PATH)
 	@$(RM) $(SRC_PATH)/edlib.cc
 	@$(RM) $(SRC_PATH)/include/edlib.h
 	@$(RM) $(SRC_PATH)/include/logger.h

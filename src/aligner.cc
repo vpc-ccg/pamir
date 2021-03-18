@@ -10,44 +10,54 @@
 
 using namespace std;
 
-aligner::aligner(int reflen)
+aligner::aligner(int reflen, int qlen)
 {
-	MAX_SIDE=reflen;
-	score = new int*[MAX_SIDE+1];
-	gapa  = new int*[MAX_SIDE+1];
-	gapb  = new int*[MAX_SIDE+1];
+	MAX_SIDE_A=reflen;
+	MAX_SIDE_B = qlen;
+	score = new int*[MAX_SIDE_A+1];
+	gapa  = new int*[MAX_SIDE_A+1];
+	gapb  = new int*[MAX_SIDE_A+1];
 
-	for (int i=0; i<= MAX_SIDE; i++)
+	for (int i=0; i<= MAX_SIDE_A; i++)
 	{
-		score[i] = new int[MAX_SIDE+1];
-		gapa[i] = new int[MAX_SIDE+1];
-		gapb[i] = new int[MAX_SIDE+1];
+		score[i] = new int[MAX_SIDE_B+1];
+		gapa[i] = new int[MAX_SIDE_B+1];
+		gapb[i] = new int[MAX_SIDE_B+1];
 	}
 
 	score[0][0] = gapa[0][0] = gapb[0][0] = 0;
-	for (int i=1; i<= MAX_SIDE; i++)
+	for (int i=1; i<= MAX_SIDE_A; i++)
 	{
 		score[i][0] = 0;
-		gapa[0][i] = gapa[i][0] = GAP_OPENING_SCORE + (i-1)*GAP_EXTENSION_SCORE;
-		gapb[0][i] = gapb[i][0] = GAP_OPENING_SCORE + (i-1)*GAP_EXTENSION_SCORE;
+		gapa[i][0] = GAP_OPENING_SCORE + (i-1)*GAP_EXTENSION_SCORE;
+		gapb[i][0] = GAP_OPENING_SCORE + (i-1)*GAP_EXTENSION_SCORE;
 
 	}
-	for (int i=1; i<=MAX_SIDE; i++)
+	for (int i=1; i<= MAX_SIDE_B; i++)
+	{
 		score[0][i] = GAP_OPENING_SCORE + (i-1)*GAP_EXTENSION_SCORE;
-	a.reserve(MAX_SIDE);
-	b.reserve(MAX_SIDE);
-	c.reserve(MAX_SIDE);
+		gapa[0][i] = GAP_OPENING_SCORE + (i-1)*GAP_EXTENSION_SCORE;
+		gapb[0][i] = GAP_OPENING_SCORE + (i-1)*GAP_EXTENSION_SCORE;
+
+	}
+	// for (int i=1; i<=MAX_SIDE; i++)
+	// 	score[0][i] = GAP_OPENING_SCORE + (i-1)*GAP_EXTENSION_SCORE;
+	a.reserve(MAX_SIDE_B);
+	b.reserve(MAX_SIDE_B);
+	c.reserve(MAX_SIDE_B);
 }
 /**********************************************************/
 aligner::~aligner()
 {
-	for (int i=0; i<= MAX_SIDE; i++)
+	for (int i=0; i<= MAX_SIDE_A; i++)
 	{
 		delete[] score[i];
 		delete[] gapa[i];
 		delete[] gapb[i];
 	}
 	delete[] score;
+	delete[] gapa;
+	delete[] gapb;
 }
 /*********************************************************/
 void aligner::print_matrix(string name, const string &a, const string &b, int **matrix)
@@ -101,14 +111,14 @@ void aligner::empty()
 {
 	identity = 0;
     score[0][0] = gapa[0][0] = gapb[0][0] = 0;
-    for (int i=1; i<= MAX_SIDE; i++)
+    for (int i=1; i<= MAX_SIDE_A; i++)
     {
         score[i][0] = 0;
         gapa[0][i] = gapa[i][0] = GAP_OPENING_SCORE + (i-1)*GAP_EXTENSION_SCORE;
         gapb[0][i] = gapb[i][0] = GAP_OPENING_SCORE + (i-1)*GAP_EXTENSION_SCORE;
 
     }
-    for (int i=1; i<=MAX_SIDE; i++)
+    for (int i=1; i<=MAX_SIDE_B; i++)
         score[0][i] = GAP_OPENING_SCORE + (i-1)*GAP_EXTENSION_SCORE;
 
 }
@@ -488,7 +498,10 @@ int aligner::extract_calls( const int &cluster_id, vector<tuple<string, int, int
 					{
                         output += "(-) " + to_string(insertion_start_loc) + "\t" + to_string(insertion_content.length()) + "\t" +
                                     insertion_content + "\t" + to_string(contig_support) + " (-)\n";
-						reports.push_back(tuple<string, int, int, string, int, float>("INS", insertion_start_loc, insertion_content.length(), insertion_content, contig_support, fwdIden ) );
+						if (insertion_content.length() > 19)
+							reports.push_back(tuple<string, int, int, string, int, float>("INS", insertion_start_loc, insertion_content.length(), insertion_content, contig_support, fwdIden ) );
+						else
+							output += "Insertion too short. Not reported\n";
 						mapped = 1;
 					}
 					else if (insertion_content.length()>0 && (left_anchor >= 16 || right_anchor >= 16))

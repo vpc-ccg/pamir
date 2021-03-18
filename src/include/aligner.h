@@ -7,9 +7,11 @@ using namespace std;
 
 class aligner {
 private:
-    int REF_LEN = 10000;
+    int REF_LEN = 2500;
     int CON_LEN = 10000;
-    int MAX_SIDE = 15000;
+    int MAX_SIDE_A = 15000;
+	int MAX_SIDE_B = 15000;
+	int MAX_SIDE = 15000;
 
 //    static const int MATCH_SCORE = 20;
 //    static const int MISMATCH_SCORE = -250;
@@ -51,7 +53,7 @@ private:
     void clear(int, int);
 
 public:
-    aligner(int reflen = 10000);
+    aligner(int reflen = 3000, int qlen = 10000);
 
     ~aligner();
 

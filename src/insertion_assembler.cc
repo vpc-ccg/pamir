@@ -518,7 +518,7 @@ pair<string, int> InsertionAssembler::assemble(vector<string>& left_reads, vecto
         anchor_cut = min(600, (int)left_seg.size());
         //cerr << "Anchor size: " << anchor_cut << endl;
         lanchor = left_seg.substr(left_seg.size() - anchor_cut, anchor_cut - 1);
-        cerr << ">s" << step << "-l\n" << lanchor << endl;
+//        cerr << ">s" << step << "-l\n" << lanchor << endl;
         //cerr << "Got Anchor" << endl;
 
         //cerr << "Building Right" << endl;
@@ -530,7 +530,7 @@ pair<string, int> InsertionAssembler::assemble(vector<string>& left_reads, vecto
         anchor_cut = min(600, (int)right_seg.size());
         //cerr << "Anchor size: " << anchor_cut << endl;
         ranchor = right_seg.substr(0, anchor_cut - 1);
-        cerr << ">s" << step << "-r\n" << ranchor << endl;
+//        cerr << ">s" << step << "-r\n" << ranchor << endl;
         ////cerr << "Got Anchor" << endl;
 
         unordered_set<hash_t> dummy;

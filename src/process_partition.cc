@@ -37,7 +37,7 @@ ProcessPartition::ProcessPartition(int maxThreads, const string &lrPath, const s
     string out_vcf_lq = prefix  + "/" + vcf_name + "_LOW_QUAL.vcf";
     fo_vcf_lq 			= fopen(out_vcf_lq.c_str(), "w");
 
-    string log_file = prefix + "/" + "all" + ".log";
+    string log_file = prefix + "/" + "final-" + vcf_name + ".log";
     fo_log = fopen(log_file.c_str(), "w");
 
     fprintf(fo_vcf, "%s", "##fileformat=VCFv4.2\n##FILTER=<ID=PASS,Description=\"All filters passed\">\n##INFO=<ID=Cluster,Number=1,Type=Integer,Description=\"ID of the cluster the variant is extracted from\">\n##INFO=<ID=Support,Number=1,Type=Integer,Description=\"Number of reads/contigs supporting the contig\">\n#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO\n");
@@ -64,7 +64,7 @@ cluster ProcessPartition::get_cluster() {
     ans.cluster_type = ans.reads.second.cluster_type;
     if (ans.reads.first.size() != 0) {
         processed_cnt += 1;
-        cerr << "cluster: " << processed_cnt << endl;
+    //    cerr << "cluster: " << processed_cnt << endl;
         Logger::instance().debug("+ Cluster ID            : %d\n", processed_cnt);
         sprintf(comment, "%10d / %-10d", processed_cnt, total);
         progress->update(((float)processed_cnt/(float)total) * 100, comment);
@@ -87,16 +87,16 @@ void ProcessPartition::thread_process(int tid) {
     spoa::Graph graph{};
     auto alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kSW, 10, -2, -15, -7);
 //    auto alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kSW, 2, -32, -64, -1);
+	aligner al(3000, max_len);
     genome reference(reference_name.c_str());
-    aligner al(max_len + 2010);
 
     string cluster_type = "";
 
     while (1) {
         cluster p = get_cluster();
-
+	
         // end of the partition file
-        if (!p.reads.first.size())
+        if (!p.reads.first.size()) 
             break;
 
         log_buffer++;
@@ -118,6 +118,12 @@ void ProcessPartition::thread_process(int tid) {
             logger_out += "INFO: Skipped Processing - Too few or Too many long reads\n";
             continue;
         }
+		else if (p.pt_end - p.pt_start > 400) {
+			logger_out += cluster_header(p.cluster_id, p.reads.first.size());
+            logger_out += " + Long Reads Count      : " + to_string(p.reads.second.size) + "\n";
+            logger_out += "INFO: Skipped Processing - Cluster too broad\n";
+            continue;
+		}
 
         string chrName  = p.chrName;
         int cluster_id  = p.cluster_id;
@@ -217,7 +223,7 @@ void ProcessPartition::thread_process(int tid) {
             logger_out += "\n\n>>>>> Length: " + to_string(consensus[i].first.size()) +
                     " Support: " + to_string(contig_support) + " Contig: " + consensus[i].first + "\n";
 
-            if (consensus[i].first.size() > 30000) {
+            if (consensus[i].first.size() > max_len) {
                 logger_out += "\nContig too long, skipping.\n";
                 continue;
             }

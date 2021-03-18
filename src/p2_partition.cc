@@ -42,6 +42,7 @@ p2_partition::p2_partition (const string &partition_file_path, const string &ran
     }
 
     FILE *partition_file_index = fopen((partition_file_path + ".idx").c_str(), "rb");
+	// cerr << partition_file_path + ".idx" << endl;
     if ( partition_file_index == NULL)
         throw("[Genome Partition] Cannot open the file.");
 

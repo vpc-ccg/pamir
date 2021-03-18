@@ -808,7 +808,9 @@ void Sketch::get_unique_minimizers(vector<string> &reads, unordered_set<hash_t>&
     }
 }
 
-void Sketch::get_insertion_minimizers_new(vector<string>& short_reads, string& genome_left, string& genome_right, unordered_set<id_t>& candidates) {
+void Sketch::get_insertion_minimizers_new(vector<string>& short_reads, string& genome_left, string& genome_right,
+                                          unordered_set<id_t>& candidates) {
+    auto t1 = chrono::high_resolution_clock::now();
     unordered_set<hash_t> reads_minimizers;
 //    Logger::instance().debug("Reads: \n");
     get_unique_minimizers(short_reads, reads_minimizers);
@@ -827,50 +829,140 @@ void Sketch::get_insertion_minimizers_new(vector<string>& short_reads, string& g
 //    for (auto it = genome_minimizers.begin(); it != genome_minimizers.end(); it++) {
 //        Logger::instance().debug("%llu\n", *it);
 //    }
+    auto t2 = chrono::high_resolution_clock::now();
+    get_minimizers_time_p1 += std::chrono::duration<double, std::milli>(t2-t1).count();
 
     vector<hit> candidates_vec;
 
     int insertion_minimizers_size = 0;
 
-    Logger::instance().debug("Insertion Minimizers:\n");
+    //#################################
+
+//    Logger::instance().debug("Insertion Minimizers:\n");
+//    t1 = chrono::high_resolution_clock::now();
+//    for (auto it = reads_minimizers.begin(); it != reads_minimizers.end(); it++) {
+//        if (genome_minimizers.find(*it) == genome_minimizers.end()) {
+////            Logger::instance().debug("%llu\n", *it);
+//            insertion_minimizers_size++;
+//            auto idx = find_hit(*it);
+//            for (auto i = idx.first; i < idx.first + idx.second; i++) {
+//                if (ref_minimizers[i].seq_id == 1176697) {
+//                    cerr << *it << " | " << ref_minimizers[i].offset << endl;
+//                }
+//                hit tmp_hit;
+//                tmp_hit.seq_id = ref_minimizers[i].seq_id;
+//                tmp_hit.hash_value = *it;
+//                candidates_vec.push_back(tmp_hit);
+//            }
+//        }
+//    }
+//    t2 = chrono::high_resolution_clock::now();
+
+//    cerr << "insertion minimizers: " << insertion_minimizers_size << endl;
+
+//    Logger::instance().debug("Insertion Minimizer Size: %d\n", insertion_minimizers_size);
+
+//    t1 = chrono::high_resolution_clock::now();
+//    sort(candidates_vec.begin(), candidates_vec.end());
+//    t2 = chrono::high_resolution_clock::now();
+//    get_minimizers_time_p3 += std::chrono::duration<double, std::milli>(t2-t1).count();
+//
+//    t1 = chrono::high_resolution_clock::now();
+//    id_t prv_id = UINT32_MAX;
+//    hash_t prv_hash = UINT64_MAX;
+//    int cnt = 0;
+//    int cutoff = INSERTION_MINIMIZERS_CUTOFF * insertion_minimizers_size;
+//    for (int i = 0; i < candidates_vec.size(); i++) {
+//        if (candidates_vec[i].seq_id == prv_id) {
+//            if (candidates_vec[i].seq_id ==  1176697) {
+//                cerr << candidates_vec[i-1].hash_value << " - " << candidates_vec[i].hash_value << endl;
+//            }
+//            if (candidates_vec[i].hash_value != candidates_vec[i-1].hash_value) {
+//                cnt++;
+//            }
+//        }
+//        else {
+//            cerr << prv_id << " | " << cnt << endl;
+//            if (cnt >= cutoff) {
+//                candidates.insert(prv_id);
+//            }
+//            if (prv_id != UINT32_MAX)
+//                Logger::instance().debug("%s(%d) ", sequences[prv_id].first.c_str(), cnt);
+//            prv_id = candidates_vec[i].seq_id;
+//            cnt = 1;
+//        }
+//    }
+//    if (cnt >= cutoff) {
+//        candidates.insert(prv_id);
+//    }
+//    t2 = chrono::high_resolution_clock::now();
+//    get_minimizers_time_p4 += std::chrono::duration<double, std::milli>(t2-t1).count();
+
+//#################################
+
+    t1 = chrono::high_resolution_clock::now();
+    unordered_map<id_t, int> read_count;
+//    read_count.max_load_factor(0.1);
+    read_count.reserve(100000);
+    id_t prv_id = UINT32_MAX;
     for (auto it = reads_minimizers.begin(); it != reads_minimizers.end(); it++) {
         if (genome_minimizers.find(*it) == genome_minimizers.end()) {
-//            Logger::instance().debug("%llu\n", *it);
-            insertion_minimizers_size++;
+//            cerr << "-----" << endl;
+
             auto idx = find_hit(*it);
+
+            if (idx.second == 0 || idx.second >= freq_th) {
+                continue;
+            }
+
+            insertion_minimizers_size++;
+
             for (auto i = idx.first; i < idx.first + idx.second; i++) {
-                hit tmp_hit;
-                tmp_hit.seq_id = ref_minimizers[i].seq_id;
-                tmp_hit.hash_value = *it;
-                candidates_vec.push_back(tmp_hit);
+//                cerr << "prv_id: " << prv_id << endl;
+//                if (ref_minimizers[i].seq_id == 1176697) {
+//                    cerr << *it << " | " << ref_minimizers[i].offset << " | " << prv_id << endl;
+//                }
+                if (ref_minimizers[i].seq_id == prv_id) {
+//                    cerr << "!" << endl;
+                    continue;
+                }
+
+                prv_id = ref_minimizers[i].seq_id;
+                auto f = read_count.find(ref_minimizers[i].seq_id);
+                if (f != read_count.end()) {
+                   f->second++;
+                }
+                else {
+//                    read_count.insert({ref_minimizers[i].seq_id, 1});
+                    read_count[ref_minimizers[i].seq_id] = 1;
+                }
             }
         }
+        prv_id = UINT32_MAX;
     }
+    t2 = chrono::high_resolution_clock::now();
+    get_minimizers_time_p2 += std::chrono::duration<double, std::milli>(t2-t1).count();
 
-    Logger::instance().debug("Insertion Minimizer Size: %d\n", insertion_minimizers_size);
+//    cerr << "insertion minimizers: " << insertion_minimizers_size << endl;
 
-    sort(candidates_vec.begin(), candidates_vec.end());
-
-    id_t prv_id = UINT32_MAX;
-    hash_t prv_hash = UINT64_MAX;
-    int cnt = 0;
+    t1 = chrono::high_resolution_clock::now();
     int cutoff = INSERTION_MINIMIZERS_CUTOFF * insertion_minimizers_size;
-    for (int i = 0; i < candidates_vec.size(); i++) {
-        if (candidates_vec[i].seq_id == prv_id) {
-            if (candidates_vec[i].hash_value != candidates_vec[i-1].hash_value) {
-                cnt++;
-            }
-        }
-        else {
-            if (cnt >= cutoff) {
-                candidates.insert(prv_id);
-            }
-            if (prv_id != UINT32_MAX)
-                Logger::instance().debug("%s(%d) ", sequences[prv_id].first.c_str(), cnt);
-            prv_id = candidates_vec[i].seq_id;
-            cnt = 1;
+    for (auto it = read_count.begin(); it != read_count.end(); it++) {
+//        cerr << it->first << " | " << it->second << endl;
+        if (it->second >= cutoff) {
+            candidates.emplace_hint(candidates.cend(), it->first);
+//            candidates.insert(it->first);
         }
     }
+    t2 = chrono::high_resolution_clock::now();
+    get_minimizers_time_p4 += std::chrono::duration<double, std::milli>(t2-t1).count();
+
+//    cerr << "Map Size: " << candidates.size() << endl;
+//    for (auto it = candidates.begin(); it != candidates.end(); it++) {
+//        cerr << *it << endl;
+//    }
+//    cerr << "----------" << endl;
+
     Logger::instance().debug("\n");
 }
 
@@ -905,8 +997,9 @@ vector<cut> Sketch::find_cuts_with_chain(string ref_l, string ref_r, cut_stats& 
     merging_time += std::chrono::duration<double, std::milli>(t2-t1).count();
     Logger::instance().debug("%d\n", final_cuts.size());
 
+sort(final_cuts.begin(), final_cuts.end());
+
     #ifdef DEBUG
-    sort(final_cuts.begin(), final_cuts.end());
     for (int  i = 0; i < final_cuts.size(); i++) {
         Logger::instance().debug("%-30s: %4d-%4d (%4d) | ", sequences[final_cuts[i].seq_id].first.c_str(), final_cuts[i].range.start,
                                  final_cuts[i].range.end, final_cuts[i].range.end - final_cuts[i].range.start);
@@ -947,6 +1040,7 @@ pair<vector<cut>, int> Sketch::find_cuts_all(string& ref_l, string& ref_r, bool 
     vector<cut> cuts, cuts_2;
 
     unordered_set<id_t> insertion_candidates_frw, insertion_candidates_rc;
+    auto t1 = chrono::high_resolution_clock::now();
     if (!short_reads.empty()) {
         int read_len = short_reads[0].size();
         int left_cut_size = min(read_len, (int)ref_l.size());
@@ -958,24 +1052,30 @@ pair<vector<cut>, int> Sketch::find_cuts_all(string& ref_l, string& ref_r, bool 
         string genome_right = ref_r.substr(0, right_cut_size);
         string genome_right_rc = reverse_complement(genome_right);
 
+        auto t11 = chrono::high_resolution_clock::now();
         vector<string> short_reads_rc(short_reads.size());
         for (int i = 0; i < short_reads.size(); i++) {
             short_reads_rc.push_back(reverse_complement(short_reads[i]));
         }
+        auto t22 = chrono::high_resolution_clock::now();
+        get_minimizers_time_p0 += std::chrono::duration<double, std::milli>(t22-t11).count();
 
         get_insertion_minimizers_new(short_reads, genome_left, genome_right, insertion_candidates_frw);
         get_insertion_minimizers_new(short_reads_rc, genome_left_rc, genome_right_rc, insertion_candidates_rc);
 
 //        Logger::instance().debug("Insertion Minimizers: F(%d), R(%d)\n", insertion_candidates_frw.size(), insertion_candidates_rc.size());
     }
+    auto t2 = chrono::high_resolution_clock::now();
+    get_minimizers_time += std::chrono::duration<double, std::milli>(t2-t1).count();
 
-    auto t1 = chrono::high_resolution_clock::now();
+    t1 = chrono::high_resolution_clock::now();
     cut_stats frw_stats, rc_stats;
     Logger::instance().debug("--- FRW ---\n");
     cuts = find_cuts_with_chain(ref_l, ref_r, frw_stats, FRW, insertion_candidates_frw, long_insertion);
     Logger::instance().debug("--- REV ---\n");
     cuts_2 = find_cuts_with_chain(reverse_complement(ref_r), reverse_complement(ref_l), rc_stats, REV, insertion_candidates_rc, long_insertion);
-    auto t2 = chrono::high_resolution_clock::now();
+    t2 = chrono::high_resolution_clock::now();
+    find_cuts_with_chain_time += std::chrono::duration<double, std::milli>(t2-t1).count();
 
     int insertion_estimation = -1;
     t1 = chrono::high_resolution_clock::now();
@@ -1027,6 +1127,10 @@ pair<vector<cut>, int> Sketch::find_cuts_all(string& ref_l, string& ref_r, bool 
         }
         Logger::instance().debug("LE: %d | RE: %d\n", left_extension, right_extension);
     }
+    t2 = chrono::high_resolution_clock::now();
+    insertion_estimation_time += std::chrono::duration<double, std::milli>(t2-t1).count();
+
+    t1 = chrono::high_resolution_clock::now();
     for (int i = 0; i < cuts.size(); i++) {
         readjust(cuts[i], left_extension, right_extension, false);
     }
@@ -1034,12 +1138,14 @@ pair<vector<cut>, int> Sketch::find_cuts_all(string& ref_l, string& ref_r, bool 
         readjust(cuts_2[i], right_extension, left_extension, true);
     }
     t2 = chrono::high_resolution_clock::now();
+    readjustment_time += std::chrono::duration<double, std::milli>(t2-t1).count();
 
     cuts.insert(cuts.end(), cuts_2.begin(), cuts_2.end());
 
-    t1 = chrono::high_resolution_clock::now();
+//    t1 = chrono::high_resolution_clock::now();
+sort(cuts.begin(), cuts.end());
 #ifdef DEBUG
-    sort(cuts.begin(), cuts.end());
+    // sort(cuts.begin(), cuts.end());
     for (int  i = 0; i < cuts.size(); i++) {
         Logger::instance().debug("%-30s: %4d-%4d (%4d) | ", sequences[cuts[i].seq_id].first.c_str(), cuts[i].range.start,
                                  cuts[i].range.end, cuts[i].range.end - cuts[i].range.start);
@@ -1057,7 +1163,7 @@ pair<vector<cut>, int> Sketch::find_cuts_all(string& ref_l, string& ref_r, bool 
             Logger::instance().debug("T: M\n");
     }
 #endif
-    t2 = chrono::high_resolution_clock::now();
+//    t2 = chrono::high_resolution_clock::now();
 //    cerr << "printing: " << std::chrono::duration<double, std::milli>(t2-t1).count() << endl;
 
     if (frw_stats.overlapping_cnt + rc_stats.overlapping_cnt > 2) {
