@@ -533,6 +533,7 @@ void Sketch::find_left_cuts(vector<hit>& read_candidates, vector<cut>& candidate
 
     for (auto it = 0; it < read_candidates.size(); it++) {
         id_t curr_id = read_candidates[it].seq_id;
+
         auto curr_idx = it;
 
         auto upper = upper_bound(read_candidates.begin(), read_candidates.end(), curr_id, hit());
@@ -542,19 +543,28 @@ void Sketch::find_left_cuts(vector<hit>& read_candidates, vector<cut>& candidate
 
         it += size;
 
-        if (insertion_candidates.size() != 0) {
-            if (insertion_candidates.find(curr_id) == insertion_candidates.end()) {
+cut read_cut_info;
+read_cut_info.seq_id = curr_id;
+read_cut_info.orientation = orientation;
+read_cut_info.range.start = 1;
+read_cut_info.range.start = 5;
+read_cut_info.type = DROPPED;
+
+//         if (insertion_candidates.size() != 0) {
+//             if (insertion_candidates.find(curr_id) == insertion_candidates.end()) {
 //                Logger::instance().debug("%-30s DROPPED(IM)\n", sequences[curr_id].first.c_str());
-                continue;
-            }
-        }
+//                 continue;
+//             }
+//         }
 
         int minimizer_cutoff = (int)((1.0 * GENOME_ANCHOR_CUTOFF/anchor_length) * genome_minimizers_cnt);
 //        if (size < max(3, minimizer_cutoff)) {
-        if (size < 3) {
-//            tmp_cnt++;
+        // if (size < 3) {
+		if (size < TCK * genome_minimizers_cnt){
             continue;
         }
+		candidates_cut_info.push_back(read_cut_info);
+		continue;
 
         Logger::instance().debug("%-30s", sequences[curr_id].first.c_str());
         //move curr_id to first argument and drop orientation
@@ -598,9 +608,9 @@ void Sketch::find_left_cuts(vector<hit>& read_candidates, vector<cut>& candidate
             continue;
         }
 
-        cut read_cut_info;
-        read_cut_info.seq_id = curr_id;
-        read_cut_info.orientation = orientation;
+        // cut read_cut_info;
+        // read_cut_info.seq_id = curr_id;
+        // read_cut_info.orientation = orientation;
         read_cut_info.range.start = max(0, max_chain.qrange.second + skip);
         read_cut_info.range.end = sequences[curr_id].second - 1;
         read_cut_info.genome_range.start = max_chain.rrange.first;
@@ -634,19 +644,32 @@ void Sketch::find_right_cuts(vector<hit>& read_candidates, vector<cut>& candidat
 
         it += size;
 
-        if (insertion_candidates.size() != 0) {
-            if (insertion_candidates.find(curr_id) == insertion_candidates.end()) {
+cut read_cut_info;
+read_cut_info.seq_id = curr_id;
+read_cut_info.orientation = orientation;
+read_cut_info.range.end = 5;
+read_cut_info.range.start = 1;
+
+//         if (insertion_candidates.size() != 0) {
+//             if (insertion_candidates.find(curr_id) == insertion_candidates.end()) {
 //                Logger::instance().debug("%-30s DROPPED(IM)\n", sequences[curr_id].first.c_str());
-                continue;
-            }
-        }
+//                 continue;
+//             }
+//         }
 
         int minimizer_cutoff = (int)((1.0 * GENOME_ANCHOR_CUTOFF/anchor_length) * genome_minimizers_cnt);
 //        if (size < max(3, minimizer_cutoff)) {
-        if (size < 3) {
-//            tmp_cnt++;
-            continue;
-        }
+//         if (size < 3) {
+		if (size < TCK * genome_minimizers_cnt) {
+			continue;
+		}
+// //            tmp_cnt++;
+// // candidates_cut_info.push_back(read_cut_info);
+//             continue;
+//         }
+
+candidates_cut_info.push_back(read_cut_info);
+continue;
 
         Logger::instance().debug("%-30s", sequences[curr_id].first.c_str());
         //move curr_id to first argument and drop orientation
@@ -656,8 +679,8 @@ void Sketch::find_right_cuts(vector<hit>& read_candidates, vector<cut>& candidat
         int gdistance = max_chain.rrange.second - max_chain.rrange.first;
         tmp_cnt++;
 
-        //TODO: add to paper
         int number_of_minimizers = (max_chain.gaps_size + max_chain.score)/kmer_size;
+//PLOTS: CHANGING HERE from 0.25
         if (number_of_minimizers < 0.25 * max_kmer_count(max_chain, anchor_length, (int)sequences[curr_id].second, genome_minimizers_cnt)) {
             Logger::instance().debug("DROPPED(LM)\n");
             continue;
@@ -690,9 +713,9 @@ void Sketch::find_right_cuts(vector<hit>& read_candidates, vector<cut>& candidat
             continue;
         }
 
-        cut read_cut_info;
-        read_cut_info.seq_id = curr_id;
-        read_cut_info.orientation = orientation;
+        // cut read_cut_info;
+        // read_cut_info.seq_id = curr_id;
+        // read_cut_info.orientation = orientation;
         read_cut_info.range.end = min(sequences[curr_id].second - 1, max(max_chain.qrange.first + skip, 0));
         read_cut_info.range.start = 0;
         read_cut_info.genome_range.start = pivot;
@@ -702,8 +725,6 @@ void Sketch::find_right_cuts(vector<hit>& read_candidates, vector<cut>& candidat
         Logger::instance().debug("Q: [%4d - %4d, %4d] | G: [%4d - %4d] | P: %d | **\n", read_cut_info.range.start, read_cut_info.range.end,
                                  read_cut_info.range.end - read_cut_info.range.start, read_cut_info.genome_range.start,
                                  read_cut_info.genome_range.end, read_cut_info.breakpoint_distance);
-
-        candidates_cut_info.push_back(read_cut_info);
     }
 }
 

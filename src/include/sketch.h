@@ -22,6 +22,7 @@ const int GENOME_ANCHOR_CUTOFF = 50;
 //TODO: = k + 2*w
 const int BOUNDARY_DISTANCE_CUTOFF = 100;
 const float INSERTION_MINIMIZERS_CUTOFF = 0.125;
+const float TCK = 0.9;
 
 typedef uint32_t id_t;
 typedef uint64_t hash_t;
@@ -31,7 +32,7 @@ typedef uint64_t mem_offset_t;
 typedef pair<hash_t, int> minimizer_t;
 
 enum orientation_en : u_int8_t {FRW = 0, REV = 1};
-enum type_en : u_int8_t {BIMODAL = 0, PARTIAL_LEFT = 1, PARTIAL_RIGHT = 2, OVERLAPPING_READ = 3};
+enum type_en : u_int8_t {BIMODAL = 0, PARTIAL_LEFT = 1, PARTIAL_RIGHT = 2, OVERLAPPING_READ = 3, DROPPED = 4};
 
 struct cut_stats {
     int bimodal_cnt = 0;
@@ -130,7 +131,7 @@ class Sketch {
 		int window_size = 10;
         int32_t buff_pos = 0;
         int32_t buff_size = 0;
-		static const int thread_cnt = 16;
+		static const int thread_cnt = 4;
 
         vector<minimizer> minimizers;
         vector<Location> ref_minimizers;
