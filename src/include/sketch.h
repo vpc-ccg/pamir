@@ -21,8 +21,9 @@ const int GENOME_ANCHOR_LEN = 100;
 const int GENOME_ANCHOR_CUTOFF = 50;
 //TODO: = k + 2*w
 const int BOUNDARY_DISTANCE_CUTOFF = 100;
-const float INSERTION_MINIMIZERS_CUTOFF = 0.125;
-const float TCK = 0.9;
+const float INSERTION_MINIMIZERS_CUTOFF = 0.2;
+const float TGA = 0.25;
+const float TCK = 0.7;
 
 typedef uint32_t id_t;
 typedef uint64_t hash_t;
@@ -163,13 +164,13 @@ class Sketch {
         vector<cut> find_cuts_with_chain(string ref_l, string ref_r, cut_stats&, orientation_en, unordered_set<id_t>&, bool);
         vector<seed> create_seeds_new(vector<hit>& hits, int start, int size);
         MaxChainInfo get_genome_anchor_new_new(vector<hit>& left_anchor_hits, int start, int size);
-        void find_left_cuts(vector<hit>& read_candidates, vector<cut>&, int, orientation_en, int genome_minimizers_cnt, unordered_set<id_t>& insertion_minimizers);
-        void find_right_cuts(vector<hit>& read_candidates, vector<cut>&, int, orientation_en, int genome_minimizers_cnt, unordered_set<id_t>& insertion_minimizers);
+        void find_left_cuts(vector<hit>& read_candidates, vector<cut>&, int, orientation_en, int genome_minimizers_cnt, unordered_set<id_t>& insertion_minimizers, vector<minimizer_t>&);
+        void find_right_cuts(vector<hit>& read_candidates, vector<cut>&, int, orientation_en, int genome_minimizers_cnt, unordered_set<id_t>& insertion_minimizers, vector<minimizer_t>&);
         void merge_candidates(vector<cut>& left_candidates, vector<cut>& right_candidates, vector<cut>& merged_candidates,
                           cut_stats&, bool);
         void get_insertion_minimizers_new(vector<string>& short_reads, string& genome_left, string& genome_right, unordered_set<id_t>& candidates);
         void get_unique_minimizers(vector<string> &reads, unordered_set<hash_t>& insertion_minimizers);
-        inline int max_kmer_count(MaxChainInfo chain, int anchor_length, int read_length, int);
+        inline int max_kmer_count(MaxChainInfo chain, int anchor_length, int read_length, int, vector<minimizer_t>&);
 
         double get_minimizers_time = 0;
         double find_cuts_with_chain_time = 0;

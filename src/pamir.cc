@@ -352,15 +352,12 @@ void find_reads (const string &partition_file, const string &dat_path, const str
     progress.update(((float)cnt/(float)total) * 100, comment);
 
     int genome_anchor_len = 600;
-//    int genome_anchor_len = 550;
     int genome_anchor_distance = 650;
-//    int genome_anchor_len = 3 * len;
-//    int genome_anchor_distance = genome_anchor_len + 2 * len;
 
     auto t1 = chrono::high_resolution_clock::now();
     Sketch lr_sketch = Sketch(dat_path, len, genome_anchor_distance);
     auto t2 = chrono::high_resolution_clock::now();
-    cerr << "loading sketch: " << std::chrono::duration<double, std::milli>(t2-t1).count()/1000.0 << endl;
+    // //cerr << "loading sketch: " << std::chrono::duration<double, std::milli>(t2-t1).count()/1000.0 << endl;
 
     //TODO FIX NAME - Get ouput as an argument
     string p2 = "partition-p2-" + range;
@@ -432,8 +429,6 @@ void find_reads (const string &partition_file, const string &dat_path, const str
 			// cerr << 
 			//
             ranges.push_back({cut_candidates[i].seq_id, cut_candidates[i].range});
-//            if (cut_candidates[i].estimated_insertion != -1 && cut_candidates[i].estimated_insertion < estimated_insertion)
-//                estimated_insertion = cut_candidates[i].estimated_insertion;
         }
 
         if (cut_candidates.size() == 0) {
@@ -479,50 +474,47 @@ void find_reads (const string &partition_file, const string &dat_path, const str
     fout.write((char*)&ranges[0], size * sizeof(pair<id_t, range_s>));
     fout.close();
 
-//    cerr << "Hits Time: " << lr_sketch.hits_time/1000.0 << endl;
-//    cerr << "Find Time: " << lr_sketch.finding_time/1000.0 << endl;
-//    cerr << "Merging Time: " << lr_sketch.merging_time/1000.0 << endl;
-//    cerr << "Chaining Time: " << lr_sketch.chaining_time/1000.0 << endl;
-//    cerr << "Chain Sorting Time: " << lr_sketch.claspChain.sort_time/1000.0 << endl;
-//    cerr << "Clasp Time: " << lr_sketch.clasp_time/1000.0 << endl;
-//    cerr << "Seed Time: " << lr_sketch.seed_time/1000.0 << endl;
-//    cerr << "Building Chain: " << lr_sketch.claspChain.chain_time/1000.0 << endl;
+   //cerr << "Hits Time: " << lr_sketch.hits_time/1000.0 << endl;
+   //cerr << "Find Time: " << lr_sketch.finding_time/1000.0 << endl;
+   //cerr << "Merging Time: " << lr_sketch.merging_time/1000.0 << endl;
+   //cerr << "Chaining Time: " << lr_sketch.chaining_time/1000.0 << endl;
+   //cerr << "Chain Sorting Time: " << lr_sketch.claspChain.sort_time/1000.0 << endl;
+   //cerr << "Clasp Time: " << lr_sketch.clasp_time/1000.0 << endl;
+   //cerr << "Seed Time: " << lr_sketch.seed_time/1000.0 << endl;
+   //cerr << "Building Chain: " << lr_sketch.claspChain.chain_time/1000.0 << endl;
 
-    cerr << "get_minimizers: " << lr_sketch.get_minimizers_time/1000.0 << endl;
-    cerr << "get_minimizers_0: " << lr_sketch.get_minimizers_time_p0/1000.0 << endl;
-    cerr << "get_minimizers_1: " << lr_sketch.get_minimizers_time_p1/1000.0 << endl;
-    cerr << "get_minimizers_2: " << lr_sketch.get_minimizers_time_p2/1000.0 << endl;
-    cerr << "get_minimizers_3: " << lr_sketch.get_minimizers_time_p3/1000.0 << endl;
-    cerr << "get_minimizers_4: " << lr_sketch.get_minimizers_time_p4/1000.0 << endl;
-    cerr << "find_cuts_with_chain: " << lr_sketch.find_cuts_with_chain_time/1000.0 << endl;
-    cerr << "insertion_estimation: " << lr_sketch.insertion_estimation_time/1000.0 << endl;
-    cerr << "readjustment: " << lr_sketch.readjustment_time/1000.0 << endl;
-    cerr << "Cnt: " << lr_sketch.tmp_cnt << endl;
+    //cerr << "get_minimizers: " << lr_sketch.get_minimizers_time/1000.0 << endl;
+    //cerr << "get_minimizers_0: " << lr_sketch.get_minimizers_time_p0/1000.0 << endl;
+    //cerr << "get_minimizers_1: " << lr_sketch.get_minimizers_time_p1/1000.0 << endl;
+    //cerr << "get_minimizers_2: " << lr_sketch.get_minimizers_time_p2/1000.0 << endl;
+    //cerr << "get_minimizers_3: " << lr_sketch.get_minimizers_time_p3/1000.0 << endl;
+    //cerr << "get_minimizers_4: " << lr_sketch.get_minimizers_time_p4/1000.0 << endl;
+    //cerr << "find_cuts_with_chain: " << lr_sketch.find_cuts_with_chain_time/1000.0 << endl;
+    //cerr << "insertion_estimation: " << lr_sketch.insertion_estimation_time/1000.0 << endl;
+    //cerr << "readjustment: " << lr_sketch.readjustment_time/1000.0 << endl;
+    //cerr << "Cnt: " << lr_sketch.tmp_cnt << endl;
 }
 /*********************************************************************************************/
 void extract_reads(const string &partition_file, const string &longread, const string &range, const string &p3_name,
                    const string& dat_path, const string& ranges_file)
 {
-	// cerr <<  partition_file << endl;
     p2_partition pt_2(partition_file, range);
-// cerr << "Read" << endl;
+
     ProgressBar progress(80);
     char comment[20];
     int cnt = 0;
     int total = pt_2.get_total();
     sprintf(comment, "%10d / %-10d", cnt, total);
     progress.update(((float)cnt/(float)total) * 100, comment);
-	// cerr << "1" << endl;
+
     cut_ranges ranges = cut_ranges(longread, dat_path, ranges_file);
-// cerr << "2" << endl;
+
     ranges.extract();
 
     //TODO FIX NAME + get output name as argument
-	// cerr << "new" << endl;
+
     string p3 = "partition-p3-" + p3_name;
-	// cerr << p3 << endl;
     p3_partition pt_3(p3, true);
-	// cerr << "Read" << endl;
 
     aligner al(30000);
 
