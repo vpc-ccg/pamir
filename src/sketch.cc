@@ -678,6 +678,8 @@ void Sketch::find_right_cuts(vector<hit>& read_candidates, vector<cut>& candidat
         Logger::instance().debug("Q: [%4d - %4d, %4d] | G: [%4d - %4d] | P: %d | **\n", read_cut_info.range.start, read_cut_info.range.end,
                                  read_cut_info.range.end - read_cut_info.range.start, read_cut_info.genome_range.start,
                                  read_cut_info.genome_range.end, read_cut_info.breakpoint_distance);
+
+		candidates_cut_info.push_back(read_cut_info);
     }
 }
 

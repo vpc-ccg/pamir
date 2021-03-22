@@ -419,15 +419,8 @@ void find_reads (const string &partition_file, const string &dat_path, const str
         cut_results = lr_sketch.query(reads, false, ref_l, ref_r);
         cut_candidates = cut_results.first;
 
-//For threshold plot
-		// cerr << pt.get_id() << " " << p.size() << " " << cut_candidates.size() << " " << pt_start << " " << pt_end << 
-		// chrName << " " << "-1" << endl;
-//
         int estimated_insertion = cut_results.second;
         for (int i = 0; i < cut_candidates.size(); i++) {
-			//For threshold plot
-			// cerr << 
-			//
             ranges.push_back({cut_candidates[i].seq_id, cut_candidates[i].range});
         }
 
